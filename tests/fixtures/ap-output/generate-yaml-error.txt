@@ -1,0 +1,12 @@
+Archipelago (0.6.8) logging initialized on Windows-10-10.0.26100-SP0 process 7788 running Python 3.12.7 (frozen)
+Traceback (most recent call last):
+  File "Generate.py", line 664, in <module>
+  File "Generate.py", line 296, in main
+ValueError: Encountered 1 error(s) in player files. See logs for full tracebacks.
+
+1. File Bob.yaml is invalid. Please fix your yaml.
+Exception: while scanning a simple key could not find expected ':' on line 2:
+name Bob
+Pokemon Emerald:
+^
+Press enter to close.

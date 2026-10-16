@@ -1,0 +1,415 @@
+{
+  "apVersion": "0.6.8",
+  "worlds": [
+    {
+      "module": "adventure",
+      "game": "Adventure",
+      "loose": true
+    },
+    {
+      "module": "ahit",
+      "game": "A Hat in Time",
+      "loose": false
+    },
+    {
+      "module": "alttp",
+      "game": "A Link to the Past",
+      "loose": true
+    },
+    {
+      "module": "apquest",
+      "game": "APQuest",
+      "loose": false
+    },
+    {
+      "module": "aquaria",
+      "game": "Aquaria",
+      "loose": false
+    },
+    {
+      "module": "blasphemous",
+      "game": "Blasphemous",
+      "loose": false
+    },
+    {
+      "module": "bomb_rush_cyberfunk",
+      "game": "Bomb Rush Cyberfunk",
+      "loose": false
+    },
+    {
+      "module": "bumpstik",
+      "game": "Bumper Stickers",
+      "loose": false
+    },
+    {
+      "module": "cccharles",
+      "game": "Choo-Choo Charles",
+      "loose": false
+    },
+    {
+      "module": "celeste64",
+      "game": "Celeste 64",
+      "loose": false
+    },
+    {
+      "module": "celeste_open_world",
+      "game": "Celeste (Open World)",
+      "loose": false
+    },
+    {
+      "module": "checksfinder",
+      "game": "ChecksFinder",
+      "loose": false
+    },
+    {
+      "module": "civ_6",
+      "game": "Civilization VI",
+      "loose": false
+    },
+    {
+      "module": "cv64",
+      "game": "Castlevania 64",
+      "loose": false
+    },
+    {
+      "module": "cvcotm",
+      "game": "Castlevania - Circle of the Moon",
+      "loose": false
+    },
+    {
+      "module": "dark_souls_3",
+      "game": "Dark Souls III",
+      "loose": false
+    },
+    {
+      "module": "dlcquest",
+      "game": "DLCQuest",
+      "loose": false
+    },
+    {
+      "module": "doom_1993",
+      "game": "DOOM 1993",
+      "loose": false
+    },
+    {
+      "module": "doom_ii",
+      "game": "DOOM II",
+      "loose": false
+    },
+    {
+      "module": "earthbound",
+      "game": "EarthBound",
+      "loose": false
+    },
+    {
+      "module": "factorio",
+      "game": "Factorio",
+      "loose": false
+    },
+    {
+      "module": "faxanadu",
+      "game": "Faxanadu",
+      "loose": false
+    },
+    {
+      "module": "ff1",
+      "game": "Final Fantasy",
+      "loose": false
+    },
+    {
+      "module": "ffmq",
+      "game": "Final Fantasy Mystic Quest",
+      "loose": false
+    },
+    {
+      "module": "generic",
+      "game": "Archipelago",
+      "loose": true
+    },
+    {
+      "module": "gl",
+      "game": "Gauntlet Legends",
+      "loose": false
+    },
+    {
+      "module": "heretic",
+      "game": "Heretic",
+      "loose": false
+    },
+    {
+      "module": "hk",
+      "game": "Hollow Knight",
+      "loose": false
+    },
+    {
+      "module": "hylics2",
+      "game": "Hylics 2",
+      "loose": false
+    },
+    {
+      "module": "inscryption",
+      "game": "Inscryption",
+      "loose": false
+    },
+    {
+      "module": "jakanddaxter",
+      "game": "Jak and Daxter: The Precursor Legacy",
+      "loose": false
+    },
+    {
+      "module": "kdl3",
+      "game": "Kirby's Dream Land 3",
+      "loose": false
+    },
+    {
+      "module": "kh1",
+      "game": "Kingdom Hearts",
+      "loose": false
+    },
+    {
+      "module": "kh2",
+      "game": "Kingdom Hearts 2",
+      "loose": false
+    },
+    {
+      "module": "ladx",
+      "game": "Links Awakening DX",
+      "loose": false
+    },
+    {
+      "module": "landstalker",
+      "game": "Landstalker - The Treasures of King Nole",
+      "loose": false
+    },
+    {
+      "module": "lingo",
+      "game": "Lingo",
+      "loose": false
+    },
+    {
+      "module": "lufia2ac",
+      "game": "Lufia II Ancient Cave",
+      "loose": true
+    },
+    {
+      "module": "marioland2",
+      "game": "Super Mario Land 2",
+      "loose": false
+    },
+    {
+      "module": "meritous",
+      "game": "Meritous",
+      "loose": true
+    },
+    {
+      "module": "messenger",
+      "game": "The Messenger",
+      "loose": false
+    },
+    {
+      "module": "mlss",
+      "game": "Mario & Luigi Superstar Saga",
+      "loose": false
+    },
+    {
+      "module": "mm2",
+      "game": "Mega Man 2",
+      "loose": false
+    },
+    {
+      "module": "mm3",
+      "game": "Mega Man 3",
+      "loose": false
+    },
+    {
+      "module": "mmbn3",
+      "game": "MegaMan Battle Network 3",
+      "loose": false
+    },
+    {
+      "module": "musedash",
+      "game": "Muse Dash",
+      "loose": false
+    },
+    {
+      "module": "noita",
+      "game": "Noita",
+      "loose": false
+    },
+    {
+      "module": "oot",
+      "game": "Ocarina of Time",
+      "loose": true
+    },
+    {
+      "module": "osrs",
+      "game": "Old School Runescape",
+      "loose": false
+    },
+    {
+      "module": "overcooked2",
+      "game": "Overcooked! 2",
+      "loose": true
+    },
+    {
+      "module": "paint",
+      "game": "Paint",
+      "loose": false
+    },
+    {
+      "module": "pokemon_emerald",
+      "game": "Pokemon Emerald",
+      "loose": false
+    },
+    {
+      "module": "pokemon_rb",
+      "game": "Pokemon Red and Blue",
+      "loose": false
+    },
+    {
+      "module": "raft",
+      "game": "Raft",
+      "loose": true
+    },
+    {
+      "module": "ror2",
+      "game": "Risk of Rain 2",
+      "loose": false
+    },
+    {
+      "module": "sa2b",
+      "game": "Sonic Adventure 2 Battle",
+      "loose": false
+    },
+    {
+      "module": "satisfactory",
+      "game": "Satisfactory",
+      "loose": false
+    },
+    {
+      "module": "saving_princess",
+      "game": "Saving Princess",
+      "loose": false
+    },
+    {
+      "module": "sc2",
+      "game": "Starcraft 2",
+      "loose": false
+    },
+    {
+      "module": "shapez",
+      "game": "shapez",
+      "loose": false
+    },
+    {
+      "module": "shivers",
+      "game": "Shivers",
+      "loose": false
+    },
+    {
+      "module": "shorthike",
+      "game": "A Short Hike",
+      "loose": false
+    },
+    {
+      "module": "sm",
+      "game": "Super Metroid",
+      "loose": false
+    },
+    {
+      "module": "sm64ex",
+      "game": "Super Mario 64",
+      "loose": true
+    },
+    {
+      "module": "smw",
+      "game": "Super Mario World",
+      "loose": false
+    },
+    {
+      "module": "smz3",
+      "game": "SMZ3",
+      "loose": false
+    },
+    {
+      "module": "soe",
+      "game": "Secret of Evermore",
+      "loose": false
+    },
+    {
+      "module": "stardew_valley",
+      "game": "Stardew Valley",
+      "loose": false
+    },
+    {
+      "module": "subnautica",
+      "game": "Subnautica",
+      "loose": false
+    },
+    {
+      "module": "terraria",
+      "game": "Terraria",
+      "loose": false
+    },
+    {
+      "module": "timespinner",
+      "game": "Timespinner",
+      "loose": false
+    },
+    {
+      "module": "tloz",
+      "game": "The Legend of Zelda",
+      "loose": false
+    },
+    {
+      "module": "tunic",
+      "game": "TUNIC",
+      "loose": false
+    },
+    {
+      "module": "tww",
+      "game": "The Wind Waker",
+      "loose": false
+    },
+    {
+      "module": "undertale",
+      "game": "Undertale",
+      "loose": false
+    },
+    {
+      "module": "v6",
+      "game": "VVVVVV",
+      "loose": true
+    },
+    {
+      "module": "wargroove",
+      "game": "Wargroove",
+      "loose": true
+    },
+    {
+      "module": "witness",
+      "game": "The Witness",
+      "loose": false
+    },
+    {
+      "module": "yachtdice",
+      "game": "Yacht Dice",
+      "loose": false
+    },
+    {
+      "module": "yoshisisland",
+      "game": "Yoshi's Island",
+      "loose": false
+    },
+    {
+      "module": "yugioh06",
+      "game": "Yu-Gi-Oh! 2006",
+      "loose": false
+    },
+    {
+      "module": "zillion",
+      "game": "Zillion",
+      "loose": false
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+Archipelago (0.6.8) logging initialized on Windows-10-10.0.26100-SP0 process 9120 running Python 3.12.7 (frozen)
+P1 Weights: Alice.yaml >> No description specified
+P2 Weights: Bob.yaml >> No description specified
+Generating for 2 players, 20481736590283746159 Seed 66021947385520193847 with plando: bosses, connections, texts
+Archipelago Version 0.6.8  -  Seed: 66021947385520193847
+
+Found 82 World Types:
+Creating MultiWorld.
+Creating Items.
+Calculating Access Rules.
+Running Item Plando.
+Running Pre Main Fill.
+Filling the multiworld with 3190 items.
+Balancing multiworld progression for 2 Players.
+Running pre-output steps.
+Beginning output...
+Traceback (most recent call last):
+  File "Generate.py", line 666, in <module>
+  File "Main.py", line 367, in main
+Fill.FillError: Game appears as unbeatable. Aborting.
+All Placements:
+[(Littleroot Town - Pokemon Center (Alice), Great Ball (Alice)), (Oldale Town - Potion (Alice), Moon Pearl (Bob)), (Link's House (Bob), Pokeball (Alice)), (Uncle (Bob), Lamp (Bob)), (Sahasrahla's Hut - Left (Bob), Rupees (Five) (Bob)), (Sahasrahla's Hut - Middle (Bob), Bombs (3) (Bob)), (Sahasrahla's Hut - Right (Bob), Rupees (Twenty) (Bob)), (Kakariko Well - Top (Bob), Blue Mail (Bob)), (Kakariko Well - Left (Bob), Heart Container (Bob)), (Kakariko Well - Middle (Bob), Magic Upgrade (1/2) (Bob)), (Kakariko Well - Right (Bob), Rupees (Fifty) (Bob)), (Kakariko Well - Bottom (Bob), Rupees (Three Hundred) (Bob)), (Blind's Hideout - Top (Bob), Rupees (Hundred) (Bob)), (Blind's Hideout - Left (Bob), Red Potion (Bob)), (Blind's Hideout - Right (Bob), Good Bee (Bob)), (Blind's Hideout - Far Left (Bob), Single Arrow (Bob)), (Blind's Hideout - Far Right (Bob), Arrows (10) (Bob)), (Hyrule Castle - Boomerang Chest (Bob), Boomerang (Bob)), (Hyrule Castle - Map Chest (Bob), Map (Hyrule Castle) (Bob)), (Hyrule Castle - Zelda's Cell (Bob), Small Key (Hyrule Castle) (Bob)), (Sewers - Secret Room - Left (Bob), Rupees (Five) (Bob)), (Sewers - Dark Cross (Bob), Piece of Heart (Bob)), (Sewers - Secret Room - Right (Bob), Boss Heart Container (Bob)), (Sanctuary (Bob), Lantern
+Press enter to close.

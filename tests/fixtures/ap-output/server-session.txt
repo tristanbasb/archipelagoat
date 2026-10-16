@@ -1,0 +1,12 @@
+Notice (all): Alice (Team #1) playing Pokemon Emerald has joined. Client(0.6.8), ['AP'].
+Notice (all): Bob (Team #1) playing A Hat in Time has joined. Client(0.6.8), ['AP', 'DeathLink'].
+Notice (all): Carol (Team #1) tracking Pokemon Emerald has joined. Client(0.6.8), ['Tracker'].
+(Team #1) Alice sent Progressive Hat to Bob (Littleroot Town - Pokemon Center)
+(Team #1) Bob sent Key to the City to Alice (Mafia Town - Path to Lake)
+Notice (all): Bob: gg, nice run
+A client connection was refused due to: {'InvalidPassword'}, the sent connect information was {'password': 'hunter2', 'game': 'Pokemon Emerald', 'name': 'Alice', 'uuid': 'e3b0c442-98fc-4c14-9afb-f4c8996fb924', 'version': {'major': 0, 'minor': 6, 'build': 8, 'class': 'Version'}, 'items_handling': 7, 'tags': ['AP'], 'slot_data': True}.
+Notice (all): Carol (Team #1) has stopped tracking the game. Client(0.6.8), ['Tracker'].
+Notice (all): Bob (Team #1) has left the game. Client(0.6.8), ['AP', 'DeathLink'].
+Notice (all): Alice (Team #1) has completed their goal.
+Notice (all): Bob (Team #1) has completed their goal.
+Notice (all): Team #1 has completed all of their games! Congratulations!
