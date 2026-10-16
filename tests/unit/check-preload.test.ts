@@ -40,6 +40,10 @@ describe('scripts/check-preload.mjs', () => {
     expect(check('const fs = require("node:fs");\n').status).toBe(1)
   })
 
+  it('rejects the bundler require shim, any require( counts', () => {
+    expect(check('const electron = require("electron");\n__require(name);\n').status).toBe(1)
+  })
+
   it('fails when the bundle is missing', () => {
     const result = spawnSync(process.execPath, [script, join(dir, 'absent.js')], { encoding: 'utf8' })
     expect(result.status).toBe(1)

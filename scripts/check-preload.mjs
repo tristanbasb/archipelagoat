@@ -15,7 +15,8 @@ try {
 }
 
 const allowed = new Set(['"electron"', "'electron'"])
-const forbidden = [...code.matchAll(/\brequire\s*\(([^)]*)\)/g)]
+// Any `require(`, bundler shims such as `__require(` included.
+const forbidden = [...code.matchAll(/require\s*\(([^)]*)\)/g)]
   .filter((match) => !allowed.has(match[1].trim()))
   .map((match) => match[0])
 
