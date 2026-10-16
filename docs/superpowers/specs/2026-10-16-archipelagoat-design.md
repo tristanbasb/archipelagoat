@@ -173,12 +173,12 @@ Chaque module a une responsabilité unique, une interface publique documentée e
 
 ### 3.1 `ap/locator` — trouver Archipelago et ses chemins
 
-- **Windows**, dans l'ordre :
-  1. Clé de désinstallation `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}_is1` en **vue 64 bits** (`reg query ... /reg:64`) : `InstallLocation`, `DisplayName`.
-  2. `HKCR\archipelago\shell\open\command`.
+- Un **chemin choisi manuellement** dans les réglages prime toujours, sur les deux OS (c'est un choix explicite de l'utilisateur).
+- **Windows**, ensuite, dans l'ordre :
+  1. Clé de désinstallation `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}_is1` en **vue 64 bits** : `InstallLocation`, `DisplayName`. Lecture via PowerShell en UTF-8 (et non `reg.exe`, dont la sortie OEM casse les accents).
+  2. `HKLM\SOFTWARE\Classes\archipelago\shell\open\command`, en ignorant une commande qui pointerait vers ArchipelaGOAT.
   3. `C:\ProgramData\Archipelago` s'il existe.
-  4. Chemin choisi manuellement dans les réglages.
-- **Linux** : installation gérée par l'app (`dataRoot/archipelago/Archipelago`), puis chemins déclarés dans les réglages (tar.gz extrait ou AppImage), puis détection d'AppImage dans `~/Applications`, `~/Downloads`, `~/.local/bin`.
+- **Linux**, ensuite : installation gérée par l'app (`dataRoot/archipelago/Archipelago`), puis l'AppImage la plus récente trouvée dans `~/Applications`, `~/Downloads`, `~/.local/bin`. Pour une AppImage (non montée), la liste des jeux core vient d'une table embarquée par version d'AP.
 - **Version** : `<install>/manifest.json` → `version: [0,6,8]` ; sinon `DisplayName` ; sinon nom de l'AppImage. Pour une AppImage, `~/.local/share/Archipelago/manifest.json`.
 - **Résolution des chemins** (réimplémente `Utils.user_path`, brief §1.4) :
   - `localPath` = dossier de l'exécutable (AppImage : point de montage, en lecture seule).
@@ -257,7 +257,10 @@ Point unique pour lancer un programme AP ou BizHawk.
 - **Progression** : parse les lignes de `log-patterns.ts` (brief §1.6) → étapes nommées + pourcentage ; « Current fill step … X/Y » affine la barre.
 - **Succès** = code 0 **et** ligne `Creating final archive at <abs path>`. On lit ensuite le zip (sans l'extraire) : `AP_<seed>.archipelago`, spoiler, fichiers par joueur ; on construit la liste des slots (nom, jeu, fichier de patch) à partir du spoiler et des noms de fichiers.
 - **Échec** : extraction de la dernière exception (`<Type>: …`) depuis stderr, tronquée (une FillError peut faire des Mo), passage au `error-catalog` → message traduit + action ; lien vers le log complet.
-- **Pré-vol obligatoire** avant de lancer : validation YAML (§3.10), mondes installés (§3.9), ROMs requises à la génération présentes et MD5 corrects (§3.12). Aucune génération ne part si le pré-vol échoue : ainsi aucune boîte de dialogue cachée ne peut apparaître.
+- **Pré-vol obligatoire** avant de lancer : validation YAML (§3.10), mondes installés (§3.9), ROMs requises à la génération (§3.12).
+  - Une ROM est « prête » si la clé `<jeu>.rom_file` du fichier de réglages effectif pointe vers un fichier au bon MD5, **ou** si le coffre ROM contient une correspondance vérifiée.
+  - Dans les deux cas, le chemin absolu est écrit dans le `host.yaml` **de session**, sans toucher aux réglages globaux.
+  - Aucune génération ne part si le pré-vol échoue : ainsi aucune boîte de dialogue cachée ne peut apparaître.
 - Délai de garde : avertissement à 10 min sans progression, annulation possible (kill + nettoyage).
 
 ### 3.9 `worlds/*` — APWorlds
@@ -299,7 +302,8 @@ Point unique pour lancer un programme AP ou BizHawk.
 ### 3.11 `ap/server` — serveur local
 
 - Choix d'un port libre (38281 par défaut, sinon suivant).
-- Lancement : `ArchipelagoServer <zip absolu> --port <P> --savefile <ws>/output/<seed>.apsave` + **toutes** les options de mode passées explicitement (`--release_mode`, `--collect_mode`, `--remaining_mode`, `--countdown_mode`, `--hint_cost`, `--location_check_points`, `--auto_shutdown`, mots de passe), `cwd = sessionDir`, **`stdin: 'pipe'` gardé ouvert**. `disable_item_cheat` vient du `host.yaml` de session (flag `store_true`).
+- Lancement : `ArchipelagoServer <zip absolu> --port <P> --savefile <ws>/output/<seed>.apsave` + **toutes** les options de mode passées explicitement (`--release_mode`, `--collect_mode`, `--remaining_mode`, `--countdown_mode`, `--hint_cost`, `--location_check_points`, `--auto_shutdown`), `cwd = sessionDir`, **`stdin: 'pipe'` gardé ouvert**.
+- Avant chaque démarrage, le `host.yaml` de session est réécrit avec les règles et mots de passe courants. Les **mots de passe passent par ce fichier et jamais en argument** (sinon ils seraient visibles dans la liste des processus). `disable_item_cheat` vient aussi de ce fichier (flag `store_true`).
 - **Prêt** = ligne `server listening on` ; repli : `Hosting game at` + sonde TCP sur le port (timeout 30 s). Port occupé → erreur dédiée.
 - **Adresses à partager** : localhost, IPv4 LAN (interfaces réseau), IP publique (lookup par l'app, avec mention « nécessite une redirection de port »).
 - **Console** : envoi de commandes sur stdin (`/players`, `/status`, `/send`, `/release`, `/collect`, `/countdown`, `/hint`, `/option`, `/save`) ; les commandes à plusieurs mots sont quotées.
@@ -460,7 +464,7 @@ Rules { preset: 'casual'|'async'|'race'|'custom', spoiler, race, hintCost, relea
 - **Sons** 8-bit synthétisés en WebAudio (aucun fichier), **coupés par défaut**.
 - **Composants** : `NeonButton` (primary/secondary/ghost/danger), `PixelPanel`, `PlayerCard`, `StatTile`, `StatusPill`, `Stepper`, `Dropzone`, `ProgressBar` (segmentée façon barre de vie), `Terminal` (console + flux), `Modal`, `Toast`, `Tooltip`, `Toggle`, `Segmented`, `Select`/`Combobox`, `Slider`, `WeightSlider`, `Badge`, `TrustBadge`, `EmptyState`, `CRTOverlay`, `BootScreen`, `CopyField`.
 - **Accessibilité** : contraste ≥ 4.5:1 pour le texte, focus visible néon, navigation complète au clavier, `aria-*` sur les contrôles, libellés sur les boutons-icônes, textes alternatifs.
-- **Fenêtre** : 1280×800 par défaut, minimum 1024×680, barre de titre personnalisée (frameless avec zones de drag et boutons natifs via `titleBarOverlay` sous Windows).
+- **Fenêtre** : 1280×800 par défaut, minimum 1024×680, barre de titre personnalisée (`titleBarStyle: 'hidden'` avec zones de drag et boutons natifs via `titleBarOverlay`, sous Windows et Linux).
 - **Identité** : logo original (chèvre pixel + îlots, néon violet/jaune), icône d'app dérivée ; aucune ressource d'archipelago.gg.
 
 ### 4.4 Internationalisation
