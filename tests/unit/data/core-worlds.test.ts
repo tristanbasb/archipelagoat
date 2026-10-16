@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { coreWorldsFor } from '@shared/data/core-worlds'
+import { coreWorldsFor, coreWorldsTableFor } from '@shared/data/core-worlds'
 import { ROM_TABLE } from '@shared/data/rom-table'
 
 const AP_SRC = process.env.AP_SRC
@@ -21,14 +21,23 @@ describe('coreWorldsFor', () => {
     expect(coreWorldsFor('0.6.8')).toContainEqual({ module: 'gl', game: 'Gauntlet Legends', loose: false })
   })
 
-  it('returns null for a version it has no table for', () => {
+  it('returns null without a table of the same major.minor at or below the version', () => {
     expect(coreWorldsFor('0.6.7')).toBeNull()
+    expect(coreWorldsFor('0.7.0')).toBeNull()
+    expect(coreWorldsFor('1.6.9')).toBeNull()
     expect(coreWorldsFor('')).toBeNull()
+    expect(coreWorldsFor('0.6')).toBeNull()
     expect(coreWorldsFor('not a version')).toBeNull()
   })
 
   it('accepts a leading v and surrounding spaces', () => {
     expect(coreWorldsFor(' v0.6.8 ')).toEqual(coreWorldsFor('0.6.8'))
+  })
+
+  it('tolerates a later 0.6.x: it falls back to the nearest lower table', () => {
+    expect(coreWorldsFor('0.6.9')).toEqual(coreWorldsFor('0.6.8'))
+    expect(coreWorldsFor('0.6.10')).toEqual(coreWorldsFor('0.6.8'))
+    expect(coreWorldsFor('0.6.8-rc1')).toEqual(coreWorldsFor('0.6.8'))
   })
 
   it('hands out copies, so a caller cannot corrupt the table', () => {
@@ -38,6 +47,30 @@ describe('coreWorldsFor', () => {
     const alttp = coreWorldsFor('0.6.8')?.find((world) => world.module === 'alttp')
     if (alttp) alttp.loose = false
     expect(coreWorldsFor('0.6.8')?.find((world) => world.module === 'alttp')?.loose).toBe(true)
+  })
+})
+
+describe('coreWorldsTableFor', () => {
+  it('says which table it used and whether the version matched it exactly', () => {
+    const exact = coreWorldsTableFor('v0.6.8')
+    expect(exact).toMatchObject({ apVersion: '0.6.8', exact: true })
+    expect(exact?.worlds).toEqual(coreWorldsFor('0.6.8'))
+
+    expect(coreWorldsTableFor('0.6.9')).toMatchObject({ apVersion: '0.6.8', exact: false })
+    expect(coreWorldsTableFor('0.6.10')).toMatchObject({ apVersion: '0.6.8', exact: false })
+    expect(coreWorldsTableFor('0.6.8-rc1')).toMatchObject({ apVersion: '0.6.8', exact: false })
+  })
+
+  it('returns null when no table fits', () => {
+    expect(coreWorldsTableFor('0.6.7')).toBeNull()
+    expect(coreWorldsTableFor('0.5.1')).toBeNull()
+    expect(coreWorldsTableFor('0.7.0')).toBeNull()
+    expect(coreWorldsTableFor('garbage')).toBeNull()
+  })
+
+  it('hands out copies of the worlds', () => {
+    coreWorldsTableFor('0.6.9')?.worlds.splice(0)
+    expect(coreWorldsTableFor('0.6.8')?.worlds.length).toBeGreaterThan(70)
   })
 })
 
