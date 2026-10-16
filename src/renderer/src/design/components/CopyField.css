@@ -1,0 +1,70 @@
+.copy-field__frame {
+  padding-right: 4px;
+}
+
+.copy-field__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.copy-field__value[data-masked] {
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  user-select: none;
+}
+
+.copy-field__icon-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+}
+
+.copy-field__icon-btn:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.copy-field__icon-btn svg,
+.copy-field__copy svg {
+  width: 16px;
+  height: 16px;
+}
+
+.copy-field__copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  background: var(--bg-3);
+  color: var(--text);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.copy-field__copy:hover {
+  background: color-mix(in srgb, var(--neon-violet) 28%, var(--bg-3));
+}
+
+.copy-field__copy[data-copied] {
+  background: color-mix(in srgb, var(--tone) 18%, var(--bg-2));
+  color: var(--tone-ink);
+}

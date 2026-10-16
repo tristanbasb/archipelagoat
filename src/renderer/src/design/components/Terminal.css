@@ -1,0 +1,179 @@
+/* The title bar and the prompt are painted by the stepped fill, so they follow its corners. */
+.terminal {
+  --bar: 34px;
+  --prompt: 40px;
+  --pb-color: var(--line-strong);
+  --pb-fill:
+    linear-gradient(
+      to bottom,
+      var(--bg-2) 0 calc(var(--bar) - 3px),
+      var(--line) calc(var(--bar) - 3px) calc(var(--bar) - 2px),
+      transparent calc(var(--bar) - 2px)
+    ),
+    var(--bg-0);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  font-size: var(--fs-13);
+}
+
+.terminal--prompt {
+  --pb-fill:
+    linear-gradient(
+      to bottom,
+      var(--bg-2) 0 calc(var(--bar) - 3px),
+      var(--line) calc(var(--bar) - 3px) calc(var(--bar) - 2px),
+      transparent calc(var(--bar) - 2px)
+    ),
+    linear-gradient(
+      to top,
+      var(--bg-1) 0 calc(var(--prompt) - 2px),
+      var(--line) calc(var(--prompt) - 2px) calc(var(--prompt) - 1px),
+      transparent calc(var(--prompt) - 1px)
+    ),
+    var(--bg-0);
+}
+
+.terminal__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--bar);
+  padding: 0 var(--sp-4);
+}
+
+.terminal__lights {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.terminal__lights span {
+  width: 6px;
+  height: 6px;
+  background: var(--line-strong);
+}
+
+.terminal__lights span:first-child {
+  background: var(--neon-pink);
+}
+.terminal__lights span:nth-child(2) {
+  background: var(--neon-yellow);
+}
+.terminal__lights span:last-child {
+  background: var(--neon-green);
+}
+
+.terminal__title {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal__out {
+  flex: 1;
+  min-height: 120px;
+  max-height: var(--terminal-height, 280px);
+  padding: var(--sp-3) var(--sp-4);
+  overflow: auto;
+  background-image: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(255 255 255 / 0.012) 2px 3px);
+  line-height: 1.6;
+}
+
+.terminal__out:focus-visible {
+  outline-offset: -3px;
+}
+
+.terminal__line {
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.terminal__line[data-tone='dim'] {
+  color: var(--text-dim);
+}
+.terminal__line[data-tone='info'] {
+  color: var(--neon-cyan);
+}
+.terminal__line[data-tone='ok'] {
+  color: var(--neon-green);
+}
+.terminal__line[data-tone='warn'] {
+  color: var(--neon-yellow);
+}
+.terminal__line[data-tone='error'] {
+  color: var(--neon-pink);
+}
+.terminal__line[data-tone='progression'] {
+  color: var(--ap-progression);
+}
+.terminal__line[data-tone='useful'] {
+  color: var(--ap-useful);
+}
+.terminal__line[data-tone='trap'] {
+  color: var(--ap-trap);
+}
+.terminal__line[data-tone='filler'] {
+  color: var(--ap-filler);
+}
+.terminal__line[data-tone='self'] {
+  color: var(--neon-magenta);
+}
+
+.terminal__prompt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--prompt);
+  padding: 0 var(--sp-4);
+}
+
+/* The prompt: a stepped pixel chevron. */
+.terminal__caret {
+  flex: none;
+  width: 6px;
+  height: 10px;
+  background: var(--neon-green);
+  clip-path: polygon(
+    0 0,
+    33% 0,
+    33% 20%,
+    66% 20%,
+    66% 40%,
+    100% 40%,
+    100% 60%,
+    66% 60%,
+    66% 80%,
+    33% 80%,
+    33% 100%,
+    0 100%
+  );
+}
+
+.terminal__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-13);
+  caret-color: var(--neon-green);
+  caret-shape: block;
+}
+
+.terminal__input:focus-visible {
+  outline: none;
+}
+
+.terminal--prompt:focus-within {
+  --pb-color: color-mix(in srgb, var(--focus-ring) 80%, transparent);
+}
+
+.terminal__input::placeholder {
+  color: color-mix(in srgb, var(--text-dim) 80%, transparent);
+}

@@ -1,0 +1,148 @@
+.neon-btn {
+  --pb-step: var(--corner-sm);
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: var(--control-md);
+  padding: 0 var(--sp-4);
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    filter var(--dur) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    color var(--dur) var(--ease-out);
+}
+
+.neon-btn::before,
+.neon-btn::after {
+  transition: background var(--dur) var(--ease-out);
+}
+
+.neon-btn[data-size='sm'] {
+  gap: 6px;
+  height: var(--control-sm);
+  padding: 0 var(--sp-3);
+  font-size: var(--fs-12);
+}
+
+.neon-btn[data-size='lg'] {
+  --pb-step: var(--corner);
+  gap: var(--sp-3);
+  height: var(--control-lg);
+  padding: 0 var(--sp-6);
+  font-size: var(--fs-16);
+}
+
+.neon-btn--arcade {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.neon-btn--arcade[data-size='lg'] {
+  font-size: 14px;
+}
+
+.neon-btn__icon {
+  display: inline-flex;
+}
+
+.neon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.neon-btn[data-size='sm'] svg {
+  width: 14px;
+  height: 14px;
+}
+
+.neon-btn[data-size='lg'] svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Primary: a lit violet cartridge. */
+.neon-btn[data-variant='primary'] {
+  --pb-color: var(--tone);
+  --pb-fill: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tone) 58%, var(--bg-2)) 0%,
+    color-mix(in srgb, var(--tone) 34%, var(--bg-1)) 100%
+  );
+  color: #fff;
+  text-shadow: var(--text-glow);
+}
+
+.neon-btn[data-variant='primary']:hover:not(:disabled) {
+  --pb-fill: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tone) 72%, var(--bg-2)) 0%,
+    color-mix(in srgb, var(--tone) 44%, var(--bg-1)) 100%
+  );
+  filter: var(--drop-glow);
+}
+
+/* Secondary: cyan outline. */
+.neon-btn[data-variant='secondary'] {
+  --pb-color: var(--tone-line);
+  --pb-fill: var(--bg-2);
+  color: var(--tone-ink);
+}
+
+.neon-btn[data-variant='secondary']:hover:not(:disabled) {
+  --pb-color: var(--tone);
+  --pb-fill: color-mix(in srgb, var(--tone) 12%, var(--bg-2));
+  filter: var(--drop-glow);
+}
+
+/* Ghost: text only until hovered. */
+.neon-btn[data-variant='ghost'] {
+  --pb-color: transparent;
+  --pb-fill: transparent;
+  color: var(--text-dim);
+}
+
+.neon-btn[data-variant='ghost']:hover:not(:disabled) {
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-3);
+  color: var(--text);
+}
+
+/* Danger: pink, lit on hover. */
+.neon-btn[data-variant='danger'] {
+  --pb-color: var(--tone-line);
+  --pb-fill: color-mix(in srgb, var(--tone) 10%, var(--bg-2));
+  color: var(--tone-ink);
+}
+
+.neon-btn[data-variant='danger']:hover:not(:disabled) {
+  --pb-color: var(--tone);
+  --pb-fill: color-mix(in srgb, var(--tone) 24%, var(--bg-2));
+  filter: var(--drop-glow);
+}
+
+.neon-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.neon-btn:disabled {
+  filter: none;
+  opacity: 0.45;
+}
+
+.neon-btn[aria-busy='true'] {
+  cursor: progress;
+  opacity: 0.85;
+}

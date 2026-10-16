@@ -1,0 +1,381 @@
+/*
+ * Effects (spec §4.3): glows, pixel borders, blinking cursor, typewriter titles, CRT, scanlines and
+ * the perspective grid. Every effect is neutralized under .fx-off and prefers-reduced-motion;
+ * .fx-no-glow, .fx-no-crt and .fx-no-anim switch the three groups off one by one. The fx classes
+ * sit on an ancestor (the fx root of EffectsProvider) or on the element itself.
+ */
+
+/* The fx root of EffectsProvider and its portal host carry classes only, never a box. */
+.fx-root,
+.fx-portal-host {
+  display: contents;
+}
+
+/* ---- Glow ---------------------------------------------------------------------------------- */
+
+/*
+ * Glows for the current tone: a filter that follows stepped shapes, a text shadow and a small box
+ * shadow for little lit parts (segments, dots).
+ */
+[class*='tone-'] {
+  --drop-glow: drop-shadow(0 0 3px color-mix(in srgb, var(--tone) 75%, transparent))
+    drop-shadow(0 0 12px color-mix(in srgb, var(--tone) 35%, transparent));
+  --text-glow: 0 0 10px color-mix(in srgb, var(--tone) 65%, transparent);
+  --glow-sm: 0 0 6px color-mix(in srgb, var(--tone) 55%, transparent);
+}
+
+.glow-violet {
+  box-shadow: var(--glow-violet);
+}
+.glow-cyan {
+  box-shadow: var(--glow-cyan);
+}
+.glow-yellow {
+  box-shadow: var(--glow-yellow);
+}
+.glow-pink {
+  box-shadow: var(--glow-pink);
+}
+.glow-green {
+  box-shadow: var(--glow-green);
+}
+.glow-magenta {
+  box-shadow: var(--glow-magenta);
+}
+.text-glow {
+  text-shadow: var(--text-glow, none);
+}
+
+/* ---- Pixel border ------------------------------------------------------------------------- */
+
+/*
+ * Stepped "pixel" corners: ::before paints the border color, ::after the fill, both clipped to a
+ * two-step staircase. Set --pb-color, --pb-fill, --pb-width and --pb-step; the element's own
+ * background must stay transparent. A drop-shadow filter on the element follows the steps.
+ */
+.pixel-border {
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-2);
+  --pb-width: var(--pixel);
+  --pb-step: var(--corner);
+  position: relative;
+  isolation: isolate;
+}
+
+.pixel-border::before,
+.pixel-border::after {
+  --s: var(--pb-step);
+  --s2: calc(var(--pb-step) * 2);
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  clip-path: polygon(
+    0 var(--s2),
+    var(--s) var(--s2),
+    var(--s) var(--s),
+    var(--s2) var(--s),
+    var(--s2) 0,
+    calc(100% - var(--s2)) 0,
+    calc(100% - var(--s2)) var(--s),
+    calc(100% - var(--s)) var(--s),
+    calc(100% - var(--s)) var(--s2),
+    100% var(--s2),
+    100% calc(100% - var(--s2)),
+    calc(100% - var(--s)) calc(100% - var(--s2)),
+    calc(100% - var(--s)) calc(100% - var(--s)),
+    calc(100% - var(--s2)) calc(100% - var(--s)),
+    calc(100% - var(--s2)) 100%,
+    var(--s2) 100%,
+    var(--s2) calc(100% - var(--s)),
+    var(--s) calc(100% - var(--s)),
+    var(--s) calc(100% - var(--s2)),
+    0 calc(100% - var(--s2))
+  );
+}
+
+.pixel-border::before {
+  inset: 0;
+  background: var(--pb-color);
+}
+
+.pixel-border::after {
+  inset: var(--pb-width);
+  background: var(--pb-fill);
+}
+
+/*
+ * Stepped corners for small parts that clip themselves (badges, pills, keys, tooltips, icon tiles,
+ * slider thumbs): `clip-path: var(--clip-corner-sm)` cuts one 2px step, `var(--clip-corner)` two.
+ * The neutralizers below set both to none, so the corners go square with the other effects.
+ */
+:root {
+  --clip-corner-sm: polygon(
+    0 2px,
+    2px 2px,
+    2px 0,
+    calc(100% - 2px) 0,
+    calc(100% - 2px) 2px,
+    100% 2px,
+    100% calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) 100%,
+    2px 100%,
+    2px calc(100% - 2px),
+    0 calc(100% - 2px)
+  );
+  --clip-corner: polygon(
+    0 4px,
+    2px 4px,
+    2px 2px,
+    4px 2px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 2px,
+    calc(100% - 2px) 2px,
+    calc(100% - 2px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 2px) calc(100% - 4px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 4px) calc(100% - 2px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 2px),
+    2px calc(100% - 2px),
+    2px calc(100% - 4px),
+    0 calc(100% - 4px)
+  );
+}
+
+/* ---- Blinking cursor ---------------------------------------------------------------------- */
+
+.blink-cursor::after {
+  content: '_';
+  display: inline-block;
+  margin-left: 0.12em;
+  color: var(--tone, var(--neon-violet));
+  animation: fx-blink 1.06s steps(1, end) infinite;
+}
+
+@keyframes fx-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ---- Typewriter --------------------------------------------------------------------------- */
+
+/* Types a one-line title, one character per step: set --chars to its length. */
+.typewriter {
+  display: inline-block;
+  max-width: 100%;
+  animation: fx-type calc(var(--chars, 16) * 38ms) steps(var(--chars, 16), end) 80ms backwards;
+}
+
+@keyframes fx-type {
+  from {
+    clip-path: inset(-1em 100% -1em -1em);
+  }
+  to {
+    clip-path: inset(-1em 0 -1em -1em);
+  }
+}
+
+/* ---- CRT and scanlines -------------------------------------------------------------------- */
+
+.scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgb(0 0 0 / 0.18) 2px,
+    rgb(0 0 0 / 0.18) 3px
+  );
+}
+
+/* Vignette plus a faint band rolling down the screen. */
+.crt {
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 180px 30px rgb(0 0 0 / 0.55),
+    inset 0 0 2px 1px rgb(0 0 0 / 0.6);
+}
+
+.crt::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 22vh;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(214 200 255 / 0.035) 45%,
+    rgb(214 200 255 / 0.05) 50%,
+    transparent
+  );
+  transform: translateY(-22vh);
+  animation: fx-roll 9s linear infinite;
+}
+
+@keyframes fx-roll {
+  to {
+    transform: translateY(100vh);
+  }
+}
+
+/* The CRT screen over the whole window (CRTOverlay). */
+.crt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-crt);
+  pointer-events: none;
+}
+
+/* ---- Perspective grid background ---------------------------------------------------------- */
+
+/* An outrun floor: grid lines recede to a glowing horizon and scroll toward the viewer. */
+.grid-bg {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(
+      60% 18% at 50% 58%,
+      color-mix(in srgb, var(--neon-violet) 24%, transparent),
+      transparent 75%
+    ),
+    radial-gradient(
+      120% 60% at 50% 115%,
+      color-mix(in srgb, var(--neon-violet) 14%, transparent),
+      transparent 70%
+    ),
+    var(--bg-0);
+  background-attachment: fixed;
+}
+
+.grid-bg::before {
+  content: '';
+  position: fixed;
+  top: 58vh;
+  left: -60vw;
+  right: -60vw;
+  height: 110vh;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--neon-violet) 42%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--neon-violet) 42%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  transform-origin: 50% 0;
+  transform: perspective(260px) rotateX(74deg) translateY(-56px);
+  mask-image: linear-gradient(to bottom, transparent 0%, rgb(0 0 0 / 0.7) 22%, #000 60%);
+  animation: fx-grid 2.6s linear infinite;
+}
+
+@keyframes fx-grid {
+  to {
+    transform: perspective(260px) rotateX(74deg) translateY(0);
+  }
+}
+
+/* ---- Neutralizers ------------------------------------------------------------------------- */
+
+/* Glow off */
+:is(.fx-off, .fx-no-glow) {
+  --glow-violet: 0 0 0 0 transparent;
+  --glow-cyan: 0 0 0 0 transparent;
+  --glow-yellow: 0 0 0 0 transparent;
+  --glow-pink: 0 0 0 0 transparent;
+  --glow-green: 0 0 0 0 transparent;
+  --glow-magenta: 0 0 0 0 transparent;
+}
+[class*='tone-']:where(.fx-off, .fx-no-glow, .fx-off *, .fx-no-glow *) {
+  --drop-glow: none;
+  --text-glow: none;
+  --glow-sm: 0 0 0 0 transparent;
+}
+
+/* CRT off */
+:where(.fx-off, .fx-no-crt, .fx-off *, .fx-no-crt *):is(.crt-overlay) {
+  display: none;
+}
+.scanlines:where(.fx-off, .fx-no-crt, .fx-off *, .fx-no-crt *) {
+  background-image: none;
+}
+.crt:where(.fx-off, .fx-no-crt, .fx-off *, .fx-no-crt *) {
+  box-shadow: none;
+}
+.crt:where(.fx-off, .fx-no-crt, .fx-off *, .fx-no-crt *)::after {
+  display: none;
+}
+
+/* Everything off: the grid goes too, and the stepped pixel corners go square. */
+.grid-bg:where(.fx-off, .fx-off *)::before {
+  display: none;
+}
+.fx-off {
+  --clip-corner-sm: none;
+  --clip-corner: none;
+}
+.pixel-border:where(.fx-off, .fx-off *)::before,
+.pixel-border:where(.fx-off, .fx-off *)::after {
+  clip-path: none;
+}
+
+/* Animations off: every animation and transition stops in its resting state. */
+:where(.fx-off, .fx-no-anim),
+:where(.fx-off, .fx-no-anim) *,
+:where(.fx-off, .fx-no-anim) *::before,
+:where(.fx-off, .fx-no-anim) *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* The OS asks for reduced motion: the same as .fx-off, everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --glow-violet: 0 0 0 0 transparent;
+    --glow-cyan: 0 0 0 0 transparent;
+    --glow-yellow: 0 0 0 0 transparent;
+    --glow-pink: 0 0 0 0 transparent;
+    --glow-green: 0 0 0 0 transparent;
+    --glow-magenta: 0 0 0 0 transparent;
+    --clip-corner-sm: none;
+    --clip-corner: none;
+  }
+
+  [class*='tone-'] {
+    --drop-glow: none;
+    --text-glow: none;
+    --glow-sm: 0 0 0 0 transparent;
+  }
+
+  .pixel-border::before,
+  .pixel-border::after {
+    clip-path: none;
+  }
+
+  .crt-overlay,
+  .crt::after,
+  .grid-bg::before {
+    display: none;
+  }
+
+  .scanlines {
+    background-image: none;
+  }
+
+  .crt {
+    box-shadow: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

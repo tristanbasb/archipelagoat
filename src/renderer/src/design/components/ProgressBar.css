@@ -1,0 +1,77 @@
+.progress {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.progress__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.progress__label {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress__value {
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress__track {
+  --pb-step: var(--corner-sm);
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-0);
+  display: grid;
+  grid-template-columns: repeat(var(--segments), minmax(0, 1fr));
+  gap: 3px;
+  height: 20px;
+  padding: 5px 6px;
+}
+
+.progress__segment {
+  background: color-mix(in srgb, var(--tone) 10%, var(--bg-2));
+  transition: background var(--dur) var(--ease-out);
+}
+
+.progress__segment[data-segment='lit'] {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tone) 70%, #fff) 0 2px, var(--tone) 2px);
+  box-shadow: var(--glow-sm);
+}
+
+/* The segment being filled blinks. */
+.progress__segment[data-segment='next'] {
+  background: color-mix(in srgb, var(--tone) 45%, var(--bg-2));
+  animation: progress-next 0.9s steps(2, jump-none) infinite;
+}
+
+@keyframes progress-next {
+  50% {
+    background: color-mix(in srgb, var(--tone) 15%, var(--bg-2));
+  }
+}
+
+/* Unknown progress: a comet runs along the bar. At rest it shows a dim filled bar. */
+.progress__track[data-indeterminate] .progress__segment {
+  background: color-mix(in srgb, var(--tone) 28%, var(--bg-2));
+  animation: progress-sweep 1.6s linear infinite;
+  animation-delay: calc(var(--i) * 1.6s / var(--segments) - 1.6s);
+}
+
+@keyframes progress-sweep {
+  0% {
+    background: var(--tone);
+  }
+  25%,
+  100% {
+    background: color-mix(in srgb, var(--tone) 10%, var(--bg-2));
+  }
+}

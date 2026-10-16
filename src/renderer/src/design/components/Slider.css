@@ -1,0 +1,114 @@
+.slider__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.slider__value {
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* The range: a segmented groove filled up to the thumb, and a square pixel thumb. */
+.range {
+  --track: 8px;
+  appearance: none;
+  flex: 1;
+  min-width: 80px;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range:focus-visible {
+  outline-offset: 2px;
+}
+
+.range:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: var(--track);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 6px, var(--bg-0) 6px 8px),
+    linear-gradient(90deg, var(--tone) 0 var(--fill), var(--bg-3) var(--fill) 100%);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 22px;
+  margin-top: calc((var(--track) - 22px) / 2);
+  background: linear-gradient(180deg, #fff 0 3px, color-mix(in srgb, var(--tone) 35%, #fff) 3px);
+  box-shadow:
+    0 0 0 2px var(--bg-0),
+    var(--glow-sm);
+  clip-path: var(--clip-corner-sm);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.range:hover:not(:disabled)::-webkit-slider-thumb,
+.range:active::-webkit-slider-thumb {
+  transform: scaleY(1.12);
+}
+
+.number-field {
+  flex: none;
+  width: 84px;
+  min-height: 32px;
+  padding-inline: var(--sp-2);
+}
+
+.number-field .input {
+  height: 28px;
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.number-field .input::-webkit-inner-spin-button {
+  opacity: 0.4;
+}
+
+.slider__marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slider__mark {
+  height: 24px;
+  padding: 0 var(--sp-2);
+  border: 0;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.slider__mark:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.slider__mark[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--tone) 18%, var(--bg-2));
+  box-shadow: inset 0 0 0 1px var(--tone);
+  color: var(--tone-ink);
+}

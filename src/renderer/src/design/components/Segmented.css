@@ -1,0 +1,71 @@
+.segmented {
+  --pb-step: var(--corner-sm);
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-1);
+  display: inline-flex;
+  gap: 2px;
+  max-width: 100%;
+  padding: 4px;
+}
+
+.segmented__option {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color var(--dur) var(--ease-out);
+}
+
+.segmented[data-size='sm'] .segmented__option {
+  height: 22px;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-12);
+}
+
+.segmented__option:hover {
+  color: var(--text);
+}
+
+.segmented__option[aria-checked='true'] {
+  color: #fff;
+  font-weight: 700;
+}
+
+.segmented__option:focus-visible {
+  outline-offset: 1px;
+}
+
+/* The lit block under the chosen option (slides between options). */
+.segmented__thumb {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tone) 55%, var(--bg-2)),
+    color-mix(in srgb, var(--tone) 34%, var(--bg-1))
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--tone) 80%, #fff),
+    var(--glow-sm);
+}
+
+.segmented__label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segmented__label svg {
+  width: 14px;
+  height: 14px;
+}
