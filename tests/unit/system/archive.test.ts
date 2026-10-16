@@ -1,0 +1,581 @@
+import { createHash, randomBytes } from 'node:crypto'
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { pipeline } from 'node:stream/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { gzipSync } from 'node:zlib'
+import { Header } from 'tar'
+import { ZipFile } from 'yazl'
+import {
+  DEFAULT_ZIP_LIMITS,
+  extractTarGzSafe,
+  extractZipSafe,
+  listZip,
+  readZipBytes,
+  readZipText,
+  sha256File,
+} from '@main/core/system/archive'
+
+let root: string
+
+beforeEach(() => {
+  root = mkdtempSync(join(tmpdir(), 'goat archive é-'))
+})
+
+afterEach(() => {
+  rmSync(root, { recursive: true, force: true })
+})
+
+// --- builders ---------------------------------------------------------------------------------
+
+interface ZipItem {
+  name: string
+  data?: Buffer | string
+  dir?: boolean
+  /** Unix mode with the file type, e.g. 0o120777 for a symlink. */
+  mode?: number
+}
+
+/** A zip written with yazl (which refuses hostile names: see `patchNames`). */
+async function makeZip(file: string, items: ZipItem[]): Promise<string> {
+  const zip = new ZipFile()
+  for (const item of items) {
+    if (item.dir) zip.addEmptyDirectory(item.name)
+    else
+      zip.addBuffer(
+        Buffer.from(item.data ?? ''),
+        item.name,
+        item.mode === undefined ? {} : { mode: item.mode },
+      )
+  }
+  zip.end()
+  await pipeline(zip.outputStream, createWriteStream(file))
+  return file
+}
+
+/** Renames entries in place (same length), to build the names yazl would never write. */
+function patchNames(file: string, from: string, to: string): void {
+  if (from.length !== to.length) throw new Error('names must have the same length')
+  writeFileSync(file, Buffer.from(readFileSync(file).toString('latin1').replaceAll(from, to), 'latin1'))
+}
+
+/** Makes the central directory of the zip announce `size` bytes for its last entry. */
+function patchUncompressedSize(file: string, size: number): void {
+  const bytes = readFileSync(file)
+  const header = bytes.lastIndexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]))
+  bytes.writeUInt32LE(size, header + 24)
+  writeFileSync(file, bytes)
+}
+
+interface TarItem {
+  path: string
+  type?: 'File' | 'Directory' | 'SymbolicLink' | 'Link'
+  data?: string
+  mode?: number
+  linkpath?: string
+}
+
+/** A .tar.gz built from raw headers, so it can hold paths and links `tar.c` would refuse to write. */
+function makeTarGz(file: string, items: TarItem[]): string {
+  const parts: Buffer[] = []
+  for (const item of items) {
+    const type = item.type ?? 'File'
+    const body = type === 'File' ? Buffer.from(item.data ?? '') : Buffer.alloc(0)
+    const block = Buffer.alloc(512)
+    new Header({
+      path: item.path,
+      type,
+      mode: item.mode ?? (type === 'Directory' ? 0o755 : 0o644),
+      size: body.length,
+      ...(item.linkpath === undefined ? {} : { linkpath: item.linkpath }),
+      mtime: new Date(0),
+    }).encode(block, 0)
+    parts.push(block)
+    if (body.length > 0) parts.push(body, Buffer.alloc((512 - (body.length % 512)) % 512))
+  }
+  parts.push(Buffer.alloc(1024))
+  writeFileSync(file, gzipSync(Buffer.concat(parts)))
+  return file
+}
+
+const names = (dir: string): string[] => readdirSync(dir).sort()
+
+/** Files below `dir`, as sorted paths relative to it with `/` separators. */
+function tree(dir: string, prefix = ''): string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .flatMap((entry) =>
+      entry.isDirectory()
+        ? [`${prefix}${entry.name}/`, ...tree(join(dir, entry.name), `${prefix}${entry.name}/`)]
+        : [`${prefix}${entry.name}`],
+    )
+    .sort()
+}
+
+// --- listZip ------------------------------------------------------------------------------------
+
+describe('listZip', () => {
+  it('lists name, size, compressed size and folder flag of every entry', async () => {
+    const zip = await makeZip(join(root, 'a.zip'), [
+      { name: 'dossier é/', dir: true },
+      { name: 'dossier é/fichier.txt', data: 'hello hello hello hello' },
+      { name: 'root.bin', data: Buffer.from([1, 2, 3]) },
+    ])
+    const entries = await listZip(zip)
+    expect(entries.map((e) => [e.name, e.size, e.isDir])).toEqual([
+      ['dossier é/', 0, true],
+      ['dossier é/fichier.txt', 23, false],
+      ['root.bin', 3, false],
+    ])
+    for (const entry of entries) expect(entry.compressedSize).toBeGreaterThanOrEqual(0)
+  })
+
+  it('exposes the default limits', () => {
+    expect(DEFAULT_ZIP_LIMITS).toEqual({
+      maxEntries: 20000,
+      maxUncompressed: 512 * 1024 * 1024,
+      maxRatio: 200,
+    })
+  })
+
+  it('flags a file that is not a zip, an empty file and a truncated zip as not-zip', async () => {
+    const text = join(root, 'text.zip')
+    writeFileSync(text, 'this is not a zip at all, just some text')
+    const empty = join(root, 'empty.zip')
+    writeFileSync(empty, '')
+    const full = await makeZip(join(root, 'full.zip'), [{ name: 'a.txt', data: 'a'.repeat(100) }])
+    const truncated = join(root, 'truncated.zip')
+    writeFileSync(truncated, readFileSync(full).subarray(0, 40))
+    for (const file of [text, empty, truncated]) {
+      await expect(listZip(file)).rejects.toMatchObject({
+        code: 'WORLD_INVALID',
+        params: { reason: 'not-zip' },
+      })
+    }
+  })
+
+  it('answers NOT_FOUND for a missing file', async () => {
+    await expect(listZip(join(root, 'missing.zip'))).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('flags entry names that climb out, are absolute or use a drive as traversal', async () => {
+    // Each hostile name has the length of its placeholder, which is a name yazl accepts.
+    const cases: [string, string][] = [
+      ['zz/evil.txt', '../evil.txt'],
+      ['zz/zz/evil.txt', 'a/../../evil.t'],
+      ['zabs/evil.txt', '/abs/evil.txt'],
+      ['zz/evil.txt', '..\\evil.txt'],
+      ['zz/evil.txt', 'C:/evil.txt'],
+    ]
+    for (const [i, [placeholder, hostile]] of cases.entries()) {
+      const zip = await makeZip(join(root, `evil${i}.zip`), [{ name: placeholder, data: 'x' }])
+      patchNames(zip, placeholder, hostile)
+      await expect(listZip(zip), hostile).rejects.toMatchObject({
+        code: 'WORLD_INVALID',
+        params: { reason: 'traversal' },
+      })
+    }
+  })
+
+  it('flags a zip bomb by ratio', async () => {
+    const zip = await makeZip(join(root, 'bomb.zip'), [
+      { name: 'zeros.bin', data: Buffer.alloc(8 * 1024 * 1024) },
+    ])
+    await expect(listZip(zip)).rejects.toMatchObject({
+      code: 'WORLD_INVALID',
+      params: { reason: 'zip-bomb' },
+    })
+    // The same file is fine when the caller accepts such a ratio.
+    await expect(listZip(zip, { maxRatio: 1_000_000 })).resolves.toHaveLength(1)
+  })
+
+  it('does not flag a small, very compressible file inside an ordinary archive', async () => {
+    const zip = await makeZip(join(root, 'ok.zip'), [
+      { name: 'padding.bin', data: Buffer.alloc(100 * 1024) },
+      { name: 'data.bin', data: randomBytes(200 * 1024) },
+    ])
+    await expect(listZip(zip)).resolves.toHaveLength(2)
+  })
+
+  it('flags a NUL byte in a name as traversal', async () => {
+    const zip = await makeZip(join(root, 'nul.zip'), [{ name: 'zz/evil.txt', data: 'x' }])
+    patchNames(zip, 'zz/evil.txt', 'zz/evi\0.txt')
+    await expect(listZip(zip)).rejects.toMatchObject({ params: { reason: 'traversal' } })
+  })
+
+  it('flags an archive of many small entries that are all extremely compressible', async () => {
+    // Each one is below the size from which an entry is judged alone; together they are a bomb.
+    const zip = await makeZip(
+      join(root, 'confetti.zip'),
+      Array.from({ length: 10 }, (_, i) => ({ name: `z${i}.bin`, data: Buffer.alloc(100 * 1024) })),
+    )
+    await expect(listZip(zip)).rejects.toMatchObject({ params: { reason: 'zip-bomb' } })
+  })
+
+  it('flags too many entries and too much data as zip-bomb', async () => {
+    const zip = await makeZip(join(root, 'many.zip'), [
+      { name: 'a', data: randomBytes(1000) },
+      { name: 'b', data: randomBytes(1000) },
+      { name: 'c', data: randomBytes(1000) },
+    ])
+    await expect(listZip(zip, { maxEntries: 2 })).rejects.toMatchObject({ params: { reason: 'zip-bomb' } })
+    await expect(listZip(zip, { maxUncompressed: 2500 })).rejects.toMatchObject({
+      params: { reason: 'zip-bomb' },
+    })
+    await expect(listZip(zip, { maxEntries: 3, maxUncompressed: 3000 })).resolves.toHaveLength(3)
+  })
+})
+
+// --- readZipText / readZipBytes -------------------------------------------------------------------
+
+describe('readZipText and readZipBytes', () => {
+  it('reads an entry as UTF-8 text without its BOM, and null when it is absent', async () => {
+    const zip = await makeZip(join(root, 'r.zip'), [
+      { name: 'archipelago.json', data: '\uFEFF{"game": "Pokémon"}' },
+      { name: 'folder/', dir: true },
+    ])
+    expect(await readZipText(zip, 'archipelago.json')).toBe('{"game": "Pokémon"}')
+    expect(await readZipText(zip, 'missing.json')).toBeNull()
+    expect(await readZipText(zip, 'folder/')).toBeNull()
+    expect(await readZipText(zip, 'Archipelago.json')).toBeNull()
+  })
+
+  it('returns the raw bytes so that the caller can decode them', async () => {
+    const cp1252 = Buffer.from([0x6e, 0x61, 0x6d, 0x65, 0x3a, 0x20, 0xe9]) // "name: é" in Windows-1252
+    const zip = await makeZip(join(root, 'b.zip'), [{ name: 'p.yaml', data: cp1252 }])
+    expect(await readZipBytes(zip, 'p.yaml')).toEqual(cp1252)
+    expect(await readZipBytes(zip, 'nope.yaml')).toBeNull()
+  })
+
+  it('refuses an entry bigger than maxBytes (1 MiB by default)', async () => {
+    const zip = await makeZip(join(root, 'big.zip'), [
+      { name: 'small.txt', data: 'tiny' },
+      { name: 'big.txt', data: 'x'.repeat(1024 * 1024 + 1) },
+    ])
+    expect(await readZipText(zip, 'small.txt')).toBe('tiny')
+    await expect(readZipText(zip, 'big.txt')).rejects.toMatchObject({
+      code: 'WORLD_INVALID',
+      params: { reason: 'zip-bomb' },
+    })
+    await expect(readZipBytes(zip, 'big.txt', 100)).rejects.toMatchObject({ params: { reason: 'zip-bomb' } })
+    expect((await readZipBytes(zip, 'big.txt', 2 * 1024 * 1024))?.length).toBe(1024 * 1024 + 1)
+  })
+
+  it('reports a file that is not a zip', async () => {
+    const file = join(root, 'x.zip')
+    writeFileSync(file, 'nope')
+    await expect(readZipText(file, 'a')).rejects.toMatchObject({ params: { reason: 'not-zip' } })
+    await expect(readZipBytes(join(root, 'missing.zip'), 'a')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+})
+
+// --- extractZipSafe -------------------------------------------------------------------------------
+
+describe('extractZipSafe', () => {
+  it('extracts files and folders, returns the extracted file paths and creates the destination', async () => {
+    const zip = await makeZip(join(root, 'e.zip'), [
+      { name: 'a.txt', data: 'A' },
+      { name: 'sub é/b c.txt', data: 'B' },
+      { name: 'empty/', dir: true },
+    ])
+    const dest = join(root, 'out dir é', 'nested')
+
+    const extracted = await extractZipSafe(zip, dest)
+
+    expect(extracted.sort()).toEqual([join(dest, 'a.txt'), join(dest, 'sub é', 'b c.txt')].sort())
+    expect(readFileSync(join(dest, 'a.txt'), 'utf8')).toBe('A')
+    expect(readFileSync(join(dest, 'sub é', 'b c.txt'), 'utf8')).toBe('B')
+    expect(statSync(join(dest, 'empty')).isDirectory()).toBe(true)
+  })
+
+  it('honours the entry filter', async () => {
+    const zip = await makeZip(join(root, 'f.zip'), [
+      { name: 'AP_1.archipelago', data: 'seed' },
+      { name: 'AP_1_Spoiler.txt', data: 'spoiler' },
+      { name: 'AP_1_P1_Bob.apz5', data: 'patch' },
+      { name: 'sub/AP_1_P2_Eve.apbp', data: 'patch2' },
+    ])
+    const dest = join(root, 'slots')
+    const seen: string[] = []
+
+    const extracted = await extractZipSafe(zip, dest, {
+      filter: (name) => {
+        seen.push(name)
+        return !name.endsWith('.archipelago') && !name.includes('Spoiler')
+      },
+    })
+
+    expect(seen.sort()).toEqual([
+      'AP_1.archipelago',
+      'AP_1_P1_Bob.apz5',
+      'AP_1_Spoiler.txt',
+      'sub/AP_1_P2_Eve.apbp',
+    ])
+    expect(extracted.sort()).toEqual([join(dest, 'AP_1_P1_Bob.apz5'), join(dest, 'sub', 'AP_1_P2_Eve.apbp')])
+    expect(tree(dest)).toEqual(['AP_1_P1_Bob.apz5', 'sub/', 'sub/AP_1_P2_Eve.apbp'])
+  })
+
+  it('replaces a file that already exists', async () => {
+    const zip = await makeZip(join(root, 'o.zip'), [{ name: 'a.txt', data: 'new' }])
+    const dest = join(root, 'dest')
+    mkdirSync(dest)
+    writeFileSync(join(dest, 'a.txt'), 'old content that is longer')
+    await extractZipSafe(zip, dest)
+    expect(readFileSync(join(dest, 'a.txt'), 'utf8')).toBe('new')
+  })
+
+  it('writes nothing when one entry climbs out of the destination', async () => {
+    const zip = await makeZip(join(root, 'slip.zip'), [
+      { name: 'ok.txt', data: 'fine' },
+      { name: 'zz/evil.txt', data: 'pwned' },
+    ])
+    patchNames(zip, 'zz/evil.txt', '../evil.txt')
+    const dest = join(root, 'dest')
+
+    await expect(extractZipSafe(zip, dest)).rejects.toMatchObject({
+      code: 'WORLD_INVALID',
+      params: { reason: 'traversal' },
+    })
+
+    expect(existsSync(join(root, 'evil.txt'))).toBe(false)
+    expect(existsSync(dest) ? names(dest) : []).toEqual([])
+  })
+
+  it('checks the whole archive against the limits before extracting, filter or not', async () => {
+    const zip = await makeZip(join(root, 'bomb.zip'), [
+      { name: 'small.txt', data: 'ok' },
+      { name: 'zeros.bin', data: Buffer.alloc(8 * 1024 * 1024) },
+    ])
+    const dest = join(root, 'dest')
+    await expect(extractZipSafe(zip, dest, { filter: (n) => n === 'small.txt' })).rejects.toMatchObject({
+      params: { reason: 'zip-bomb' },
+    })
+    expect(existsSync(dest) ? names(dest) : []).toEqual([])
+    // With limits that allow it, the filter picks what is written.
+    const extracted = await extractZipSafe(zip, dest, {
+      limits: { ...DEFAULT_ZIP_LIMITS, maxRatio: 1_000_000 },
+      filter: (n) => n === 'small.txt',
+    })
+    expect(extracted).toEqual([join(dest, 'small.txt')])
+  })
+
+  it('never creates the symlinks that a zip holds', async () => {
+    const zip = await makeZip(join(root, 'l.zip'), [
+      { name: 'link', data: '/etc/passwd', mode: 0o120777 },
+      { name: 'file.txt', data: 'x' },
+    ])
+    const dest = join(root, 'dest')
+    const extracted = await extractZipSafe(zip, dest)
+    expect(extracted).toEqual([join(dest, 'file.txt')])
+    expect(tree(dest)).toEqual(['file.txt'])
+  })
+
+  it('refuses an entry whose data is longer than its header says, and leaves no partial file', async () => {
+    const zip = await makeZip(join(root, 'lie.zip'), [{ name: 'a.txt', data: 'a'.repeat(1000) }])
+    patchUncompressedSize(zip, 10)
+    await expect(readZipBytes(zip, 'a.txt')).rejects.toMatchObject({
+      code: 'WORLD_INVALID',
+      params: { reason: 'zip-bomb' },
+    })
+    const dest = join(root, 'dest')
+    await expect(extractZipSafe(zip, dest)).rejects.toMatchObject({ params: { reason: 'zip-bomb' } })
+    expect(tree(dest)).toEqual([])
+  })
+
+  it.skipIf(process.platform !== 'win32')(
+    'refuses names that Windows cannot create or reads as something else',
+    async () => {
+      const cases: [string, string][] = [
+        ['zz-evil.txt', 'zz:evil.txt'], // an alternate data stream of zz
+        ['dir/xxx.txt', 'dir/con.txt'], // a device
+        ['zz/xxx', 'zz/ ..'], // still ..
+        ['zz/xxxxx', 'zz/a<b>c'], // characters Windows forbids
+      ]
+      for (const [i, [placeholder, hostile]] of cases.entries()) {
+        const zip = await makeZip(join(root, `win${i}.zip`), [{ name: placeholder, data: 'x' }])
+        patchNames(zip, placeholder, hostile)
+        // Listing is the same everywhere; only writing needs a name the host can hold.
+        await expect(listZip(zip), hostile).resolves.toHaveLength(1)
+        await expect(extractZipSafe(zip, join(root, 'dest')), hostile).rejects.toMatchObject({
+          params: { reason: 'traversal' },
+        })
+      }
+      expect(existsSync(join(root, 'dest'))).toBe(false)
+    },
+  )
+
+  it('rejects a file that is not a zip', async () => {
+    const file = join(root, 'x.zip')
+    writeFileSync(file, 'nope')
+    await expect(extractZipSafe(file, join(root, 'dest'))).rejects.toMatchObject({
+      params: { reason: 'not-zip' },
+    })
+  })
+})
+
+// --- extractTarGzSafe -----------------------------------------------------------------------------
+
+describe('extractTarGzSafe', () => {
+  it('extracts files and folders and strips leading components', async () => {
+    const tgz = makeTarGz(join(root, 'ap.tar.gz'), [
+      { path: 'Archipelago/', type: 'Directory' },
+      { path: 'Archipelago/lib/', type: 'Directory' },
+      { path: 'Archipelago/lib/core.so', data: 'so' },
+      { path: 'Archipelago/host.yaml', data: 'yaml é' },
+      { path: 'readme-at-root.txt', data: 'dropped by strip' },
+    ])
+    const dest = join(root, 'out é dir')
+
+    await extractTarGzSafe(tgz, dest, { stripComponents: 1 })
+
+    expect(tree(dest)).toEqual(['host.yaml', 'lib/', 'lib/core.so'])
+    expect(readFileSync(join(dest, 'host.yaml'), 'utf8')).toBe('yaml é')
+  })
+
+  it('extracts everything without options', async () => {
+    const tgz = makeTarGz(join(root, 'a.tar.gz'), [{ path: 'dir/file.txt', data: 'x' }])
+    await extractTarGzSafe(tgz, join(root, 'dest'))
+    expect(tree(join(root, 'dest'))).toEqual(['dir/', 'dir/file.txt'])
+  })
+
+  it('rejects entry ../evil and extracts nothing', async () => {
+    const tgz = makeTarGz(join(root, 'evil.tar.gz'), [
+      { path: 'ok.txt', data: 'fine' },
+      { path: '../evil', data: 'pwned' },
+    ])
+    const dest = join(root, 'dest')
+
+    await expect(extractTarGzSafe(tgz, dest)).rejects.toThrow(/PATH_FORBIDDEN/)
+    await expect(extractTarGzSafe(tgz, dest)).rejects.toMatchObject({ params: { reason: 'traversal' } })
+
+    expect(existsSync(join(root, 'evil'))).toBe(false)
+    expect(existsSync(dest) ? names(dest) : []).toEqual([])
+  })
+
+  it('rejects .. in the middle of a path, and absolute paths', async () => {
+    for (const [i, path] of [
+      'a/../../evil',
+      'a/b/../../../evil',
+      '/tmp/evil',
+      'C:/evil',
+      '..\\evil',
+    ].entries()) {
+      const tgz = makeTarGz(join(root, `p${i}.tar.gz`), [{ path, data: 'x' }])
+      await expect(extractTarGzSafe(tgz, join(root, 'dest')), path).rejects.toThrow(/PATH_FORBIDDEN/)
+    }
+    expect(existsSync(join(root, 'dest'))).toBe(false)
+  })
+
+  it('rejects a symlink that points to an absolute path or out of the destination', async () => {
+    for (const [i, linkpath] of ['/etc', '/etc/passwd', '..', '../..', 'a/../../x', 'C:/Windows'].entries()) {
+      const tgz = makeTarGz(join(root, `l${i}.tar.gz`), [{ path: 'link', type: 'SymbolicLink', linkpath }])
+      await expect(extractTarGzSafe(tgz, join(root, 'dest')), linkpath).rejects.toMatchObject({
+        code: 'PATH_FORBIDDEN',
+        params: { reason: 'symlink' },
+      })
+    }
+    expect(existsSync(join(root, 'dest'))).toBe(false)
+  })
+
+  it('rejects a hard link that points out of the destination', async () => {
+    const tgz = makeTarGz(join(root, 'h.tar.gz'), [{ path: 'link', type: 'Link', linkpath: '../secret' }])
+    await expect(extractTarGzSafe(tgz, join(root, 'dest'))).rejects.toThrow(/PATH_FORBIDDEN/)
+  })
+
+  it('rejects a hard link that goes through a symlink of the archive', async () => {
+    const tgz = makeTarGz(join(root, 'hl.tar.gz'), [
+      { path: 'sub/', type: 'Directory' },
+      { path: 'inner', type: 'SymbolicLink', linkpath: 'sub' },
+      { path: 'copy', type: 'Link', linkpath: 'inner/file' },
+    ])
+    await expect(extractTarGzSafe(tgz, join(root, 'dest'))).rejects.toMatchObject({
+      params: { reason: 'symlink' },
+    })
+  })
+
+  it('rejects an entry that would be written through a symlink of the archive', async () => {
+    const tgz = makeTarGz(join(root, 'through.tar.gz'), [
+      { path: 'sub/', type: 'Directory' },
+      { path: 'inner', type: 'SymbolicLink', linkpath: 'sub' },
+      { path: 'inner/file.txt', data: 'through the link' },
+    ])
+    await expect(extractTarGzSafe(tgz, join(root, 'dest'))).rejects.toMatchObject({
+      code: 'PATH_FORBIDDEN',
+      params: { reason: 'symlink' },
+    })
+    expect(existsSync(join(root, 'dest'))).toBe(false)
+  })
+
+  it('rejects a chain of symlinks that would climb out through a link to the root', async () => {
+    const tgz = makeTarGz(join(root, 'chain.tar.gz'), [
+      { path: 'here', type: 'SymbolicLink', linkpath: '.' },
+      { path: 'here/up', type: 'SymbolicLink', linkpath: '..' },
+    ])
+    await expect(extractTarGzSafe(tgz, join(root, 'dest'))).rejects.toThrow(/PATH_FORBIDDEN/)
+  })
+
+  it('rejects a file that is not a tar.gz', async () => {
+    const file = join(root, 'junk.tar.gz')
+    writeFileSync(file, randomBytes(2000))
+    await expect(extractTarGzSafe(file, join(root, 'dest'))).rejects.toMatchObject({
+      code: 'INVALID_INPUT',
+      params: { reason: 'not-tar' },
+    })
+    await expect(extractTarGzSafe(join(root, 'missing.tar.gz'), join(root, 'dest'))).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+  })
+
+  it.skipIf(process.platform === 'win32')('rejects symlink to /etc and keeps exec bits', async () => {
+    const evil = makeTarGz(join(root, 'evil.tar.gz'), [
+      { path: 'etc-link', type: 'SymbolicLink', linkpath: '/etc' },
+    ])
+    await expect(extractTarGzSafe(evil, join(root, 'dest-evil'))).rejects.toThrow(/PATH_FORBIDDEN/)
+    expect(existsSync(join(root, 'dest-evil'))).toBe(false)
+
+    const good = makeTarGz(join(root, 'good.tar.gz'), [
+      { path: 'bin/', type: 'Directory' },
+      { path: 'bin/run', data: '#!/bin/sh\n', mode: 0o755 },
+      { path: 'bin/data.txt', data: 'plain', mode: 0o644 },
+      { path: 'bin/run-link', type: 'SymbolicLink', linkpath: 'run' },
+    ])
+    const dest = join(root, 'dest')
+    await extractTarGzSafe(good, dest)
+    expect(statSync(join(dest, 'bin', 'run')).mode & 0o111).not.toBe(0)
+    expect(statSync(join(dest, 'bin', 'data.txt')).mode & 0o111).toBe(0)
+    expect(readlinkSync(join(dest, 'bin', 'run-link'))).toBe('run')
+  })
+})
+
+// --- sha256File -------------------------------------------------------------------------------------
+
+describe('sha256File', () => {
+  it('hashes a file as lowercase hex, whatever its size', async () => {
+    const small = join(root, 'abc.txt')
+    writeFileSync(small, 'abc')
+    expect(await sha256File(small)).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
+
+    const empty = join(root, 'empty.bin')
+    writeFileSync(empty, '')
+    expect(await sha256File(empty)).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+
+    const big = join(root, 'big é.bin')
+    const bytes = randomBytes(3 * 1024 * 1024 + 17)
+    writeFileSync(big, bytes)
+    expect(await sha256File(big)).toBe(createHash('sha256').update(bytes).digest('hex'))
+  })
+
+  it('rejects a missing file', async () => {
+    await expect(sha256File(join(root, 'missing'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+})
