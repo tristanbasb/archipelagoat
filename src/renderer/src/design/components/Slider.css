@@ -56,20 +56,7 @@
   box-shadow:
     0 0 0 2px var(--bg-0),
     var(--glow-sm);
-  clip-path: polygon(
-    0 2px,
-    2px 2px,
-    2px 0,
-    calc(100% - 2px) 0,
-    calc(100% - 2px) 2px,
-    100% 2px,
-    100% calc(100% - 2px),
-    calc(100% - 2px) calc(100% - 2px),
-    calc(100% - 2px) 100%,
-    2px 100%,
-    2px calc(100% - 2px),
-    0 calc(100% - 2px)
-  );
+  clip-path: var(--clip-corner-sm);
   transition: transform var(--dur-fast) var(--ease-out);
 }
 

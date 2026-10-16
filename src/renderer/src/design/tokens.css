@@ -65,7 +65,8 @@
   --sp-10: 40px;
   --sp-12: 48px;
 
-  /* Pixel corners: no border-radius anywhere, stepped corners instead (see .pixel-border) */
+  /* Pixel corners: no border-radius anywhere, stepped corners instead (.pixel-border and the
+     --clip-corner shapes in effects.css, squared off with the other effects) */
   --pixel: 2px;
   --corner: 4px;
   --corner-sm: 2px;

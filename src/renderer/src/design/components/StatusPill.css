@@ -12,20 +12,7 @@
   font-weight: 500;
   line-height: 1;
   white-space: nowrap;
-  clip-path: polygon(
-    0 2px,
-    2px 2px,
-    2px 0,
-    calc(100% - 2px) 0,
-    calc(100% - 2px) 2px,
-    100% 2px,
-    100% calc(100% - 2px),
-    calc(100% - 2px) calc(100% - 2px),
-    calc(100% - 2px) 100%,
-    2px 100%,
-    2px calc(100% - 2px),
-    0 calc(100% - 2px)
-  );
+  clip-path: var(--clip-corner-sm);
 }
 
 .status-pill__label {

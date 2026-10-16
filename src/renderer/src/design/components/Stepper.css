@@ -42,28 +42,7 @@
   color: var(--text-mute);
   font-family: var(--font-display);
   font-size: var(--fs-display);
-  clip-path: polygon(
-    0 4px,
-    2px 4px,
-    2px 2px,
-    4px 2px,
-    4px 0,
-    calc(100% - 4px) 0,
-    calc(100% - 4px) 2px,
-    calc(100% - 2px) 2px,
-    calc(100% - 2px) 4px,
-    100% 4px,
-    100% calc(100% - 4px),
-    calc(100% - 2px) calc(100% - 4px),
-    calc(100% - 2px) calc(100% - 2px),
-    calc(100% - 4px) calc(100% - 2px),
-    calc(100% - 4px) 100%,
-    4px 100%,
-    4px calc(100% - 2px),
-    2px calc(100% - 2px),
-    2px calc(100% - 4px),
-    0 calc(100% - 4px)
-  );
+  clip-path: var(--clip-corner);
 }
 
 .stepper__node svg {

@@ -104,6 +104,50 @@
   background: var(--pb-fill);
 }
 
+/*
+ * Stepped corners for small parts that clip themselves (badges, pills, keys, tooltips, icon tiles,
+ * slider thumbs): `clip-path: var(--clip-corner-sm)` cuts one 2px step, `var(--clip-corner)` two.
+ * The neutralizers below set both to none, so the corners go square with the other effects.
+ */
+:root {
+  --clip-corner-sm: polygon(
+    0 2px,
+    2px 2px,
+    2px 0,
+    calc(100% - 2px) 0,
+    calc(100% - 2px) 2px,
+    100% 2px,
+    100% calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) 100%,
+    2px 100%,
+    2px calc(100% - 2px),
+    0 calc(100% - 2px)
+  );
+  --clip-corner: polygon(
+    0 4px,
+    2px 4px,
+    2px 2px,
+    4px 2px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 2px,
+    calc(100% - 2px) 2px,
+    calc(100% - 2px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 2px) calc(100% - 4px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 4px) calc(100% - 2px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 2px),
+    2px calc(100% - 2px),
+    2px calc(100% - 4px),
+    0 calc(100% - 4px)
+  );
+}
+
 /* ---- Blinking cursor ---------------------------------------------------------------------- */
 
 .blink-cursor::after {
@@ -266,9 +310,17 @@
   display: none;
 }
 
-/* Everything off: the grid goes too. */
+/* Everything off: the grid goes too, and the stepped pixel corners go square. */
 .grid-bg:where(.fx-off, .fx-off *)::before {
   display: none;
+}
+.fx-off {
+  --clip-corner-sm: none;
+  --clip-corner: none;
+}
+.pixel-border:where(.fx-off, .fx-off *)::before,
+.pixel-border:where(.fx-off, .fx-off *)::after {
+  clip-path: none;
 }
 
 /* Animations off: every animation and transition stops in its resting state. */
@@ -290,12 +342,19 @@
     --glow-pink: 0 0 0 0 transparent;
     --glow-green: 0 0 0 0 transparent;
     --glow-magenta: 0 0 0 0 transparent;
+    --clip-corner-sm: none;
+    --clip-corner: none;
   }
 
   [class*='tone-'] {
     --drop-glow: none;
     --text-glow: none;
     --glow-sm: 0 0 0 0 transparent;
+  }
+
+  .pixel-border::before,
+  .pixel-border::after {
+    clip-path: none;
   }
 
   .crt-overlay,
