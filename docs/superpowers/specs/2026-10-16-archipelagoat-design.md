@@ -600,6 +600,14 @@ Aucun de ces tests n'est lancé sans un « oui » explicite.
 
 ---
 
+### 9.1 Écarts assumés de la v1 (décidés pendant la planification)
+
+- **Téléchargements** (§3.3) : pas de reprise par `Range` en v1 ; un téléchargement interrompu repart de zéro.
+- **Réglages verrouillés** (§3.6) : quand un programme AP tourne, l'écriture échoue avec un message clair (`SETTINGS_LOCKED`, avec la liste des processus) au lieu d'être mise en file d'attente.
+- **Schéma d'options** (§3.10) : pas de type `counter` distinct ; ces options sont éditées comme `dict`.
+- **Statuts de session** (§3.13) : pas de statut `validated` ; la validation est recalculée à la demande.
+- **Mots de passe du serveur** (§3.11) : transmis par le `host.yaml` de session, jamais en argument de ligne de commande.
+
 ## 10. Critères d'acceptation v1
 
 - [ ] Sur une machine Windows sans AP, l'app installe AP 0.6.8 avec une seule invite UAC et le détecte ensuite (version, chemins).

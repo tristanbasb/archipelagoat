@@ -55,8 +55,8 @@ Les tâches d'une même vague touchent des fichiers disjoints et peuvent s'exéc
 | 7 | 14 | 11, 13, 18 |
 | 8 | 15, 16, 17 | 14 |
 | 9 | 20, 21 | 16, 17, 18, 19 |
-| UI | 24 → 32 (en parallèle entre elles, dès la vague 4) | 23 (elles codent contre le contrat de la Task 2, sans attendre les services) |
-| Final | 33, 34, 35, puis 36 | tout |
+| UI | 24 → 32 (en parallèle entre elles, dès la vague 4), **sauf 27**, qui attend la fusion de 13 (`src/shared/studio-model.ts`) | 23 (elles codent contre le contrat de la Task 2, sans attendre les services) |
+| Final | 33 → 34 → 35 (séquentielles : 34 consomme le harness de 33, 35 la config Playwright de 34), puis 36 | tout |
 
 **Câblage sans fichier partagé.** Chaque service s'enregistre dans son propre fichier `src/main/services/<nom>.service.ts`, via `defineService` + augmentation de l'interface `Services`. Ses handlers vivent dans `src/main/ipc/<domaine>.ts` (`export default register`). Les deux dossiers sont découverts par `import.meta.glob` (Task 2). Les hooks de cycle de vie (`ctx.lifecycle`) évitent de modifier `src/main/index.ts`. Résultat : deux tâches d'une même vague ne modifient jamais le même fichier.
 
@@ -200,7 +200,8 @@ export type SessionStatus = 'draft' | 'generated' | 'hosting' | 'finished'
 export interface Session { id: string; name: string; createdAt: string; updatedAt: string; status: SessionStatus; players: PlayerFile[];
   rules: Rules; hasPassword: boolean; hasServerPassword: boolean; generation: Generation | null; hosting: Hosting | null; workspace: string }
 export interface SessionSummary { id: string; name: string; status: SessionStatus; playerCount: number; updatedAt: string; hostingMode: 'local' | 'web' | null }
-export interface RomNeed { game: string; settingsKey: string; status: 'ok' | 'missing' | 'bad-hash'; vaultPath: string | null }
+export interface RomNeed { game: string; settingsKey: string; status: 'ok' | 'missing' | 'bad-hash'; path: string | null; vaultPath: string | null }
+// path = chemin absolu à écrire dans le host.yaml de session quand status === 'ok' (clé effective valide, sinon chemin du coffre)
 export interface SessionValidation { files: { fileId: string; docs: PlayerDoc[] }[]; sessionIssues: Issue[];
   missingWorlds: { game: string; catalogId: string | null }[]; romNeeds: RomNeed[]; blocking: boolean }
 export interface Address { kind: 'localhost' | 'lan' | 'public'; host: string; port: number }
@@ -264,10 +265,13 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
   - Fichiers et mondes : `not-yaml-file world-no-manifest world-version-conflict patch-server-stale`.
 - `DOCTOR_CHECK_IDS` : `ap-installed ap-update settings-file worlds-corrupt worlds-no-manifest worlds-incompatible worlds-shadowed ap-processes port-38281 bizhawk disk-space programdata-acl glibc network`.
 - `GENERATE_STAGE_IDS` : `init weights generating worlds creating items rules plando prefill fill balancing preoutput output output-files playthrough archive done`.
+- `CHECK_CODES` (valeurs de `CheckItem.code`, traduites comme les autres) : `ap-ok ap-missing world-ok world-missing rom-ok rom-missing rom-bad-hash rom-apply-from-vault emulator-ok emulator-missing emulator-not-configured emulator-assisted na`.
+
+`src/shared/rules.ts` (créé ici, car le renderer en a besoin pour l'assistant) : `RULE_PRESETS: Record<'casual' | 'async' | 'race', Rules>` (spec §3.13 : casual = item cheat off, hint_cost 10, release/collect auto, spoiler 3 ; async = idem + auto_shutdown 0 ; race = `race: true`, spoiler 0, compatibility 0) et `defaultRules(): Rules` (= casual). La Task 14 l'importe ; elle ne le redéfinit pas.
 
 `src/shared/errors.ts` :
 - `interface AppErrorData { code: ErrorCode; params?: Record<string, string | number>; detail?: string; logPath?: string }`.
-- `class AppError extends Error` : `constructor(code, params?, opts?: { detail?; logPath?; cause? })` et `toData(): AppErrorData`.
+- `class AppError extends Error` : `constructor(code, params?, opts?: { detail?; logPath?; cause? })` et `toData(): AppErrorData`. `message` = `"<code>"` suivi de `": <detail>"` si présent (les tests font `toThrow(/PATH_FORBIDDEN/)`).
 - `isAppErrorData(x: unknown): x is AppErrorData`.
 - `toAppErrorData(e: unknown): AppErrorData` : une erreur inconnue devient `{ code: 'AP_UNKNOWN', detail: String(e) }`.
 - `class GoatError extends Error { code: ErrorCode; params?; detail?; logPath? }` : l'erreur levée côté renderer par `window.goat.invoke`.
@@ -288,7 +292,7 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
 | `app:openExternal` | `{url}` (liste blanche) | void | Task 2 |
 | `app:pickPaths` | `{mode:'file'\|'files'\|'directory', title?, filters?:{name,extensions[]}[]}` | `string[]` | Task 2 |
 | `app:savePath` | `{defaultName, filters?}` | `string\|null` | Task 2 |
-| `app:pendingOpenRequests` | void | `OpenRequest[]` | Task 21 |
+| `app:pendingOpenRequests` | void | `OpenRequest[]` | Task 21 (la Task 2 le laisse `NOT_IMPLEMENTED`) |
 | `app:confirmQuit` | `{requestId, confirm:boolean}` | void | Task 2 |
 | `app:setGithubToken` | `{token:string\|null}` | `{hasToken:boolean}` | Task 2 |
 | `app:secretsStatus` | void | `{canEncrypt:boolean, hasGithubToken:boolean}` | Task 2 |
@@ -312,7 +316,7 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
 | `studio:schema` | `{game}` | `GameSchema` | Task 12 |
 | `studio:parse` | `{text}` | `{docs: EditorDoc[], issues: Issue[]}` | Task 13 |
 | `studio:render` | `{doc: EditorDoc}` | `{text, issues: Issue[]}` | Task 13 |
-| `studio:validate` | `{text}` | `PlayerDoc[]` | Task 13 |
+| `studio:validate` | `{text, fileName?:string}` | `PlayerDoc[]` | Task 13 |
 | `studio:open` | `{path?:string}` (absent : dialogue) | `{path, text}\|null` | Task 13 |
 | `studio:save` | `{text, path:string\|null, suggestedName}` | `{path}\|null` | Task 13 |
 | `session:list` | void | `SessionSummary[]` | Task 14 |
@@ -359,7 +363,7 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
 | `doctor:fix` | `{checkId: DoctorCheckId}` | `DoctorCheck[]` | Task 21 |
 | `doctor:supportBundle` | void | `{path}` | Task 21 |
 | `system:integration` | void | `IntegrationState` | Task 21 |
-| `system:setIntegration` | `{linuxDesktop?:boolean, winProtocol?:boolean}` | `IntegrationState` | Task 21 |
+| `system:setIntegration` | `{linuxDesktop?:boolean, winProtocol?:boolean, winAssociations?:boolean}` | `IntegrationState` | Task 21 |
 
 **Événements** (`src/shared/ipc/events.ts`) :
 - Tâches : `task:progress` `TaskProgress` · `task:log` `TaskLog` · `task:done` `TaskDone` · `task:failed` `TaskFailed`.
@@ -368,16 +372,16 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
 
 **Main** :
 - `src/main/core/context.ts` :
-  - `interface CoreContext { platform: Platform; log: Logger; exec: ExecFn; http: Http; tasks: TaskManager; config: ConfigStore; secrets: SecretStore; bus: EventBus; lifecycle: Lifecycle }`.
+  - `interface CoreContext { platform: Platform; log: Logger; exec: ExecFn; http: Http; tasks: TaskManager; config: ConfigStore; secrets: SecretStore; bus: EventBus; lifecycle: Lifecycle; paths: AllowedPaths }`.
   - `interface Lifecycle` :
     - `onBeforeQuit(fn: () => Promise<void>, opts?: { phase: 'early' | 'late' }): void` : `before-quit` attend d'abord tous les `early` (ex. arrêt des serveurs par `/exit`), puis tous les `late` (ex. kill des processus restants), avec un timeout global de 20 s.
     - `onCloseRequested(fn: () => { servers: string[]; tasks: TaskKind[] }): void` : au clic sur fermer, si un serveur ou une tâche tourne, le main annule la fermeture et émet `app:quitRequested`. Le renderer répond par `app:confirmQuit`.
     - `onSecondInstance(fn: (argv: string[]) => void)` et `onOpenFile(fn: (path: string) => void)`.
     - `onWindowReady(fn: () => void)` : **rejoue immédiatement** si la fenêtre est déjà prête.
     - Implémenté par `src/main/lifecycle.ts`, branché une fois pour toutes dans `src/main/index.ts`.
-  - `ctx.paths = { addAllowedRoots(provider: () => Promise<string[]>): void; isAllowed(p: string): Promise<boolean> }` : racines autorisées pour `app:openPath`. Par défaut : `dataRoot`, `userData`, `downloads` ; la Task 6 ajoute le dossier d'AP.
-  - `assertUserPath(p, { mustExist: boolean; kind: 'file' | 'dir'; exts?: string[] }): Promise<string>` (`src/main/core/system/user-path.ts`, créé ici) : refuse les chemins relatifs, UNC (`\\?\`, `\\.\`, `\\server`), les dossiers système (`%WINDIR%`, `C:\Program Files*` en écriture, `/etc`, `/usr`, `/bin`, `/proc`, `/sys`) et le dossier d'installation d'ArchipelaGOAT. Erreur `PATH_FORBIDDEN`. **Chaque handler qui reçoit un chemin du renderer l'appelle** (Tasks 6, 10, 13, 14, 18, 19, 20).
-  - `Http` est déclaré ici (implémenté en Task 5) ; dans cette tâche, un stub qui lève `NOT_IMPLEMENTED`.
+  - `ctx.paths: AllowedPaths = { addAllowedRoots(provider: () => Promise<string[]>): void; isAllowed(p: string): Promise<boolean> }` : racines autorisées pour `app:openPath`. Par défaut : `dataRoot`, `userData`, `downloads` ; la Task 6 ajoute le dossier d'AP.
+  - `assertUserPath(p, opts?: { mustExist?: boolean /* défaut true */; kind?: 'file' | 'dir'; exts?: string[]; access?: 'read' | 'write' /* défaut 'read' */ }): Promise<string>` (`src/main/core/system/user-path.ts`, créé ici) : refuse les chemins relatifs, UNC (`\\?\`, `\\.\`, `\\server`), les dossiers système (`%WINDIR%`, `/etc`, `/usr`, `/bin`, `/proc`, `/sys`), `C:\Program Files*` quand `access === 'write'`, et le dossier d'installation d'ArchipelaGOAT. Erreur `PATH_FORBIDDEN` ; chemin absent alors que `mustExist` → `NOT_FOUND`. Renvoie le chemin normalisé. **Chaque handler qui reçoit un chemin du renderer l'appelle** (Tasks 6, 10, 13, 14, 18, 19, 20).
+  - `Http` est déclaré ici **exactement** comme la Task 5 l'implémente : `getJson<T>(url, opts?: { cacheKey?: string; headers?: Record<string, string>; timeoutMs?: number }): Promise<{ data: T; fromCache: boolean }>`, `getText(url, opts?): Promise<{ data: string; fromCache: boolean }>`, `fetchRaw(url, init?: RequestInit & { timeoutMs?: number }): Promise<Response>`. Dans cette tâche, un stub qui lève `NOT_IMPLEMENTED`.
 - `interface Platform` :
   - `os`, `appVersion`, `isPackaged`, `locale`.
   - `paths: { userData; dataRoot; temp; home; downloads; exe }`.
@@ -396,8 +400,14 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
 - `createConfigStore(file, os): ConfigStore` : `{ get(): AppConfig; update(patch: z.input<typeof AppConfigPatch>): AppConfig }`.
   - Fusion profonde, écriture atomique. Émet `config:changed`.
   - `defaultConfig(os)` exporté : language `'auto'`, effets tous `true` sauf `sounds: false`, `showAfterDark: false`, `integration: { linuxDesktop: os === 'linux', winProtocol: false, winAssociations: false }`, `webhostUrl: 'https://archipelago.gg'`.
-  - zod 4 n'a plus `deepPartial` : `AppConfigPatch = z.strictObject({ language, effects: EffectsSchema.partial(), integration: IntegrationSchema.partial(), showAfterDark, apPathOverride, desktopIcons, allowPlaintextSecrets, firstRunDone }).partial()`. `webhostUrl` n'est **pas** modifiable par IPC (uniquement via `GOAT_WEBHOST_URL`).
+  - zod 4 n'a plus `deepPartial` : `AppConfigPatch = z.strictObject({ language, effects: EffectsSchema.partial(), showAfterDark, desktopIcons, allowPlaintextSecrets, firstRunDone }).partial()`.
+    - `apPathOverride` ne se modifie que par `ap:setCustomPath`, qui valide le chemin : sinon le renderer pourrait faire lancer des exécutables d'un dossier arbitraire.
+    - `integration` ne se modifie que par `system:setIntegration`.
+    - `webhostUrl` n'est pas modifiable par IPC ; `createConfigStore` l'écrase à l'exécution par `GOAT_WEBHOST_URL` quand l'env de test est autorisé (Global Constraints), sans le persister.
+  - `ConfigStore` expose aussi `updateInternal(patch: Partial<AppConfig>)`, réservé au main (utilisé par les Tasks 6 et 21).
+- `SecretStore` : `get` renvoie `null` si le déchiffrement est impossible (pas de keyring Linux), pour ne jamais bloquer le démarrage ; seul `set` lève `SECRETS_UNAVAILABLE`.
 - `app:setGithubToken` stocke la clé `github.token` dans `SecretStore`. `app:clearData` vide `dataRoot/downloads`, `dataRoot/catalog` ou `dataRoot/logs`.
+- `src/shared/ipc/event-names.ts` est la **seule** liste des noms d'événements (`EVENT_NAMES = [...] as const`) ; `events.ts` en dérive ses types de payload (`Record<EventName, …>`, vérifié par `satisfies`).
 - `createSecretStore(file, platform, config): SecretStore` : `{ get(key): string | null; set(key, value: string | null): void; has(key): boolean }`. Si `!platform.canEncrypt()` et `!config.get().allowPlaintextSecrets`, lève `SECRETS_UNAVAILABLE`.
 - `src/main/ipc/registry.ts` :
   - `registerHandler<C>(name: C, fn: (input: ChannelInput<C>, meta: { senderId: number }) => Promise<ChannelOutput<C>>)`.
@@ -427,7 +437,9 @@ export interface ServerHistory { events: ServerEvent[]; log: string[] }   // ann
 
 ```ts
 // tests/unit/shared/ipc.test.ts
-it('every channel has an input schema and a unique name', () => { /* parcourt channels */ })
+it('every channel has an input schema and no domain file redefines another domain channel', () => {
+  // somme des clés de chaque fichier de domaine === nombre de clés de `channels` fusionné, et chaque nom commence par son domaine
+})
 it('rejects invalid input via schema', () => expect(channels['session:get'].input.safeParse({}).success).toBe(false))
 it('webhost:host requires consent literal true', () =>
   expect(channels['webhost:host'].input.safeParse({ sessionId: 's', consent: false }).success).toBe(false))
@@ -455,6 +467,10 @@ it('onWindowReady replays when the window is already ready', ...)
 it('close request emits app:quitRequested when a server runs, and quits after app:confirmQuit', ...)
 // tests/unit/main/user-path.test.ts
 it('assertUserPath rejects relative, UNC, system dirs and missing files', ...)
+// tests/unit/shared/rules.test.ts
+it('RULE_PRESETS.race sets race true, spoiler 0, compatibility 0; defaultRules equals casual', ...)
+// tests/unit/main/secrets.test.ts (suite)
+it('get returns null instead of throwing when decryption is unavailable', ...)
 ```
 
 - [ ] **Step 2: Lancer les tests**, vérifier qu'ils échouent (modules absents).
@@ -467,7 +483,7 @@ it('assertUserPath rejects relative, UNC, system dirs and missing files', ...)
 ### Task 3: Utilitaires système (fichiers, archives, masquage, logs)
 
 **Files:**
-- Create: `src/main/core/system/fsx.ts`, `src/main/core/system/archive.ts`, `src/main/core/system/redact.ts`
+- Create: `src/main/core/system/fsx.ts`, `src/main/core/system/archive.ts`, `src/main/core/system/redact.ts`, `src/main/core/system/powershell.ts`
 - Modify: `src/main/core/logger.ts` (ajout d'un sink fichier)
 - Test: `tests/unit/system/fsx.test.ts`, `tests/unit/system/archive.test.ts`, `tests/unit/system/redact.test.ts`
 
@@ -494,7 +510,10 @@ it('assertUserPath rejects relative, UNC, system dirs and missing files', ...)
     - les valeurs `'password': '…'` de la ligne `A client connection was refused due to:` ;
     - `session=…` dans les cookies ;
     - l'UUID après `/session/` ;
+    - la sortie de `/options` : `Option password is set to X` et `Option server_password is set to X` (format exact de `MultiServer.py:1493-1500`) ;
+    - la commande `/option password X` / `/option server_password X` tapée dans la console ;
     - les secrets littéraux passés dans `extraSecrets`.
+  - `src/main/core/system/powershell.ts` (le **seul** endroit qui encode du PowerShell) : `encodePowerShell(script: string): string` (base64 UTF-16LE), `psQuote(value: string): string` (entoure de `'` en doublant `'`, `‘` et `’`), `runPowerShell(exec, script, opts?): Promise<{ code; stdout; stderr }>` (`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand …`, le script commence par forcer `[Console]::OutputEncoding` en UTF-8). Utilisé par les Tasks 6, 9, 19 et 21.
   - `createFileLogger(dir): Logger` : rotation 5 fichiers × 5 Mo, chaque ligne passée par `redact`.
 
 - [ ] **Step 1: Tests**
@@ -512,6 +531,9 @@ it('redact masks Hosting line password', () =>
 it('redact masks uri password keeping slot', () =>
   expect(redact('archipelago://Bob:s3cr3t@host:1')).toBe('archipelago://Bob:•••@host:1'))
 it('redact masks refused-connection password and extra secrets', ...)
+it('redact masks /options output and /option password commands', () =>
+  expect(redact('Option server_password is set to adm1n')).toBe('Option server_password is set to •••'))
+it('psQuote doubles straight and curly apostrophes; encodePowerShell round-trips as UTF-16LE base64', ...)
 ```
 
 - [ ] **Step 2: Vérifier l'échec**, **Step 3: implémenter**, **Step 4: vérifier le succès**.
@@ -536,7 +558,7 @@ it('redact masks refused-connection password and extra secrets', ...)
     - Exécutables : `AP_EXES` (noms sans extension, brief §1.5) et `apExeFileName(name, os)`.
     - `DEFAULT_PORT = 38281`.
     - BizHawk : `BIZHAWK_REPO = 'TASEmulators/BizHawk'`, `BIZHAWK_TAG = '2.11.1'`, `BIZHAWK_ASSETS = { win32: 'BizHawk-2.11.1-win-x64.zip', linux: 'BizHawk-2.11.1-linux-x64.tar.gz' }`.
-    - `CORE_LOOSE_WORLDS` (les 11 mondes en dossier, brief §1.10).
+    - `CORE_LOOSE_WORLDS` : **dérivé** de `resources/core-worlds-0.6.8.json` (entrées `loose: true`), jamais recopié à la main.
   - `patch-routes.ts` : `PATCH_ROUTES: PatchRoute[]` (brief §1.11 et spec §3.12) ; `routeForFile(fileName): PatchRoute | null` (insensible à la casse ; un `.zip` renvoie `null`) ; `TEXT_ROUTE: PatchRoute` (`client: 'text'`, `exe: 'ArchipelagoTextClient'`, tier `guided`).
   - `rom-table.ts` :
     - `ROM_TABLE: RomTableEntry[]`, **dérivée du code source d'AP 0.6.8** (classes de réglages `*_options` et MD5 des `worlds/*`). Elle couvre au moins les 8 mondes à ROM requise à la génération et les 9 mondes BizHawk du brief §1.11.
@@ -651,7 +673,7 @@ Règle commune aux Tasks 6-21 : chaque tâche crée **son** fichier `src/main/se
       2. installation gérée `dataRoot/archipelago/Archipelago` ;
       3. AppImage la plus récente (par version dans le nom) dans `~/Applications`, `~/Downloads`, `~/.local/bin`.
   - **Registre** : `src/main/core/system/registry.ts` exporte `readRegistryValues(exec, keyPath, { view64: boolean }): Promise<Record<string, string> | null>`.
-    - Implémentation : `powershell.exe -NoProfile -NonInteractive -EncodedCommand <base64 UTF-16LE>`. Le script fixe `[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)`, ouvre la clé via `[Microsoft.Win32.RegistryKey]::OpenBaseKey(<hive>, Registry64)` et imprime ses valeurs en JSON.
+    - Implémentation : `runPowerShell` (Task 3) avec un script qui ouvre la clé via `[Microsoft.Win32.RegistryKey]::OpenBaseKey(<hive>, Registry64)` et imprime ses valeurs en JSON.
     - Raison : `reg.exe` sort en code page OEM (850 sur un Windows français) et casse les accents.
     - `parseRegQuery` n'est plus nécessaire.
   - **AppImage** : le dossier interne n'est pas lisible sans montage. `ApInstall.paths.coreWorlds` vaut alors `''`, et la liste des jeux core vient de `coreWorldsFor(version)` (Task 4).
@@ -659,7 +681,7 @@ Règle commune aux Tasks 6-21 : chaque tâche crée **son** fichier `src/main/se
     - Le service copie ce dossier dans un dossier temporaire, et `detect()` renvoie `fromRoot(tmp, 'custom')` **sans** lire le registre. `fromRoot` accepte `ArchipelagoLauncher.mjs` dans ce mode.
     - `exeOverride` mappe chaque nom vers `{ command: process.execPath, argsPrefix: ['<tmp>/<name>.mjs'], env: process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {} }`.
   - `locator.service.ts` enregistre `ctx.paths.addAllowedRoots(async () => { const i = await detect(); return i ? [i.root, i.paths.userPath] : [] })`.
-  - Handlers : `ap:detect`, `ap:setCustomPath` (passe par `assertUserPath(dir)`, valide via `fromRoot`, persiste `apPathOverride`).
+  - Handlers : `ap:detect`, `ap:setCustomPath` (passe par `assertUserPath(dir, { kind: 'dir' })`, valide via `fromRoot`, persiste `apPathOverride` via `config.updateInternal`).
 
 - [ ] **Step 1: Tests**
 
@@ -686,7 +708,8 @@ it('detect returns null when nothing found and uses override when set', ...)  //
 
 **Files:**
 - Create: `src/main/core/ap/process.ts`, `src/main/core/ap/processes.ts`, `src/main/ipc/ap-processes.ts`
-- Create: `tests/fake-ap/ArchipelagoGenerate.mjs`, `tests/fake-ap/ArchipelagoServer.mjs`, `tests/fake-ap/ArchipelagoClient.mjs` (copié sous les noms `ArchipelagoBizHawkClient.mjs`, `ArchipelagoSNIClient.mjs`, `ArchipelagoTextClient.mjs`, `ArchipelagoLauncher.mjs`, `ArchipelagoLauncherDebug.mjs` par un petit script `tests/fake-ap/make.mjs`)
+- Create: `src/main/services/processes.service.ts`, `tests/helpers/make-patch.mjs`, `tests/helpers/make-patch.d.mts`
+- Create: `tests/fake-ap/ArchipelagoGenerate.mjs`, `tests/fake-ap/ArchipelagoServer.mjs`, `tests/fake-ap/ArchipelagoClient.mjs` (exposé sous les noms `ArchipelagoBizHawkClient.mjs`, `ArchipelagoSNIClient.mjs`, `ArchipelagoTextClient.mjs`, `ArchipelagoLauncher.mjs`, `ArchipelagoLauncherDebug.mjs` par des shims d'une ligne générés par `tests/fake-ap/make-shims.mjs <destDir>`)
 - Test: `tests/unit/ap/process.test.ts`, `tests/unit/ap/processes.test.ts`
 
 **Interfaces:**
@@ -701,8 +724,12 @@ it('detect returns null when nothing found and uses override when set', ...)  //
   - `buildApEnv(base: NodeJS.ProcessEnv, isAppImage: boolean): NodeJS.ProcessEnv` (pure).
   - `class LineSplitter { push(chunk: Buffer | string): string[]; flush(): string[] }` : gère CRLF, les lignes partielles et l'UTF-8 coupé entre deux chunks.
   - `listChildren(): { pid; command }[]` et `disposeChildren(timeoutMs): Promise<void>` (kill de ce qui reste, hors `selfManaged`).
-  - `findOrphans(exec, os): Promise<{ pid; exe; sessionId: string | null }[]>` : relit `children.json` au démarrage, vérifie que chaque PID vit encore **et** est toujours un `Archipelago*` (`tasklist /FI "PID eq n"` / `/proc/<pid>/cmdline`), puis purge les autres. `killOrphan(pid)`.
-  - `processes.service.ts` (**eager**) enregistre `ctx.lifecycle.onBeforeQuit(() => disposeChildren(5000), { phase: 'late' })`.
+  - `findOrphans(ctx): Promise<{ pid; exe; sessionId: string | null }[]>` : relit `<ctx.platform.paths.dataRoot>/run/children.json` au démarrage, vérifie que chaque PID vit encore **et** est toujours un `Archipelago*` (`tasklist /FI "PID eq n"` / `/proc/<pid>/cmdline`), puis purge les autres. `killOrphan(pid)`.
+  - `processes.service.ts` (**eager**) :
+    - enregistre `ctx.lifecycle.onBeforeQuit(() => disposeChildren(5000), { phase: 'late' })` ;
+    - au démarrage, tue (avec un log) les orphelins **non serveur** (`exe !== 'ArchipelagoServer'`, ex. une génération interrompue par un crash) ; les serveurs orphelins sont laissés à la Task 16, qui propose de les arrêter.
+  - `tests/helpers/make-patch.mjs` (+ `make-patch.d.mts` pour les tests TS) : **le seul** constructeur de patch/zip de test, `makePatchZip(dest, manifest, extraEntries?)` et `makeSeedZip(dest, { seed, slots })`. Utilisé par le faux Generate et par la Task 20.
+  - Les faux exécutables restent dans `tests/fake-ap/` ; toute copie ailleurs (env `GOAT_FAKE_AP_DIR`, `createFakeApInstall`) est un **shim** d'une ligne, `import 'file:///<chemin absolu du script réel>'`, ce qui garde la résolution des imports (`yazl`, fixtures) depuis le dépôt. Le chemin des fixtures est calculé depuis `import.meta.url` du script réel.
   - `listApProcesses(exec, os): Promise<{ pid: number; name: string }[]>` : `tasklist /FO CSV /NH` sous Windows, `ps -eo pid=,comm=` sous Linux ; filtre `^Archipelago`.
   - Handler `ap:processes`.
 - Comportement des faux exécutables (piloté par l'env `FAKE_MODE`, et `FAKE_RECORD` pour écrire `argv`/`cwd` dans un fichier JSON) :
@@ -724,7 +751,8 @@ it('detect returns null when nothing found and uses override when set', ...)  //
 it('LineSplitter joins partial lines and handles CRLF and split UTF-8', ...)
 it('buildApEnv strips PYTHONHOME/PYTHONPATH and sets PYTHONUNBUFFERED', ...)
 it('generate fail mode exits (does not hang) with stdin ignore', async () => { /* attend exited < 5 s */ })
-it('spawns with cwd and args containing spaces and accents', async () => { /* dossier 'C:/tmp/Jérôme Dupont/ws' ; vérifie FAKE_RECORD */ })
+it('spawns with cwd and args containing spaces and accents', async () => { /* path.join(os.tmpdir(), 'Jérôme Dupont', 'ws') ; vérifie FAKE_RECORD */ })
+it('a shim copied outside the repo runs the real fake script', ...)
 it('disposeChildren kills remaining children but not selfManaged ones', ...)
 it('defaultWindowFor hides Generate/Server/LauncherDebug and shows clients', ...)
 it('merges ExeRef.env (ELECTRON_RUN_AS_NODE) into the child env', ...)
@@ -784,14 +812,16 @@ it('writes absolute paths with spaces and accents unquoted-safe and rereads iden
 - Produces :
   - Windows, fonctions pures :
     - `buildInnoArgs({ desktopIcons, customDir, logPath }): string[]`. Attendu exact sans `customDir` : `['/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-','/CLOSEAPPLICATIONS','/TASKS="desktopicon,deletelib"','/LOG="<logPath>"']` ; avec `desktopIcons:false` : `/TASKS="!desktopicon,deletelib"`.
-    - `buildElevatedCommand(exePath, args): { command: 'powershell.exe'; args: ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', <base64 UTF-16LE>] }`. Le script encodé :
+    - `buildElevatedScript(exePath, args): string`, exécuté par `runPowerShell` (Task 3, qui fournit aussi `psQuote`). Le script :
       ```powershell
       $psi = New-Object Diagnostics.ProcessStartInfo
       $psi.FileName = '<exe>'; $psi.Arguments = '<args joints>'; $psi.Verb = 'runas'; $psi.UseShellExecute = $true
       try { $p = [Diagnostics.Process]::Start($psi); $p.WaitForExit(); exit $p.ExitCode }
       catch [ComponentModel.Win32Exception] { exit $_.Exception.NativeErrorCode }
       ```
-      Les valeurs sont échappées en doublant `'`, `‘` (U+2018) et `’` (U+2019), tous trois traités comme des apostrophes par PowerShell.
+      Les valeurs passent par `psQuote` (doublement de `'`, `‘` et `’`).
+    - `customDir` passe par `assertUserPath(dir, { mustExist: false, kind: 'dir', access: 'write' })`.
+    - Le service s'enregistre sous le nom `installer`.
     - `interpretInstallResult(exitCode: number): AppErrorData | null` : uniquement par code (les messages sont localisés, ex. Windows FR) ; 0 → null ; 1223 → `INSTALL_ELEVATION_DENIED` ; 1-8 → `INSTALL_FAILED{exitCode, reason: INNO_EXIT_CODES[code]}` ; autre → `INSTALL_FAILED{exitCode}`.
   - Windows : `uninstallWindows(ctx, install, { purgeUserData })` lance `unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` **via le même wrapper élevé** (AP est installé en admin).
   - Après une installation réussie (Windows ou Linux), le service émet `ap:installed` avec l'`ApInstall`.
@@ -812,7 +842,7 @@ it('buildInnoArgs passes tasks explicitly', () =>
   expect(buildInnoArgs({ desktopIcons: true, customDir: null, logPath: 'C:\\l.txt' })).toEqual(
     ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CLOSEAPPLICATIONS', '/TASKS="desktopicon,deletelib"', '/LOG="C:\\l.txt"']))
 it('buildInnoArgs deselects desktop icons and adds DIR', ...)   // '/TASKS="!desktopicon,deletelib"', '/DIR="D:\\Jeux\\Archipelago"'
-it('elevated command decodes to a script escaping \' ‘ ’ and keeping spaces and accents', () => { /* décode le base64 ; chemin "C:\\Users\\O'Neil Jérôme\\Setup.exe" */ })
+it('elevated script quotes \' ‘ ’ and keeps spaces and accents', () => { /* chemin "C:\\Users\\O'Neil Jérôme\\Setup.exe" */ })
 it('maps exit 1223 to INSTALL_ELEVATION_DENIED and 4 to INSTALL_FAILED with reason', ...)
 it('linux update preserves Players, custom_worlds and host.yaml and replaces lib', ...)
 it('linux install end-to-end from local tar.gz with sha256', ...)        // tar.gz construit dans le test, servi en local
@@ -832,7 +862,8 @@ it('install backs up settings and quarantines corrupt apworlds before running se
 - Test: `tests/unit/worlds/apworld.test.ts`, `tests/unit/worlds/inventory.test.ts`, `tests/unit/worlds/install.test.ts`
 
 **Interfaces:**
-- Consumes : `listZip`, `readZipText`, `sha256File`, `download`, `moveFile`, `backupFile`, `Locator`, `CatalogEntry` (via une fonction `lookupCatalog(id)` injectée, fournie par Task 11 ; elle renvoie null tant que Task 11 n'existe pas).
+- Consumes : `listZip`, `readZipText`, `sha256File`, `download`, `moveFile`, `backupFile`, `Locator`, `coreWorldsFor` (Task 4 : noms des jeux des mondes `loose` et liste des jeux core quand `paths.coreWorlds === ''`), `CatalogEntry` (via une fonction `lookupCatalog(id)` injectée, fournie par Task 11 ; elle renvoie null tant que Task 11 n'existe pas).
+- Crée `src/main/services/worlds.service.ts` (modifié ensuite par la Task 11).
 - Produces :
   - `inspectApworld(path): Promise<ApworldInspection>`, avec `ApworldInspection = { module: string; hasInit: boolean; manifest: WorldManifest | null; manifestError: string | null; sha256: string; sizeBytes: number }`. Lève `WORLD_INVALID{reason}`, où `reason ∈ 'not-zip' | 'zip-bomb' | 'traversal' | 'multiple-roots' | 'no-init' | 'name-mismatch'`.
   - `scanWorlds(paths: ApPaths, disabledDir: string, apVersion: string | null): Promise<WorldInfo[]>`, avec `id` = sha1 du chemin absolu.
@@ -877,6 +908,7 @@ it('setEnabled moves to and from disabled dir; remove refuses core', ...)
 **Files:**
 - Create: `src/main/core/worlds/catalog.ts`, `src/main/ipc/catalog.ts`
 - Modify: `src/main/services/worlds.service.ts` (injecte `lookupCatalog: (id) => get('catalog').lookup(id)` ; aucune autre tâche de la vague 5 ne touche ce fichier)
+- Create: `resources/catalog-optout.json` (`{ "games": [], "repos": [] }`)
 - Create: `tests/fixtures/catalog/tree.json`, `tests/fixtures/catalog/index.toml`, `tests/fixtures/catalog/index.lock`, `tests/fixtures/catalog/worlds/*.toml` (≥ 4, **récupérés réellement** via GET sur `raw.githubusercontent.com/ionium-ap/Archipelago-index/main/...` puis réduits), `tests/fixtures/catalog/wiki-page1.json`, `wiki-afterdark.json` (GET réels, réduits)
 - Test: `tests/unit/worlds/catalog.test.ts`
 
@@ -984,8 +1016,9 @@ it('fileSafeName strips <>:"/\\|?*', ...)
   - `src/shared/studio-model.ts` (partagé avec la Task 27) : `docFromSchema(schema: GameSchema, name: string): EditorDoc` (valeurs par défaut de chaque option, `requiresVersion` = version du schéma), `applyPreset(doc, preset): EditorDoc`, `setOptionValue(doc, key, v: OptionValue): EditorDoc`.
   - Handlers :
     - `studio:parse`, `studio:render`, `studio:validate`.
-    - `studio:open` : avec `path`, passe par `assertUserPath(p, { kind: 'file', exts: ['.yaml', '.yml', '.txt'] })` ; sans `path`, ouvre un dialogue. Lecture via `decodeYamlBytes`.
-    - `studio:save` : n'écrit **que** vers un chemin issu d'un dialogue du main pendant cette session (mémorisé dans un `Set`), ou vers le résultat d'un nouveau dialogue si `path` est null. Extension `.yaml`/`.yml` obligatoire. Tout autre chemin → `PATH_FORBIDDEN`.
+    - `studio:open` : avec `path`, passe par `assertUserPath(p, { kind: 'file', exts: ['.yaml', '.yml', '.txt'] })` ; sans `path`, ouvre un dialogue. Lecture via `decodeYamlBytes`. Le chemin renvoyé est ajouté au `Set` des chemins enregistrables.
+    - `studio:save` : n'écrit **que** vers un chemin de ce `Set` (issu d'un dialogue du main ou de `studio:open` pendant cette session), ou vers le résultat d'un nouveau dialogue si `path` est null. Extension `.yaml`/`.yml` obligatoire. Tout autre chemin → `PATH_FORBIDDEN`.
+    - `studio:validate` utilise `fileName` (défaut `'Player.yaml'`) pour dériver le nom du joueur.
 
 - [ ] **Step 1: Tests**
 
@@ -1020,20 +1053,15 @@ it('studio:save refuses a path not returned by a dialog', ...)
 - Test: `tests/unit/sessions/*.test.ts`
 
 **Interfaces:**
-- Consumes : `writeFileAtomic`, `moveFile`, `listZip`/`readZipBytes`, `decodeYamlBytes`, `loadYaml11`, `validatePlayerDocs`, `validateSessionNames`, `scanWorlds`, `coreWorldsFor`, `Catalog.lookupByGame` (renvoie null si absent), `ROM_TABLE`, `md5Rom`, `Vault.findForMd5` (Task 18), `ApSettings`, `SecretStore`, `assertUserPath`.
+- Consumes : `writeFileAtomic`, `moveFile`, `listZip`/`readZipBytes`, `decodeYamlBytes`, `loadYaml11`, `validatePlayerDocs`, `validateSessionNames`, `scanWorlds`, `coreWorldsFor`, `Catalog.lookupByGame` (renvoie null si absent), `ROM_TABLE`, `Vault.resolveRomForEntry` (Task 18), `ApSettings`, `SecretStore`, `assertUserPath`, `RULE_PRESETS`/`defaultRules` (Task 2).
 - Produces :
-  - `RULE_PRESETS: Record<'casual' | 'async' | 'race', Rules>` (spec §3.13) et `defaultRules(): Rules` (= casual).
+  - Importe `RULE_PRESETS` et `defaultRules` de `src/shared/rules.ts` (Task 2) ; ne les redéfinit pas.
   - `buildSessionSettingsEntries(rules: Rules, secrets: { password: string | null; serverPassword: string | null }, romPaths: Record<string /*settingsKey*/, string /*abs path*/>): { path: string[]; value: unknown }[]` (dans `sessions/rules.ts`). Produit :
     - `generator.spoiler`, `generator.race`, `generator.plando_options` ;
     - `server_options.{password, server_password, hint_cost, location_check_points, release_mode, collect_mode, remaining_mode, countdown_mode, auto_shutdown, compatibility, disable_item_cheat = !rules.itemCheat}` ;
     - une entrée `romFile(key)` par ROM, en chemin absolu.
     - Utilisé par la Task 15 (génération) **et** la Task 16 (avant chaque démarrage du serveur).
-  - `resolveRomNeeds(games: string[], deps): Promise<RomNeed[]>` : pour chaque entrée de `ROM_TABLE` avec `requiredAtGeneration` dont le jeu est dans la session :
-    - Lire la valeur effective `settings.get(romFile(key))`, résolue contre `userPath`.
-    - Si le fichier existe **et** que son MD5 (règle d'en-tête de l'entrée) est dans `md5s` → `ok`, avec ce chemin.
-    - Sinon, si le coffre contient une correspondance vérifiée → `ok`, `vaultPath` renseigné. Ce chemin sera écrit dans le `host.yaml` **de session**, sans toucher aux réglages globaux.
-    - Sinon : `bad-hash` si la clé pointe vers un mauvais fichier, `missing` sinon.
-    - Ainsi AP ne tombe jamais sur une ROM absente, donc jamais sur une boîte de dialogue cachée.
+  - `resolveRomNeeds(games: string[], deps): Promise<RomNeed[]>` : pour chaque entrée de `ROM_TABLE` avec `requiredAtGeneration` dont le jeu est dans la session, appelle `vault.resolveRomForEntry(entry)` (Task 18, seul endroit qui implémente « clé effective → MD5 → repli coffre ») et en fait un `RomNeed` (`path` = chemin `ok`). Ce chemin sera écrit dans le `host.yaml` **de session**, sans toucher aux réglages globaux. Ainsi AP ne tombe jamais sur une ROM absente, donc jamais sur une boîte de dialogue cachée.
   - `createSessionStore(ctx, deps): SessionStore` :
     - Méthodes : `list`, `create`, `get`, `update`, `delete`, `addFiles` (chaque chemin passe par `assertUserPath`), `addText`, `removeFile`, `readFile(id, fileId): { text }`, `replaceFile(id, fileId, text)` (re-décode, re-valide, garde `storedName`), `setSecrets`, `getSecrets(id): { password: string | null; serverPassword: string | null }`, `setGeneration(id, g)`, `setHosting(id, h)`.
     - Workspace `dataRoot/sessions/<id>/{players,output,logs}`. Id `s_` + base36 horodatage + 4 caractères aléatoires.
@@ -1061,7 +1089,6 @@ it('romNeed is bad-hash when the key points to a wrong file and the vault has no
 it('buildSessionSettingsEntries writes absolute lttp_options.rom_file and disable_item_cheat', ...)
 it('replaceFile keeps storedName and revalidates', ...)
 it('a Windows-1252 yaml inside a zip keeps its encoding-fallback issue', ...)
-it('RULE_PRESETS.race sets race true, spoiler 0, compatibility 0', ...)
 ```
 
 - [ ] **Step 2-4:** vérifier l'échec, implémenter, vérifier le succès. **Step 5: Commit** `feat(sessions): organizer sessions, imports, rules and validation`.
@@ -1078,7 +1105,8 @@ it('RULE_PRESETS.race sets race true, spoiler 0, compatibility 0', ...)
 - Consumes : `SessionStore`, `validateSession`, `buildSessionSettingsEntries` (Task 14), `ApSettings.makeSessionSettings`, `spawnAp`, `Locator`, `GENERATE_STAGES`, `FILL_STEP_RE`, `FINAL_ARCHIVE_RE`, `matchApError`, `listZip`/`readZipText`/`extractZipSafe`, `routeForFile`, `TaskManager`.
 - Produces :
   - `buildGenerateArgs(ws: { players: string; output: string }, rules: Rules): string[]` : `['--player_files_path', abs, '--outputpath', abs, '--spoiler', String(n)]`, plus `--race` si besoin, plus `--plando`, `'<items, …>'` si `rules.plando` n'est pas vide.
-  - Le `host.yaml` de session est construit avec `buildSessionSettingsEntries(rules, secrets, romPaths)` (Task 14). `romPaths` reprend le chemin `ok` de chaque `RomNeed` (effectif ou `vaultPath`).
+  - Le `host.yaml` de session est construit avec `buildSessionSettingsEntries(rules, secrets, romPaths)` (Task 14). `romPaths` = `{ [need.settingsKey]: need.path }` pour chaque `RomNeed` `ok`.
+  - Le service s'enregistre sous le nom `generator`.
   - `reduceProgress(state: GenProgress, line: string): GenProgress`, où `GenProgress = { stage: GenerateStageId; percent: number }` : monotone, l'étape `fill` est affinée par `FILL_STEP_RE`.
   - `extractGenerationError(stderr: string[], stdout: string[]): AppErrorData` : `matchApError` sur la dernière exception, `detail` tronqué à 4000 caractères, `GENERATION_FAILED` sinon.
   - `readGenerationZip(zipPath): Promise<{ seedName; slots: Slot[]; spoilerName: string | null }>` : slots lus depuis l'en-tête du spoiler (`Player <n>: <name>` / `Game: <game>` ; cas 1 joueur) et depuis les noms `AP_<seed>_P<n>_<name>.<ext>`.
@@ -1117,7 +1145,7 @@ it('session host.yaml contains the vault rom path when the global key is unset',
 ### Task 16: Serveur local
 
 **Files:**
-- Create: `src/main/core/ap/server.ts`, `src/main/core/system/net.ts`, `src/main/ipc/server.ts`, `src/main/services/servers.service.ts` (enregistre `ctx.lifecycle.onBeforeQuit(() => servers.disposeAll())`)
+- Create: `src/main/core/ap/server.ts`, `src/main/core/system/net.ts`, `src/main/ipc/server.ts`, `src/main/services/servers.service.ts` (enregistre `ctx.lifecycle.onBeforeQuit(() => servers.disposeAll(), { phase: 'early' })` et `ctx.lifecycle.onCloseRequested(() => ({ servers: <sessions en cours>, tasks: [] }))`)
 - Test: `tests/unit/ap/server.test.ts`, `tests/unit/system/net.test.ts`
 
 **Interfaces:**
@@ -1188,7 +1216,7 @@ it('listAddresses excludes internal and IPv6 link-local', ...)
     - `myRooms(): Promise<WebRoomRef[]>`.
     - `ownerUrl(roomId): Promise<string>` (`/session/<uuid>` puis redirection vers la room).
     - Erreur réseau ou 5xx → `WEBHOST_UNAVAILABLE`.
-  - Fonctions pures : `parseUserMessage(html): string | null`, `normalizeWebUrl(base, rel): string` (`http://` → `https://` pour l'hôte du site), `toWebRoom(roomId, seedId, status, base): WebRoom`.
+  - Fonctions pures : `parseUserMessage(html): string | null`, `normalizeWebUrl(base, rel): string` (résout `rel` contre `base` ; passe `http://` en `https://` **uniquement** si `base` est en https et que l'hôte est celui du site, sinon le faux site local en http casserait), `toWebRoom(roomId, seedId, status, base): WebRoom`.
   - `hostOnWeb(ctx, deps, sessionId, task): Promise<WebRoom>` :
     - Étapes : `upload`, `room`, `wake`, `port`.
     - `createRoom` est appelé **exactement une fois**.
@@ -1227,7 +1255,8 @@ it('network failure gives WEBHOST_UNAVAILABLE within timeout', ...)
   - `identifyRom(path): Promise<{ md5: string; entry: RomTableEntry | null }>` : essaie les règles d'en-tête des entrées dont l'extension correspond.
   - `createVault(ctx, deps): Vault` :
     - `list()` ; `scan(paths, task)` (chaque chemin passe par `assertUserPath` ; récursif, profondeur 4, extensions de la spec §3.12, taille ≤ 128 Mo) ; `remove(path)` ; `apply(): Promise<VaultApplyResult>` (une seule écriture `settings.set` groupée ; `SETTINGS_LOCKED` remonté tel quel).
-    - `findForMd5(md5s): RomRecord | null` ; `statusForGame(game): 'ok' | 'missing' | 'bad-hash'`.
+    - `findForMd5(md5s): RomRecord | null`.
+    - `resolveRomForEntry(entry: RomTableEntry, md5s = entry.md5s): Promise<{ status: 'ok' | 'missing' | 'bad-hash'; path: string | null; vaultPath: string | null }>` : **seule** implémentation de « clé effective `romFile(entry.settingsKey)` (résolue contre `userPath`) → MD5 avec la règle d'en-tête de l'entrée → sinon correspondance vérifiée du coffre ». Utilisée par les Tasks 14 (`RomNeed`) et 20 (checklist, avec `md5s` = `baseChecksums` du patch).
     - Index `userData/vault.json` ; une entrée dont `size`/`mtime` a changé est re-hachée.
   - Handlers : `vault:*`.
 
@@ -1238,7 +1267,8 @@ it('strips 512-byte SNES copier header only when size % 1024 === 512', ...)   //
 it('strips iNES header for MM2', ...)
 it('scan identifies matching file and ignores >128MB and unknown extensions', ...)
 it('apply writes rom_file keys in one settings write', ...)
-it('statusForGame reports bad-hash when the file changed', ...)
+it('resolveRomForEntry: ok from effective key, ok via vault fallback, bad-hash when the key points to a wrong file', ...)
+it('a vault record whose file changed is re-hashed before use', ...)
 ```
 
 - [ ] **Step 2-4:** vérifier l'échec, implémenter, vérifier le succès. **Step 5: Commit** `feat(play): rom vault with md5 identification`.
@@ -1256,6 +1286,7 @@ it('statusForGame reports bad-hash when the file changed', ...)
 - Produces :
   - `checkPrereqsWindows(exec): Promise<BizhawkState['prereqs']>` : clé `HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64` `Version`, lue en vue 64 bits via `readRegistryValues` (Task 6).
   - `setPath` passe par `assertUserPath(p, { kind: 'dir' })`.
+  - Détection d'un BizHawk existant (spec §3.12) : si `bizhawkclient_options.emuhawk_path` des réglages d'AP pointe vers un EmuHawk existant, `state()` le présente comme installation externe (`managed: false`). Version : `(Get-Item EmuHawk.exe).VersionInfo.ProductVersion` via `runPowerShell` sous Windows, `null` (accepté avec avertissement) sous Linux. Hors de 2.7–2.11 → prérequis en avertissement.
   - `checkPrereqsLinux(exec): Promise<BizhawkState['prereqs']>` : `mono`, `lua5.4`, `lsb_release`, et `libopenal` via `ldconfig -p`.
   - `linuxInstallHint(osRelease: string, missing: string[]): string` : commande apt / dnf / pacman.
   - `createBizhawk(ctx, deps): Bizhawk` :
@@ -1266,7 +1297,8 @@ it('statusForGame reports bad-hash when the file changed', ...)
 - [ ] **Step 1: Tests**
 
 ```ts
-it('parses VC++ runtime version from reg output', ...)
+it('checkPrereqsWindows reads the VC++ runtime Version via readRegistryValues', ...)   // exec injecté
+it('state adopts an existing emuhawk_path from AP settings (2.7 ≤ version ≤ 2.11 accepted, else warning)', ...)
 it('linux hint uses apt on ubuntu, dnf on fedora, pacman on arch', ...)
 it('configureAp writes EmuHawk.exe on windows and EmuHawkMono.sh on linux', ...)
 it('install downloads pinned asset, verifies digest, extracts and writes .goat-version', ...)  // serveur local
@@ -1300,6 +1332,7 @@ it('setPath rejects folder without EmuHawk', ...)
       - Room **sans** `slotName` : `roomStatus` (réveil si `port <= 0`), puis plan avec `slots` rempli, `slot: null`, `ready: false`, **sans téléchargement**.
       - Room **avec** `slotName` : téléchargement du patch du slot dans `dataRoot/rooms/<roomId>/`, puis lecture du manifeste. Si le `server` du patch diffère du port courant : `warnings` reçoit `patch-server-stale`.
       - Patch local (passé par `assertUserPath`) ou adresse : pas de slots à choisir.
+      - Slot sans patch (jeux PC, slots `.zip` comme Factorio) : `route = { suffix: '', client: 'none', exe: null, tier: 'guided' }` avec lien tutoriel. `TEXT_ROUTE` sert uniquement à `textClient`.
     - `refresh(planId)`.
     - `play(planId): Promise<{ pid }>` :
       - Si `checklist.rom` est `missing` avec `code: 'rom-apply-from-vault'`, applique d'abord **cette seule** clé via `settings.set` (peut lever `SETTINGS_LOCKED`).
@@ -1308,7 +1341,7 @@ it('setPath rejects folder without EmuHawk', ...)
   - `buildChecklist(...)`, pure :
     - `ap` : installé ;
     - `world` : le jeu est fourni par un monde chargé (ou listé dans `coreWorldsFor`) ;
-    - `rom` : `na` si pas de `baseChecksums`. Sinon `ok` seulement si la clé **effective** `romFile(entry.settingsKey)` pointe vers un fichier dont le MD5 est dans `baseChecksums`. Si seul le coffre a la ROM : `missing` avec `code: 'rom-apply-from-vault'` (appliqué automatiquement par `play`). Sinon `missing` avec `code: 'rom-missing'`.
+    - `rom` : `na` si pas de `baseChecksums`. Sinon `entry = findRomByMd5(baseChecksums[0])` puis `vault.resolveRomForEntry(entry, baseChecksums)` (Task 18) : `ok` si la clé **effective** est valide ; si seul le coffre a la ROM, `missing` avec `code: 'rom-apply-from-vault'` (appliqué automatiquement par `play`) ; sinon `missing` avec `code: 'rom-missing'` (ou `rom-bad-hash`).
     - `emulator` : `bizhawk` exige un BizHawk installé et `configuredInAp` ; `sni` donne `warning` (assisté) ; sinon `na`.
     - `ready` est vrai si aucun item n'est `missing`, à l'exception de `rom-apply-from-vault`.
   - Handlers : `join:*`.
@@ -1415,7 +1448,7 @@ Règles communes aux Tasks 22-32 :
 - [ ] **Step 1: Tests**
 
 ```tsx
-it('text tokens reach 4.5:1 on bg-0 and bg-2', () => { expect(contrastRatio('#F5F3FF', '#07070C')).toBeGreaterThanOrEqual(4.5); /* --text-dim aussi */ })
+it('text tokens reach 4.5:1 on bg-0 and bg-2', () => { /* lit tokens.css, extrait --text, --text-dim, --bg-0, --bg-2 et vérifie contrastRatio ≥ 4.5 pour chaque paire */ })
 it('WeightSlider shows rounded probabilities summing to ~100', ...)
 it('Stepper marks current step with aria-current', ...)
 it('NeonButton loading disables click and shows spinner label', ...)
@@ -1430,7 +1463,7 @@ it('CopyField masks secret until revealed', ...)
 ### Task 23: Coque de l'application
 
 **Files:**
-- Create: `src/renderer/src/App.tsx` (remplace), `router.tsx`, `layout/{AppLayout,TitleBar,Rail,StatusBar,ScreenBoundary,QuitConfirm}.tsx`, `lib/goat.ts`, `lib/errors.ts`, `lib/drop-routing.ts`, `hooks/{useIpc,useTask,useEvent,useShortcuts,useOpenRequests,useWorldInstall}.ts`, `stores/{config,tasks,ui}.ts`, `i18n/{index.ts,fr.json,en.json}`, `features/boot/BootScreen.tsx`, `features/worlds/TrustDialog.tsx`
+- Create: `src/renderer/src/App.tsx` (remplace), `router.tsx`, `layout/{AppLayout,TitleBar,Rail,StatusBar,ScreenBoundary,QuitConfirm}.tsx`, `lib/goat.ts`, `lib/errors.ts`, `lib/drop-routing.ts`, `hooks/{useIpc,useTask,useEvent,useShortcuts,useOpenRequests}.ts`, `hooks/useWorldInstall.tsx`, `stores/{config,tasks,ui}.ts`, `i18n/{index.ts,fr.json,en.json}`, `features/boot/BootScreen.tsx`, `features/worlds/TrustDialog.tsx`
 - Create (stubs que les Tasks 24-32 remplacent) : `features/home/HomeScreen.tsx`, `features/doctor/DoctorScreen.tsx`, `features/install/InstallScreen.tsx`, `features/worlds/WorldsScreen.tsx`, `features/studio/StudioScreen.tsx`, `features/session/SessionWizard.tsx`, `features/host/LiveGameScreen.tsx`, `features/join/JoinScreen.tsx`, `features/vault/VaultScreen.tsx`, `features/settings/SettingsScreen.tsx`, chacun avec ses `i18n.fr.json`/`i18n.en.json` vides (`{}`)
 - Create: `tests/renderer/goat-mock.ts`
 - Test: `tests/renderer/shell/*.test.tsx`, `tests/unit/i18n-parity.test.ts`
@@ -1457,7 +1490,8 @@ it('CopyField masks secret until revealed', ...)
   - `useOpenRequests()`, monté dans `AppLayout` : au montage, vide `app:pendingOpenRequests`, puis s'abonne à `app:openRequest`. Un `uri` route vers `/join?input=<encodé>` ; un `file` passe par `routeDroppedFile` (`.apworld` → `/worlds?install=<path>`, patch → `/join?input=<path>`, `.yaml` → `/studio?open=<path>` ou import dans la session ouverte, `.zip` → modale de choix).
   - `ScreenBoundary` autour de chaque route : message traduit, détail repliable, bouton « Recharger l'écran » (reset + invalidation des queries).
   - `QuitConfirm` : modale sur `app:quitRequested` (liste des serveurs et tâches en cours), qui répond via `app:confirmQuit`.
-  - `useWorldInstall()` : `{ start(source: WorldSource): void; dialog: ReactNode; state }`. Enchaîne `worlds:prepareInstall`, `useTask`, `TrustDialog`, puis `worlds:confirmInstall`, et affiche un toast « Redémarre les programmes Archipelago ouverts » si `restartNeeded`. `TrustDialog` (source, auteurs, sha256 tronqué copiable, `TrustBadge`, conflits « X remplacera Y », avertissement code arbitraire, case « J'ai compris » obligatoire) vit ici, car les Tasks 26, 28 et 30 l'utilisent toutes.
+  - `AppLayout` applique sur la racine les classes d'effets dérivées de `useConfig().effects` : `fx-off` quand `animations` est faux, plus `fx-no-crt`, `fx-no-glow` ; la Task 32 se contente de modifier la config.
+  - `useWorldInstall()` : `{ start(source: WorldSource): Promise<{ installed: boolean }>; dialog: ReactNode; state }` (les appels successifs sont mis en file, pour enchaîner plusieurs installations). Enchaîne `worlds:prepareInstall`, `useTask`, `TrustDialog`, puis `worlds:confirmInstall`, et affiche un toast « Redémarre les programmes Archipelago ouverts » si `restartNeeded`. `TrustDialog` (source, auteurs, sha256 tronqué copiable, `TrustBadge`, conflits « X remplacera Y », avertissement code arbitraire, case « J'ai compris » obligatoire) vit ici, car les Tasks 26, 28 et 30 l'utilisent toutes.
   - `Rail` : 7 entrées, raccourcis `Ctrl+1..7`.
   - `StatusBar` : version d'AP via `ap:detect`, état du serveur (`server:state`), tâches actives, langue.
   - `BootScreen` : premier lancement si `!config.firstRunDone`, ≈ 2 s, passable par n'importe quelle touche, puis `firstRunDone = true`.
@@ -1471,7 +1505,8 @@ it('fr.json and en.json have identical key sets', ...)
 it('every ERROR_CODES, ISSUE_CODES, DOCTOR_CHECK_IDS and GENERATE_STAGE_IDS entry has fr and en text', ...)
 it('useTask aggregates progress, logs and done events', ...)
 it('routeDroppedFile maps apworld, yaml, patch and zip', ...)
-it('renders each route without crashing', ...)
+it('renders each route with its screen heading (stub title) inside the layout', ...)
+it('animations off in config puts fx-off on the root', ...)
 it('Ctrl+3 navigates to /join', ...)
 it('boot screen shows once then sets firstRunDone', ...)
 it('cold-start uri from app:pendingOpenRequests routes to /join?input=', ...)
@@ -1570,6 +1605,7 @@ it('shows stale banner when snapshot stale', ...)
 - Produces :
   - `editor-ops.ts` : `toWeighted(option, doc): EditorDoc`, `randomize(doc, key): EditorDoc`.
   - Routes d'entrée : `/studio?open=<path>` (`studio:open {path}`) ; `/studio?session=<id>&file=<fileId>` (charge via `session:readFile`, l'enregistrement fait `session:replaceFile` puis revient à l'assistant).
+  - Un jeu installé sans schéma (`schemaSource === 'none'`, typiquement un monde custom) propose « Générer les templates » (`ap:regenerateTemplates` + `useTask`), puis recharge `studio:games`.
   - `OptionField`, contrôle selon `kind` :
     - `toggle` → `Toggle` ;
     - `choice`/`text-choice` → `Segmented` (≤ 4 choix) ou `Select` ;
@@ -1607,7 +1643,8 @@ it('add to session calls session:addText with rendered text', ...)
 - Produces : les étapes de la spec §4.2.5.
   - `StepCheck` :
     - « Installer les mondes manquants » enchaîne `useWorldInstall().start({ kind: 'catalog', id: catalogId })` pour chaque monde, ou propose un fichier quand `catalogId` est null.
-    - « Renommer » sur `name-duplicate` / `name-too-long` : `session:readFile` → `studio:parse` → nouveau nom saisi → `studio:render` → `session:replaceFile`.
+    - « Renommer » sur `name-duplicate` / `name-too-long` : `session:readFile` → `studio:parse` → nouveau nom saisi sur le document concerné → `studio:render` de **chaque** document → jointure par `\n---\n` → `session:replaceFile` (les fichiers multi-documents gardent tous leurs documents).
+  - `StepGenerate` a un bouton « Annuler » (`tasks:cancel`).
     - « Corriger dans le Studio » : navigation vers `/studio?session=<id>&file=<fileId>`.
     - « Utiliser la ROM du coffre » pour un `RomNeed` avec `vaultPath` : rien à faire globalement, car la génération l'écrit dans le `host.yaml` de session ; l'écran affiche simplement « ROM trouvée dans le coffre ».
   - `StepRules` : presets, avancé, mots de passe via `session:setSecrets`.
@@ -1740,7 +1777,7 @@ it('bizhawk card shows missing prereqs with copyable linux command', ...)
   - Si `canEncrypt` est faux : interrupteur « Mémoriser les secrets en clair » (`allowPlaintextSecrets`), avec confirmation.
   - Intégration système : bureau Linux, protocole `archipelago://` sous Windows, associations `.apsml2` sous Windows.
   - Dossiers (ouvrir) et boutons « Vider » pour téléchargements, cache du catalogue et logs (`app:clearData`).
-  - À propos : version, mention « Compagnon non officiel pour Archipelago », licences des dépendances (fichier généré au build), attributions (wiki CC BY-NC-SA 4.0, index ionium), état de l'auto-update (« non configuré »).
+  - À propos : version, mention « Compagnon non officiel pour Archipelago », licences des dépendances (import **optionnel** de `resources/licenses.json` généré par la Task 35 : l'écran gère son absence), attributions (wiki CC BY-NC-SA 4.0, index ionium), état de l'auto-update (texte statique « non configuré »).
 
 - [ ] **Step 1: Tests**
 
@@ -1798,6 +1835,7 @@ it('install linux managed from local tar.gz then detect', ...)
 
 **Interfaces:**
 - Consumes : app buildée (`out/`), env `GOAT_E2E=1`, `GOAT_DATA_ROOT`, `GOAT_USER_DATA`, `GOAT_FAKE_AP_DIR`, `GOAT_WEBHOST_URL` (faux site lancé par le test), `GOAT_E2E_DIALOGS`.
+- `playwright.config.ts` exclut `linux-smoke.spec.ts` et `packaged-win.spec.ts` de `npm run test:e2e` (ils ne tournent qu'avec leur variable d'env dédiée, Task 35).
 - Produces : `launchApp({ lang, fakeAp: boolean, argv?: string[] }): Promise<{ app; page }>`. Chaque lancement reçoit un `GOAT_USER_DATA` et un `GOAT_DATA_ROOT` uniques (verrou single-instance indépendant) ; Playwright tourne avec `workers: 1`. L'arbre AP factice vient de `createFakeApInstall` (Task 33).
 
 - [ ] **Step 1: Tests**
