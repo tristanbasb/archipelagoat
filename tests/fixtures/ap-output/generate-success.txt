@@ -1,0 +1,28 @@
+Archipelago (0.6.8) logging initialized on Windows-10-10.0.26100-SP0 process 14312 running Python 3.12.7 (frozen)
+P1 Weights: Alice.yaml >> No description specified
+P2 Weights: Bob.yaml >> No description specified
+Generating for 2 players, 47305681920473519826 Seed 91827364501827364095 with plando: bosses, connections, texts
+Archipelago Version 0.6.8  -  Seed: 91827364501827364095
+
+Found 82 World Types:
+ A Link to the Past: v5.1.0 | Items: 144 | Locations: 1024
+ Pokemon Emerald   : v1.2.0 | Items: 607 | Locations: 1347
+
+Creating MultiWorld.
+Creating Items.
+Calculating Access Rules.
+Took 1.0520 seconds in PokemonEmeraldWorld.set_rules for player 2, named Bob.
+Running Item Plando.
+Running Pre Main Fill.
+Filling the multiworld with 3190 items.
+Current fill step (Progression) at 1000/1442 items placed.
+Current fill step (Progression) at 1442/1442 items placed.
+Current fill step (Remaining) at 1000/1748 items placed.
+Current fill step (Remaining) at 1748/1748 items placed.
+Balancing multiworld progression for 2 Players.
+Running pre-output steps.
+Beginning output...
+Generating output files (3/3).
+Calculating playthrough.
+Creating final archive at C:\ProgramData\Archipelago\output\AP_47305681920473519826.zip
+Done. Enjoy. Total Time: 14.208731299988

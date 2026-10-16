@@ -1,0 +1,7 @@
+Archipelago (0.6.8) logging initialized on Windows-10-10.0.26100-SP0 process 21044 running Python 3.12.7 (frozen)
+Loading embedded data package for game A Hat in Time
+Loading embedded data package for game Pokemon Emerald
+No save data found, starting a new game
+Hosting game at 203.0.113.7:38281 (No password)
+server listening on 0.0.0.0:38281
+server listening on [::]:38281
