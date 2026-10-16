@@ -249,15 +249,28 @@ describe('matchApError on the symptoms of the main process codes', () => {
     const text =
       "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\ProgramData\\Archipelago\\host.yaml.tmp' -> 'C:\\ProgramData\\Archipelago\\host.yaml'"
     expect(matchApError(text)).toEqual({ code: 'AP_RUNNING', params: {} })
-    expect(matchApError("PermissionError: [WinError 5] Access is denied: 'C:\\a\\options.yaml'")?.code).toBe(
-      'AP_RUNNING',
-    )
+    expect(
+      matchApError(
+        "PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\a\\options.yaml'",
+      )?.code,
+    ).toBe('AP_RUNNING')
   })
 
   it('does not take any other PermissionError for it', () => {
     expect(matchApError("PermissionError: [WinError 5] Access is denied: 'C:\\a\\Bob.yaml'")?.code).toBe(
       'AP_UNKNOWN',
     )
+  })
+
+  it('does not take an access denied on a settings file for it, which is a folder it cannot write to', () => {
+    expect(matchApError("PermissionError: [WinError 5] Access is denied: 'C:\\a\\options.yaml'")?.code).toBe(
+      'AP_UNKNOWN',
+    )
+    expect(
+      matchApError(
+        "PermissionError: [WinError 5] Access is denied: 'C:\\ProgramData\\Archipelago\\host.yaml.tmp' -> 'C:\\ProgramData\\Archipelago\\host.yaml'",
+      )?.code,
+    ).toBe('AP_UNKNOWN')
   })
 })
 

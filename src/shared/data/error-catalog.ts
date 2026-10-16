@@ -194,10 +194,13 @@ export const AP_ERRORS: ApError[] = [
     params: (m) => given({ command: m.groups?.command }),
   },
   {
-    // settings.py:864-868 renames `<settings>.tmp` over the settings file, which Windows refuses
-    // (WinError 32, or 5) while another Archipelago program has the file open.
+    // settings.py:864-868 renames `<settings>.tmp` over the settings file, which Windows refuses with
+    // WinError 32 (sharing violation) while another Archipelago program has the file open. WinError 5
+    // (access denied) is not this: it is a settings folder the user cannot write to (`os.access` ignores
+    // ACLs on Windows, brief l.916, so the `os.unlink` fallback is where it surfaces), so it stays an
+    // AP_UNKNOWN and the doctor's programdata-acl check is the one that explains it.
     code: 'AP_RUNNING',
-    re: /PermissionError: \[WinError (?:5|32)\][^\n]*\b(?:host|options)\.yaml/,
+    re: /PermissionError: \[WinError 32\][^\n]*\b(?:host|options)\.yaml/,
   },
 
   // --- General ---
