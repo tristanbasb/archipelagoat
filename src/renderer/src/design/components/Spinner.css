@@ -1,0 +1,37 @@
+.spinner {
+  --cell: 4px;
+  display: inline-grid;
+  flex: none;
+  grid-template-columns: repeat(3, var(--cell));
+  grid-template-rows: repeat(3, var(--cell));
+  gap: 1px;
+  vertical-align: middle;
+}
+
+.spinner[data-size='sm'] {
+  --cell: 3px;
+}
+
+.spinner__cell {
+  /* At rest (animations off) the ring shows a fading trail, still readable as "busy". */
+  background: color-mix(in srgb, currentColor calc(18% + var(--i) * 10%), transparent);
+  animation: spinner-cell 0.8s linear infinite;
+  animation-delay: calc(var(--i) * 0.1s - 0.8s);
+}
+
+@keyframes spinner-cell {
+  0% {
+    background: currentColor;
+  }
+  100% {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+}
+
+.spinner-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}

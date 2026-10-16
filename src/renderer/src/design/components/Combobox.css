@@ -1,0 +1,111 @@
+.combobox__search,
+.combobox__chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+}
+
+.combobox__chevron {
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.combobox__chevron[data-open] {
+  color: var(--neon-yellow);
+  transform: rotate(180deg);
+}
+
+.combobox__popup {
+  --pb-step: var(--corner-sm);
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-2);
+  position: fixed;
+  z-index: var(--z-dropdown);
+  padding: 4px;
+  filter: drop-shadow(0 16px 32px rgb(0 0 0 / 0.6));
+}
+
+.combobox__list {
+  max-height: 264px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.combobox__option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 32px;
+  padding: 0 var(--sp-3) 0 var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  cursor: pointer;
+}
+
+.combobox__option[data-active] {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.combobox__option[aria-selected='true'] {
+  color: var(--neon-yellow);
+  font-weight: 700;
+}
+
+/* The arcade menu cursor in front of the active option. */
+.combobox__cursor {
+  flex: none;
+  width: 6px;
+  height: 10px;
+  background: var(--neon-yellow);
+  clip-path: polygon(
+    0 0,
+    33% 0,
+    33% 20%,
+    66% 20%,
+    66% 40%,
+    100% 40%,
+    100% 60%,
+    66% 60%,
+    66% 80%,
+    33% 80%,
+    33% 100%,
+    0 100%
+  );
+  opacity: 0;
+}
+
+.combobox__option[data-active] .combobox__cursor {
+  opacity: 1;
+}
+
+.combobox__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combobox__match {
+  background: none;
+  color: var(--neon-cyan);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.combobox__hint {
+  flex: none;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 400;
+}
+
+.combobox__empty {
+  padding: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}

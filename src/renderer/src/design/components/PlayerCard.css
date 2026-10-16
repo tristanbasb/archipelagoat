@@ -1,0 +1,188 @@
+.player-card {
+  --pb-step: var(--corner);
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    radial-gradient(90% 120% at 100% 100%, color-mix(in srgb, var(--tone) 16%, transparent), transparent 60%),
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--tone) 5%, transparent) 0 2px,
+      transparent 2px 8px
+    ),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-height: 216px;
+  padding: var(--sp-6);
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  overflow: visible;
+  transition:
+    transform var(--dur) var(--ease-out),
+    filter var(--dur) var(--ease-out);
+}
+
+.player-card:hover:not(:disabled),
+.player-card:focus-visible {
+  --pb-color: var(--tone);
+  transform: translateY(-3px);
+  filter: var(--drop-glow);
+}
+
+.player-card:active:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.player-card:disabled {
+  opacity: 0.5;
+}
+
+/* A light sweep across the card on hover. */
+.player-card__sheen {
+  position: absolute;
+  inset: var(--corner);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.player-card__sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 30%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    color-mix(in srgb, var(--tone) 14%, transparent) 40%,
+    rgb(255 255 255 / 0.06) 50%,
+    transparent
+  );
+  transform: translateX(0);
+  opacity: 0;
+}
+
+.player-card:hover:not(:disabled) .player-card__sheen::after {
+  opacity: 1;
+  animation: player-card-sheen 0.9s var(--ease-out) forwards;
+}
+
+@keyframes player-card-sheen {
+  to {
+    transform: translateX(520%);
+  }
+}
+
+/* The big pixel "1P" / "2P", faint until hovered. */
+.player-card__badge {
+  position: absolute;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  height: 64px;
+  width: auto;
+  fill: var(--tone);
+  opacity: 0.16;
+  transition: opacity var(--dur) var(--ease-out);
+}
+
+.player-card:hover:not(:disabled) .player-card__badge,
+.player-card:focus-visible .player-card__badge {
+  opacity: 0.34;
+}
+
+.player-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.player-card__label {
+  font-size: 12px;
+  color: var(--tone-ink);
+  text-shadow: var(--text-glow);
+}
+
+.player-card__icon {
+  display: inline-flex;
+  color: var(--tone);
+}
+
+.player-card__icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.player-card__text {
+  display: grid;
+  gap: var(--sp-2);
+  max-width: min(36ch, calc(100% - 132px));
+  margin-top: auto;
+}
+
+.player-card__title {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.player-card__subtitle {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.player-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  transition: color var(--dur) var(--ease-out);
+}
+
+/* A stepped pixel arrow that slides in on hover. */
+.player-card__arrow {
+  width: 6px;
+  height: 10px;
+  background: currentColor;
+  clip-path: polygon(
+    0 0,
+    33% 0,
+    33% 20%,
+    66% 20%,
+    66% 40%,
+    100% 40%,
+    100% 60%,
+    66% 60%,
+    66% 80%,
+    33% 80%,
+    33% 100%,
+    0 100%
+  );
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.player-card:hover:not(:disabled) .player-card__cta,
+.player-card:focus-visible .player-card__cta {
+  color: var(--neon-yellow);
+  animation: player-card-blink 1s steps(1, end) infinite;
+}
+
+.player-card:hover:not(:disabled) .player-card__arrow,
+.player-card:focus-visible .player-card__arrow {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes player-card-blink {
+  60% {
+    opacity: 0.25;
+  }
+}

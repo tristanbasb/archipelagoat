@@ -1,0 +1,8 @@
+/*
+ * Embedded fonts (no network): Vite copies the @fontsource files next to the bundle. The CSP has
+ * font-src 'self', so they must stay files (electron.vite.config.ts never inlines fonts).
+ */
+@import '@fontsource/press-start-2p/400.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';

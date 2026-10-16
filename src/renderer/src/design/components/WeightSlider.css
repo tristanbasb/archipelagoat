@@ -1,0 +1,57 @@
+.weights {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* The distribution, as a stacked bar in the colors of the rows. */
+.weights__bar {
+  --pb-step: var(--corner-sm);
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-0);
+  display: flex;
+  gap: 2px;
+  height: 16px;
+  padding: 4px;
+}
+
+.weights__share {
+  flex: var(--share) 1 0;
+  min-width: 2px;
+  background: var(--tone);
+  box-shadow: var(--glow-sm);
+  transition: flex-grow var(--dur) var(--ease-out);
+}
+
+.weights__row {
+  display: grid;
+  grid-template-columns: 10px minmax(72px, 0.6fr) minmax(120px, 1.6fr) 84px 48px;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.weights__chip {
+  width: 10px;
+  height: 10px;
+  background: var(--tone);
+}
+
+.weights__name {
+  overflow: hidden;
+  font-size: var(--fs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weights__percent {
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.weights__percent[data-zero] {
+  color: var(--text-dim);
+  font-weight: 400;
+}

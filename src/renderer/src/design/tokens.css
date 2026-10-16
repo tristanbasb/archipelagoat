@@ -1,0 +1,133 @@
+/*
+ * Arcade néon design tokens (spec §4.3). The names and values of the spec tokens are a contract:
+ * tests/renderer/design/tokens.test.tsx checks them, and their text contrast, verbatim.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Backgrounds, from the deepest to the most raised */
+  --bg-0: #07070c;
+  --bg-1: #0b0b12;
+  --bg-2: #111118;
+  --bg-3: #1a1a24;
+
+  /* Lines */
+  --line: #26262f;
+  --line-strong: #3a3a48;
+
+  /* Text */
+  --text: #f5f3ff;
+  --text-dim: #9d9db0;
+  --text-mute: #5b5b6b;
+
+  /* Neons: violet is the main one, cyan info / player 2, yellow alert / accent, pink danger,
+     green success, magenta "yourself" in the item feed. */
+  --neon-violet: #a855f7;
+  --neon-cyan: #22d3ee;
+  --neon-yellow: #facc15;
+  --neon-pink: #f43f5e;
+  --neon-green: #4ade80;
+  --neon-magenta: #ee00ee;
+
+  /* Glows (box-shadow lists). effects.css swaps them for empty shadows when glow is off. */
+  --glow-violet: 0 0 6px #a855f7aa, 0 0 18px #a855f755;
+  --glow-cyan: 0 0 6px #22d3eeaa, 0 0 18px #22d3ee55;
+  --glow-yellow: 0 0 6px #facc15aa, 0 0 18px #facc1555;
+  --glow-pink: 0 0 6px #f43f5eaa, 0 0 18px #f43f5e55;
+  --glow-green: 0 0 6px #4ade80aa, 0 0 18px #4ade8055;
+  --glow-magenta: 0 0 6px #ee00eeaa, 0 0 18px #ee00ee55;
+
+  /* Archipelago's official item colors, for the item feed */
+  --ap-progression: #af99ef;
+  --ap-useful: #6d8be8;
+  --ap-trap: #fa8072;
+  --ap-filler: #00eeee;
+
+  /* Type: Press Start 2P for arcade labels only (never below 10px), JetBrains Mono for the rest */
+  --font-display: 'Press Start 2P', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'DejaVu Sans Mono', monospace;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-28: 28px;
+  --fs-display: 10px;
+
+  /* Space, on a 4px grid */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* Pixel corners: no border-radius anywhere, stepped corners instead (see .pixel-border) */
+  --pixel: 2px;
+  --corner: 4px;
+  --corner-sm: 2px;
+
+  /* Control heights */
+  --control-sm: 28px;
+  --control-md: 36px;
+  --control-lg: 48px;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 360ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Keyboard focus: the arcade "selected" yellow */
+  --focus-ring: var(--neon-yellow);
+
+  /* Layers */
+  --z-modal: 1000;
+  /* Above modals: a list opened from a field inside a modal. */
+  --z-dropdown: 1050;
+  --z-toast: 1100;
+  --z-tooltip: 1200;
+  --z-crt: 2000;
+}
+
+/*
+ * Tones: a component sets one of these classes and styles itself with --tone (the neon),
+ * --tone-ink (the neon lightened for small text, at least 4.5:1 on every background), --tone-soft
+ * (a tinted fill), --tone-line (a tinted border) and --tone-glow. effects.css adds the glow filters.
+ */
+.tone-violet {
+  --tone: var(--neon-violet);
+  --tone-glow: var(--glow-violet);
+}
+.tone-cyan {
+  --tone: var(--neon-cyan);
+  --tone-glow: var(--glow-cyan);
+}
+.tone-yellow {
+  --tone: var(--neon-yellow);
+  --tone-glow: var(--glow-yellow);
+}
+.tone-pink {
+  --tone: var(--neon-pink);
+  --tone-glow: var(--glow-pink);
+}
+.tone-green {
+  --tone: var(--neon-green);
+  --tone-glow: var(--glow-green);
+}
+.tone-magenta {
+  --tone: var(--neon-magenta);
+  --tone-glow: var(--glow-magenta);
+}
+.tone-neutral {
+  --tone: var(--text-dim);
+  --tone-glow: 0 0 0 0 transparent;
+}
+[class*='tone-'] {
+  --tone-ink: color-mix(in srgb, var(--tone) 78%, #ffffff);
+  --tone-soft: color-mix(in srgb, var(--tone) 14%, transparent);
+  --tone-line: color-mix(in srgb, var(--tone) 55%, transparent);
+}

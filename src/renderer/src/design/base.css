@@ -1,0 +1,210 @@
+/* Base: reset, page, type helpers and the field primitives shared by the form components. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-0);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  line-height: 1.5;
+  /* JetBrains Mono's code ligatures (=>, !=, ->) do not belong in interface copy. */
+  font-variant-ligatures: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100%;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: 700;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: var(--neon-cyan);
+  text-underline-offset: 3px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--neon-violet) 55%, transparent);
+  color: var(--text);
+}
+
+/* Keyboard focus is always visible, glow or not. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* Square scrollbars, in the background colors. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: var(--bg-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-3);
+  border: 2px solid var(--bg-1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--line-strong);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Type ---------------------------------------------------------------------------------- */
+
+/* Press Start 2P: arcade labels only (PLAYER 1, INSERT COIN…), never under 10px. */
+.t-display {
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+}
+
+.t-12 {
+  font-size: var(--fs-12);
+}
+.t-13 {
+  font-size: var(--fs-13);
+}
+.t-14 {
+  font-size: var(--fs-14);
+}
+.t-16 {
+  font-size: var(--fs-16);
+}
+.t-20 {
+  font-size: var(--fs-20);
+}
+.t-28 {
+  font-size: var(--fs-28);
+  line-height: 1.2;
+}
+.t-dim {
+  color: var(--text-dim);
+}
+
+/* ---- Fields -------------------------------------------------------------------------------- */
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.field__label {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
+
+.field__hint {
+  font-size: var(--fs-12);
+  color: var(--text-dim);
+}
+
+/* The stepped frame around a text input or a select. */
+.input-frame {
+  --pb-fill: var(--bg-1);
+  --pb-step: var(--corner-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--control-md);
+  padding-inline: var(--sp-3);
+  color: var(--text-dim);
+  transition: filter var(--dur) var(--ease-out);
+}
+
+.input-frame:hover {
+  --pb-color: color-mix(in srgb, var(--line-strong) 50%, var(--text-mute));
+}
+
+.input-frame:focus-within {
+  --pb-color: var(--focus-ring);
+  filter: var(--drop-glow, none);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--control-md) - 4px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-14);
+  caret-color: var(--neon-yellow);
+}
+
+.input:focus,
+.input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: color-mix(in srgb, var(--text-dim) 80%, transparent);
+}

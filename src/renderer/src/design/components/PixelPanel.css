@@ -1,0 +1,92 @@
+.pixel-panel {
+  --pb-color: var(--line);
+  --pb-fill: linear-gradient(180deg, var(--bg-2) 0%, color-mix(in srgb, var(--bg-2) 45%, var(--bg-1)) 100%);
+  --panel-pad: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pixel-panel:not(.tone-neutral) {
+  --pb-color: var(--tone-line);
+}
+
+.pixel-panel--glow {
+  --pb-color: var(--tone);
+  filter: var(--drop-glow);
+}
+
+.pixel-panel[data-padding='none'] {
+  --panel-pad: 0px;
+}
+.pixel-panel[data-padding='sm'] {
+  --panel-pad: var(--sp-3);
+}
+.pixel-panel[data-padding='lg'] {
+  --panel-pad: var(--sp-8);
+}
+
+.pixel-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--panel-pad) var(--panel-pad) 0;
+}
+
+.pixel-panel[data-padding='none'] .pixel-panel__head {
+  padding: var(--sp-4) var(--sp-4) 0;
+}
+
+.pixel-panel__heading {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* The arcade eyebrow: a lit pixel, then the label. */
+.pixel-panel__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--tone-ink);
+}
+
+.pixel-panel__eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--tone);
+  box-shadow: var(--tone-glow);
+}
+
+.pixel-panel.tone-neutral .pixel-panel__eyebrow {
+  color: var(--text-dim);
+}
+
+.pixel-panel.tone-neutral .pixel-panel__eyebrow::before {
+  background: var(--neon-violet);
+  box-shadow: var(--glow-violet);
+}
+
+.pixel-panel__title {
+  font-size: var(--fs-16);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.pixel-panel__actions {
+  display: flex;
+  flex: none;
+  gap: var(--sp-2);
+}
+
+.pixel-panel__body {
+  min-width: 0;
+  padding: var(--panel-pad);
+}
+
+.pixel-panel__head + .pixel-panel__body {
+  padding-top: var(--sp-4);
+}

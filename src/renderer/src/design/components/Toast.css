@@ -1,0 +1,122 @@
+.toast-viewport {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  width: min(380px, calc(100vw - 48px));
+  pointer-events: none;
+}
+
+.toast {
+  --pb-step: var(--corner-sm);
+  --pb-color: var(--tone-line);
+  --pb-fill: linear-gradient(90deg, color-mix(in srgb, var(--tone) 12%, var(--bg-2)), var(--bg-2) 42%);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-3) var(--sp-4) var(--sp-4);
+  pointer-events: auto;
+  filter: drop-shadow(0 10px 24px rgb(0 0 0 / 0.55));
+}
+
+.toast__icon {
+  display: inline-flex;
+  margin-top: 1px;
+  color: var(--tone);
+}
+
+.toast__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toast__text {
+  display: grid;
+  flex: 1;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.toast__title {
+  font-size: var(--fs-13);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.toast__body {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.toast__action {
+  justify-self: start;
+  margin-top: var(--sp-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tone-ink);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.toast__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+}
+
+.toast__close:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.toast__close svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Time left, as a draining pixel line. */
+.toast__timer {
+  position: absolute;
+  right: var(--sp-3);
+  bottom: 6px;
+  left: var(--sp-4);
+  height: 2px;
+  background: color-mix(in srgb, var(--tone) 60%, transparent);
+  transform-origin: left;
+  animation: toast-timer linear forwards;
+}
+
+@keyframes toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+:where(.fx-off, .fx-no-anim) .toast__timer {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast__timer {
+    display: none;
+  }
+}

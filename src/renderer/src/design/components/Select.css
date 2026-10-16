@@ -1,0 +1,100 @@
+.select-frame {
+  position: relative;
+  padding: 0;
+}
+
+.select {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  height: calc(var(--control-md) - 4px);
+  padding: 0 36px 0 var(--sp-3);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.select:focus-visible {
+  outline: none;
+}
+
+.select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.select__chevron {
+  position: absolute;
+  right: var(--sp-3);
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+  pointer-events: none;
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.select-frame:focus-within .select__chevron {
+  color: var(--neon-yellow);
+}
+
+.select option {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+/* Chromium's customizable select: the open list gets the arcade look too. */
+@supports (appearance: base-select) {
+  .select,
+  .select::picker(select) {
+    appearance: base-select;
+  }
+
+  .select {
+    display: flex;
+    align-items: center;
+  }
+
+  .select::picker-icon {
+    display: none;
+  }
+
+  .select::picker(select) {
+    margin-top: 6px;
+    padding: 4px;
+    border: 2px solid var(--line-strong);
+    background: var(--bg-2);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 0.6);
+    color: var(--text);
+  }
+
+  .select option {
+    gap: var(--sp-2);
+    min-height: 32px;
+    padding: 0 var(--sp-3);
+    background: transparent;
+    font-size: var(--fs-13);
+  }
+
+  .select option:hover,
+  .select option:focus-visible {
+    outline: none;
+    background: var(--bg-3);
+  }
+
+  .select option:checked {
+    color: var(--neon-yellow);
+    font-weight: 700;
+  }
+
+  .select option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--neon-yellow);
+  }
+
+  .select option:disabled {
+    color: var(--text-mute);
+  }
+}

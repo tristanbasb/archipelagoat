@@ -1,0 +1,106 @@
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.toggle__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toggle__label {
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+
+.toggle__description {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.toggle--disabled {
+  opacity: 0.5;
+}
+
+.toggle--disabled .toggle__label {
+  cursor: not-allowed;
+}
+
+.toggle__switch {
+  --pb-step: var(--corner-sm);
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-1);
+  flex: none;
+  width: 48px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  transition: filter var(--dur) var(--ease-out);
+}
+
+/* The "I" and "O" marks of a power switch, drawn in pixels beside the knob. */
+.toggle__knob::before,
+.toggle__knob::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+}
+
+.toggle__knob {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 14px;
+  height: 14px;
+  background: var(--text-mute);
+  transition:
+    transform 160ms steps(4, end),
+    background var(--dur) var(--ease-out);
+}
+
+/* "I" on the left of the track, shown when on. */
+.toggle__knob::before {
+  left: -16px;
+  width: 2px;
+  height: 8px;
+  margin-top: -4px;
+  background: color-mix(in srgb, var(--tone) 90%, #fff);
+  opacity: 0;
+}
+
+/* "O" on the right of the track, shown when off. */
+.toggle__knob::after {
+  left: 24px;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  box-shadow: inset 0 0 0 2px var(--line-strong);
+}
+
+.toggle__switch:hover:not(:disabled) {
+  --pb-color: color-mix(in srgb, var(--line-strong) 50%, var(--text-mute));
+}
+
+.toggle__switch[aria-checked='true'] {
+  --pb-color: var(--tone);
+  --pb-fill: color-mix(in srgb, var(--tone) 24%, var(--bg-1));
+  filter: var(--drop-glow);
+}
+
+.toggle__switch[aria-checked='true'] .toggle__knob {
+  background: #fff;
+  transform: translateX(22px);
+}
+
+.toggle__switch[aria-checked='true'] .toggle__knob::before {
+  opacity: 1;
+}
+
+.toggle__switch[aria-checked='true'] .toggle__knob::after {
+  opacity: 0;
+}
