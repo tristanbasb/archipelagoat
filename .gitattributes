@@ -1,0 +1,2 @@
+# LF everywhere, whatever core.autocrlf says (matches .editorconfig and Prettier).
+* text=auto eol=lf

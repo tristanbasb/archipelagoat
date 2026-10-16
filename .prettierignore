@@ -1,0 +1,9 @@
+out/
+release/
+coverage/
+test-results/
+playwright-report/
+package-lock.json
+docs/
+# Real-world fixtures (AP templates, player YAML, patches) must keep their exact bytes.
+tests/fixtures/
