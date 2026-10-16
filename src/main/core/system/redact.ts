@@ -31,6 +31,10 @@ const RULES: readonly (readonly [RegExp, string])[] = [
   // `/options` output (MultiServer.py `_cmd_options`).
   [new RegExp(`(Option (?:server_)?password is set to )(?=\\S)${NOT_MASKED}[^\\r\\n]*`, 'gi'), `$1${MASK}`],
 
+  // `Set option password to <pw>`: the echo MultiServer.py prints after every `/option` (`_cmd_option`),
+  // with the value as it was stored, so it may hold spaces.
+  [new RegExp(`(Set option (?:server_)?password to )(?=\\S)${NOT_MASKED}[^\\r\\n]*`, 'gi'), `$1${MASK}`],
+
   // `/option password <pw>` typed in the console (also after `!admin`).
   [
     new RegExp(`(\\/option[ \\t]+(?:server_)?password[ \\t]+)(?=\\S)${NOT_MASKED}[^\\r\\n]*`, 'gi'),

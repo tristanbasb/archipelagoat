@@ -70,6 +70,16 @@ describe('redact', () => {
       expect(redact('Option hint_cost is set to 10')).toBe('Option hint_cost is set to 10')
     })
 
+    it('masks the echo of a password change (Set option … to …)', () => {
+      expect(redact('Set option password to hunter2')).toBe('Set option password to •••')
+      expect(redact('Set option server_password to adm1n')).toBe('Set option server_password to •••')
+      expect(redact('Set option server_password to adm1n s3')).toBe('Set option server_password to •••')
+      expect(redact('[12:00:01] Set option password to a (b) c')).toBe(
+        '[12:00:01] Set option password to •••',
+      )
+      expect(redact('Set option hint_cost to 10')).toBe('Set option hint_cost to 10')
+    })
+
     it('masks the /option password commands typed in the console', () => {
       expect(redact('/option password hunter2')).toBe('/option password •••')
       expect(redact('> /option server_password two words')).toBe('> /option server_password •••')
