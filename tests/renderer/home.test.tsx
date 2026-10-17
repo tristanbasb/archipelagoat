@@ -141,6 +141,21 @@ describe('home screen', () => {
     expect(window.location.hash).toBe('#/install')
   })
 
+  it('updates when Archipelago gets installed from elsewhere', async () => {
+    let install: ApInstall | null = null
+    const { goat } = await renderApp({ handlers: { ...HANDLERS, 'ap:detect': () => install } })
+    expect(await screen.findByRole('button', { name: /INSERT COIN/ })).toBeInTheDocument()
+    await waitFor(() => expect(goat.inputsOf('doctor:run')).toHaveLength(1))
+
+    install = AP
+    goat.emit('ap:installed', AP)
+    await waitFor(() => expect(screen.queryByRole('button', { name: /INSERT COIN/ })).toBeNull())
+    // What the health check finds changes too.
+    await waitFor(() => expect(goat.inputsOf('doctor:run')).toHaveLength(2))
+    goat.emit('worlds:changed', null)
+    await waitFor(() => expect(goat.inputsOf('doctor:run')).toHaveLength(3))
+  })
+
   it('shows four stat tiles with values', async () => {
     const { user } = await renderApp({ handlers: HANDLERS })
     const stats = await screen.findByRole('region', { name: 'État de ton installation' })
