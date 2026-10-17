@@ -339,4 +339,14 @@ describe('createWebhostService', () => {
       [`${mock.url}/room/${roomId}`],
     ])
   })
+
+  it('never lets the identity URL out in the error of a browser that did not open', async () => {
+    const service = makeService()
+    const roomId = await hosted(service)
+    core.openExternal.mockImplementation((url) => Promise.reject(new Error(`Failed to open ${url}`)))
+    const error = await failure(service.openAsOwner(roomId))
+    expect(error.code).toBe('AP_UNKNOWN')
+    expect(JSON.stringify(error.toData())).not.toContain(onlyRoom().owner)
+    expect(error.cause).toBeUndefined()
+  })
 })

@@ -239,7 +239,11 @@ export function createWebhostService(ctx: CoreContext, deps: WebhostServiceDeps)
 
     async openAsOwner(roomId) {
       const web = client()
-      await ctx.platform.openExternal(await web.ownerUrl(roomId))
+      const identityUrl = await web.ownerUrl(roomId)
+      // The URL holds the identity, a credential: an error from the shell must not carry it along.
+      await ctx.platform.openExternal(identityUrl).catch(() => {
+        throw new AppError('AP_UNKNOWN', undefined, { detail: 'the browser could not be opened' })
+      })
       await sleep(deps.ownerDelayMs ?? OWNER_DELAY_MS)
       await ctx.platform.openExternal(normalizeWebUrl(web.baseUrl, `/room/${roomId}`))
     },
