@@ -1,6 +1,8 @@
 // Step 3: how the game is played. A preset fills every rule; changing one by hand makes the rules
-// custom. Leaving the step saves them (session:update) and the passwords (session:setSecrets).
+// custom. Leaving the step, whichever way, saves them (session:update) and the passwords
+// (session:setSecrets).
 import {
+  IconCheck,
   IconChevronDown,
   IconEye,
   IconEyeOff,
@@ -9,8 +11,8 @@ import {
   IconMoodHappy,
   IconTrophy,
 } from '@tabler/icons-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useId, useState, type ReactNode } from 'react'
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RULE_PRESETS } from '@shared/rules'
 import type { ReleaseMode, Rules, Session } from '@shared/types'
@@ -22,6 +24,7 @@ import {
   Select,
   Slider,
   Toggle,
+  useToast,
   type SegmentedOption,
 } from '../../design/components'
 import { cx } from '../../design/classes'
@@ -49,6 +52,32 @@ function sameRules(a: Rules, b: Rules): boolean {
   )
 }
 
+interface Draft {
+  sessionId: string
+  rules: Rules
+  /** The rules the session has now. */
+  savedRules: Rules
+  /** null: untouched, the saved password stays as it is; '' removes it. */
+  password: string | null
+  serverPassword: string | null
+}
+
+/** Sends what changed: the rules through session:update, the passwords through session:setSecrets. */
+async function saveDraft(queryClient: QueryClient, draft: Draft): Promise<void> {
+  const { sessionId: id, rules, savedRules, password, serverPassword } = draft
+  if (!sameRules(rules, savedRules)) {
+    const updated = await invoke('session:update', { id, rules })
+    queryClient.setQueryData(['session:get', { id }], updated)
+  }
+  const patch: { password?: string | null; serverPassword?: string | null } = {}
+  if (password !== null) patch.password = password === '' ? null : password
+  if (serverPassword !== null) patch.serverPassword = serverPassword === '' ? null : serverPassword
+  if (Object.keys(patch).length > 0) {
+    await invoke('session:setSecrets', { id, ...patch })
+    await queryClient.invalidateQueries({ queryKey: ['session:get'] })
+  }
+}
+
 export interface StepRulesProps {
   session: Session
   onBack: () => void
@@ -57,11 +86,12 @@ export interface StepRulesProps {
 
 export function StepRules({ session, onBack, onNext }: StepRulesProps): React.JSX.Element {
   const { t } = useTranslation()
+  const toast = useToast()
   const queryClient = useQueryClient()
   const advancedId = useId()
   const [rules, setRules] = useState<Rules>(() => structuredClone(session.rules))
   const [advancedOpen, setAdvancedOpen] = useState(session.rules.preset === 'custom')
-  // null: untouched, so the saved password stays as it is.
+  // null: untouched (see Draft).
   const [password, setPassword] = useState<string | null>(null)
   const [serverPassword, setServerPassword] = useState<string | null>(null)
   const secrets = useIpcQuery(
@@ -70,22 +100,25 @@ export function StepRules({ session, onBack, onNext }: StepRulesProps): React.JS
     { enabled: session.hasPassword || session.hasServerPassword, gcTime: 0, staleTime: 0 },
   )
 
-  const save = useMutation<void, unknown, void>({
-    mutationFn: async () => {
-      if (!sameRules(rules, session.rules)) {
-        const updated = await invoke('session:update', { id: session.id, rules })
-        queryClient.setQueryData(['session:get', { id: session.id }], updated)
-      }
-      const patch: { password?: string | null; serverPassword?: string | null } = {}
-      if (password !== null) patch.password = password === '' ? null : password
-      if (serverPassword !== null) patch.serverPassword = serverPassword === '' ? null : serverPassword
-      if (Object.keys(patch).length > 0) {
-        await invoke('session:setSecrets', { id: session.id, ...patch })
-        await queryClient.invalidateQueries({ queryKey: ['session:get'] })
-      }
-    },
+  const draft: Draft = { sessionId: session.id, rules, savedRules: session.rules, password, serverPassword }
+  const save = useMutation<void, unknown, void>({ mutationFn: () => saveDraft(queryClient, draft) })
+  // The nav buttons save before they leave; any other way out (the rail, a link) saves on the way.
+  const saved = useRef(false)
+  const leave = (go: () => void): void =>
+    save.mutate(undefined, {
+      onSuccess: () => {
+        saved.current = true
+        go()
+      },
+    })
+  const saveOnTheWay = useEffectEvent(() => {
+    if (saved.current) return
+    saveDraft(queryClient, draft).catch((error: unknown) => {
+      const { title, body } = describeError(error, t)
+      toast.push({ tone: 'error', title, body })
+    })
   })
-  const leave = (go: () => void): void => save.mutate(undefined, { onSuccess: go })
+  useEffect(() => () => saveOnTheWay(), [])
 
   const choosePreset = (preset: PresetId): void => setRules(structuredClone(RULE_PRESETS[preset]))
   const change = (patch: Partial<Rules>): void =>
@@ -353,6 +386,10 @@ function PresetCard({ name, preset, checked, onSelect }: PresetCardProps): React
         </span>
         <span id={`${id}-title`} className="preset__title">
           {t(`screens.session.rules.presets.${preset.id}.title`)}
+        </span>
+        {/* The chosen card says so with a mark too, not with its color alone. */}
+        <span className="preset__check" aria-hidden="true">
+          <IconCheck />
         </span>
         <span id={`${id}-body`} className="preset__body">
           {t(`screens.session.rules.presets.${preset.id}.body`)}

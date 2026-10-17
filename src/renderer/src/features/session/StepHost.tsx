@@ -35,6 +35,13 @@ import { StepNav } from './StepNav'
 import { WebConsentDialog } from './WebConsentDialog'
 import './StepHost.css'
 
+/** The steps of an archipelago.gg hosting (Task 17): upload the zip, open the room, wake it, read its port. */
+const WEB_STAGES = ['upload', 'room', 'wake', 'port'] as const
+
+function webStage(stage: string | undefined): (typeof WEB_STAGES)[number] {
+  return WEB_STAGES.find((known) => known === stage) ?? 'upload'
+}
+
 export interface StepHostProps {
   session: Session
   /** The archipelago.gg hosting task, kept by the wizard. */
@@ -60,14 +67,16 @@ export function StepHost({ session, taskId, onTaskId, onBack }: StepHostProps): 
     },
   })
 
-  // The room is up: on to the live game.
+  // The room is up: on to the live game. The task is then forgotten, so coming back to this step
+  // later does not bounce there again.
   useEffect(() => {
     if (task.status !== 'done') return
     for (const channel of ['session:get', 'session:list']) {
       void queryClient.invalidateQueries({ queryKey: [channel] })
     }
+    onTaskId(null)
     void navigate(live)
-  }, [task.status, live, navigate, queryClient])
+  }, [task.status, live, navigate, queryClient, onTaskId])
 
   const webBusy = web.isPending || (taskId !== null && task.status === 'running')
   const webError = web.error ?? (taskId !== null && task.status === 'failed' ? task.error : null)
@@ -145,7 +154,7 @@ export function StepHost({ session, taskId, onTaskId, onBack }: StepHostProps): 
             {webBusy ? (
               <ProgressBar
                 percent={task.progress?.percent ?? null}
-                label={t('screens.session.host.web.progress')}
+                label={t(`screens.session.host.web.stages.${webStage(task.progress?.stage)}`)}
                 segments={16}
                 tone="violet"
               />
@@ -236,13 +245,15 @@ function HostCard({
         <span className="host-card__icon" aria-hidden="true">
           {icon}
         </span>
-        <span className="host-card__eyebrow t-display" aria-hidden="true">
-          {eyebrow}
-        </span>
+        <div className="host-card__heading">
+          <span className="host-card__eyebrow t-display" aria-hidden="true">
+            {eyebrow}
+          </span>
+          <h2 id={titleId} className="host-card__title">
+            {title}
+          </h2>
+        </div>
       </div>
-      <h2 id={titleId} className="host-card__title">
-        {title}
-      </h2>
       <div className="host-card__badge">{badge}</div>
       <p className="host-card__body">{body}</p>
       <ul className="host-card__points">

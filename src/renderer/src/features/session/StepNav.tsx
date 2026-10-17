@@ -2,6 +2,7 @@
 import { IconChevronLeft, IconChevronRight, IconLock } from '@tabler/icons-react'
 import { useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cx } from '../../design/classes'
 import { NeonButton } from '../../design/components'
 
 export interface StepNavProps {
@@ -25,7 +26,11 @@ export function StepNav({
   const reasonId = useId()
   const showReason = blockedReason !== undefined && blockedReason !== null && nextDisabled
   return (
-    <nav className="step-nav" aria-label={t('screens.session.nav.label')}>
+    // Only a bar with a next button sticks to the bottom: a lone back button can wait at the end.
+    <nav
+      className={cx('step-nav', !onNext && 'step-nav--static')}
+      aria-label={t('screens.session.nav.label')}
+    >
       {onBack ? (
         <NeonButton variant="ghost" icon={<IconChevronLeft />} disabled={busy} onClick={onBack}>
           {t('screens.session.nav.back')}

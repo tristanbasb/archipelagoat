@@ -7,7 +7,7 @@
 
 /* The stepper in a faint band, like the stage map of an arcade cabinet. */
 .wizard__stepper {
-  margin-bottom: var(--sp-8);
+  margin-bottom: var(--sp-6);
   padding: var(--sp-4) var(--sp-2) var(--sp-3);
   background:
     linear-gradient(
@@ -55,7 +55,17 @@
   gap: var(--sp-4);
   margin-top: var(--sp-2);
   padding: var(--sp-5) 0 var(--sp-4);
-  background: linear-gradient(to bottom, transparent, var(--bg-0) 30%);
+  /* Frosted rather than opaque, so the floor grid of the screen still shows through. */
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg-0) 94%, transparent) 30%);
+  backdrop-filter: blur(4px);
+  mask-image: linear-gradient(to bottom, transparent, #000 10px);
+}
+
+.step-nav--static {
+  position: relative;
+  background: none;
+  backdrop-filter: none;
+  mask-image: none;
 }
 
 .step-nav::before {
@@ -200,9 +210,13 @@
   --pb-color: var(--line);
   --pb-fill: var(--bg-1);
   --pb-step: var(--corner-sm);
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon name pill'
+    'icon meta go';
   align-items: center;
-  gap: var(--sp-3);
+  gap: 2px var(--sp-3);
   width: 100%;
   padding: var(--sp-3);
   border: 0;
@@ -217,6 +231,7 @@
 }
 
 .resume-row__icon {
+  grid-area: icon;
   display: grid;
   flex: none;
   place-items: center;
@@ -233,12 +248,12 @@
 }
 
 .resume-row__text {
-  display: grid;
-  flex: 1;
-  min-width: 0;
+  display: contents;
 }
 
 .resume-row__name {
+  grid-area: name;
+  min-width: 0;
   overflow: hidden;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -246,13 +261,19 @@
 }
 
 .resume-row__meta {
+  grid-area: meta;
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--fs-12);
 }
 
 .resume-row__go {
+  grid-area: go;
+  justify-self: end;
   display: inline-flex;
-  flex: none;
   align-items: center;
   gap: 2px;
   color: color-mix(in srgb, var(--neon-cyan) 78%, #ffffff);
@@ -269,8 +290,7 @@
   transform: translateX(2px);
 }
 
-@media (max-width: 760px) {
-  .resume-row .status-pill {
-    display: none;
-  }
+.resume-row .status-pill {
+  grid-area: pill;
+  justify-self: end;
 }

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { AppError } from '@shared/errors'
 import { RULE_PRESETS, defaultRules } from '@shared/rules'
 import type {
@@ -79,6 +79,14 @@ function editorDoc(name: string, game: string): EditorDoc {
 }
 
 const fileFrom = (name: string, path: string): File => Object.assign(new File(['x'], name), { path })
+
+/** Moves the hash router, as a link elsewhere in the app would. */
+function navigateTo(route: string): void {
+  act(() => {
+    window.history.pushState(null, '', `#${route}`)
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+}
 
 async function openWizard(route: string, options: Omit<RenderAppOptions, 'route'> = {}) {
   const rendered = await renderApp({ route, config: NO_FX, ...options })
@@ -307,6 +315,77 @@ describe('session wizard', () => {
     expect(screen.getByText('Joueur renommé : Zelda')).toBeInTheDocument()
   })
 
+  it('step 2 rename finds the player by name when the parsed documents are numbered differently', async () => {
+    // The file starts with an empty document: the check counts it, the Studio parser does not.
+    const shifted = playerFile('f1', 'Duo.yaml', [
+      doc(1, 'Link', 'A Link to the Past'),
+      doc(2, 'TheVeryLongPlayerName', 'Celeste', [{ severity: 'error', code: 'name-too-long' }]),
+    ])
+    const { goat, user } = await openWizard('/session/s1?step=2', {
+      handlers: {
+        'session:get': () => session({ players: [shifted] }),
+        'session:validate': () => ({
+          ...READY,
+          files: [{ fileId: 'f1', docs: shifted.docs }],
+          blocking: true,
+        }),
+        'session:readFile': () => ({ text: '---\nname: Link\n---\nname: TheVeryLongPlayerName\n' }),
+        'studio:parse': () => ({
+          docs: [editorDoc('Link', 'A Link to the Past'), editorDoc('TheVeryLongPlayerName', 'Celeste')],
+          issues: [],
+        }),
+        'studio:render': ({ doc: rendered }) => ({ text: `name: ${rendered.name}\n`, issues: [] }),
+        'session:replaceFile': () => session({ players: [shifted] }),
+      },
+    })
+
+    const file = await screen.findByRole('region', { name: 'Duo.yaml' })
+    await user.click(within(file).getByRole('button', { name: 'Renommer TheVeryLongPlayerName' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Renommer TheVeryLongPlayerName' })
+    const field = within(dialog).getByRole('textbox', { name: 'Nouveau nom' })
+    await user.clear(field)
+    await user.type(field, 'Zelda')
+    await user.click(within(dialog).getByRole('button', { name: 'Renommer' }))
+
+    await waitFor(() =>
+      expect(goat.inputsOf('session:replaceFile')).toEqual([
+        { id: 's1', fileId: 'f1', text: 'name: Link\n\n---\nname: Zelda\n' },
+      ]),
+    )
+  })
+
+  it('step 2 rename refuses a file whose documents do not match the check', async () => {
+    const duo = playerFile('f1', 'Duo.yaml', [
+      doc(0, 'Link', 'A Link to the Past'),
+      doc(1, 'TheVeryLongPlayerName', 'Celeste', [{ severity: 'error', code: 'name-too-long' }]),
+    ])
+    const { goat, user } = await openWizard('/session/s1?step=2', {
+      handlers: {
+        'session:get': () => session({ players: [duo] }),
+        'session:validate': () => ({ ...READY, files: [{ fileId: 'f1', docs: duo.docs }], blocking: true }),
+        // Edited in the meantime: that player is not in the file any more.
+        'session:readFile': () => ({ text: 'name: Link\n---\nname: Somebody\n' }),
+        'studio:parse': () => ({
+          docs: [editorDoc('Link', 'A Link to the Past'), editorDoc('Somebody', 'Celeste')],
+          issues: [],
+        }),
+        'studio:render': ({ doc: rendered }) => ({ text: `name: ${rendered.name}\n`, issues: [] }),
+        'session:replaceFile': () => session({ players: [duo] }),
+      },
+    })
+
+    const file = await screen.findByRole('region', { name: 'Duo.yaml' })
+    await user.click(within(file).getByRole('button', { name: 'Renommer TheVeryLongPlayerName' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Renommer TheVeryLongPlayerName' })
+    await user.clear(within(dialog).getByRole('textbox', { name: 'Nouveau nom' }))
+    await user.type(within(dialog).getByRole('textbox', { name: 'Nouveau nom' }), 'Zelda')
+    await user.click(within(dialog).getByRole('button', { name: 'Renommer' }))
+
+    const alert = await within(dialog).findByRole('alert')
+    expect(within(alert).getByRole('button', { name: 'Corriger dans le Studio' })).toBeInTheDocument()
+    expect(goat.inputsOf('session:replaceFile')).toEqual([])
+  })
+
   it('step 2 fix-in-studio navigates with session and file params', async () => {
     const broken = playerFile('f1', 'Link.yaml', [
       doc(0, 'Link', 'A Link to the Past', [
@@ -377,6 +456,30 @@ describe('session wizard', () => {
     expect(goat.inputsOf('session:update')).toEqual([
       { id: 's1', rules: { ...defaultRules(), preset: 'custom', itemCheat: true } },
     ])
+    // Saved once: leaving the step after the save does not send it again.
+    await screen.findByRole('button', { name: 'Lancer la génération' })
+    expect(goat.inputsOf('session:setSecrets')).toHaveLength(1)
+    expect(goat.inputsOf('session:update')).toHaveLength(1)
+  })
+
+  it('step 3 still saves its changes when the user leaves the wizard another way', async () => {
+    const { goat, user } = await openWizard('/session/s1?step=3', {
+      handlers: {
+        'session:get': () => session(),
+        'session:update': ({ rules }) => session({ rules: rules ?? defaultRules() }),
+        'session:setSecrets': () => undefined,
+      },
+    })
+    await user.click(await screen.findByRole('radio', { name: /Course/ }))
+    await user.type(screen.getByLabelText('Mot de passe d’administration'), 'bouc')
+
+    navigateTo('/')
+    await waitFor(() =>
+      expect(goat.inputsOf('session:update')).toEqual([{ id: 's1', rules: RULE_PRESETS.race }]),
+    )
+    await waitFor(() =>
+      expect(goat.inputsOf('session:setSecrets')).toEqual([{ id: 's1', serverPassword: 'bouc' }]),
+    )
   })
 
   it('step 4 shows stage progress and friendly error with log link', async () => {
@@ -457,6 +560,31 @@ describe('session wizard', () => {
     expect(document.querySelector('.pixel-confetti')).toBeNull()
   })
 
+  it('step 4 keeps following a running generation after leaving the wizard', async () => {
+    const { goat, user } = await openWizard('/session/s1?step=4', {
+      handlers: {
+        'session:get': () => session(),
+        'session:generate': () => ({ taskId: 'g1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Lancer la génération' }))
+    await waitFor(() => expect(goat.inputsOf('session:generate')).toHaveLength(1))
+    goat.emit('task:progress', { taskId: 'g1', kind: 'generate', stage: 'fill', percent: 62 })
+    expect(await screen.findByRole('progressbar', { name: 'Placement des objets' })).toBeInTheDocument()
+
+    navigateTo('/')
+    await waitFor(() =>
+      expect(screen.queryByRole('progressbar', { name: 'Placement des objets' })).toBeNull(),
+    )
+    goat.emit('task:progress', { taskId: 'g1', kind: 'generate', stage: 'balancing', percent: 80 })
+    navigateTo('/session/s1?step=4')
+
+    const bar = await screen.findByRole('progressbar', { name: 'Équilibrage de la progression' })
+    expect(bar).toHaveAttribute('aria-valuenow', '80')
+    expect(screen.queryByRole('button', { name: 'Lancer la génération' })).toBeNull()
+    expect(goat.inputsOf('session:generate')).toHaveLength(1)
+  })
+
   it('step 5 requires consent before web hosting and navigates to live screen', async () => {
     const room: WebRoom = {
       roomId: 'r1',
@@ -492,9 +620,20 @@ describe('session wizard', () => {
 
     goat.emit('task:progress', { taskId: 'h1', kind: 'webhost-host', stage: 'upload', percent: 40 })
     expect(await screen.findByRole('progressbar', { name: 'Envoi sur archipelago.gg…' })).toBeInTheDocument()
+    goat.emit('task:progress', { taskId: 'h1', kind: 'webhost-host', stage: 'room', percent: 60 })
+    expect(await screen.findByRole('progressbar', { name: 'Création de la room…' })).toBeInTheDocument()
+    goat.emit('task:progress', { taskId: 'h1', kind: 'webhost-host', stage: 'port', percent: 90 })
+    expect(
+      await screen.findByRole('progressbar', { name: 'Attente du port de la room…' }),
+    ).toBeInTheDocument()
     goat.emit('task:done', { taskId: 'h1', kind: 'webhost-host', result: room })
     await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
     expect(await screen.findByRole('heading', { level: 1, name: 'Partie en cours' })).toBeInTheDocument()
+
+    // Coming back to the step later does not bounce to the live screen again.
+    navigateTo('/session/s1?step=5')
+    expect(await screen.findByRole('button', { name: 'Héberger sur archipelago.gg' })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/session/s1?step=5')
   })
 
   it('step 5 starts the local server and opens the live screen', async () => {

@@ -38,10 +38,10 @@
   --pb-color: var(--line);
   --pb-fill: linear-gradient(180deg, var(--bg-2), var(--bg-1));
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    'icon title'
-    'body body';
+    'icon title check'
+    'body body body';
   align-items: center;
   gap: var(--sp-3) var(--sp-3);
   width: 100%;
@@ -95,6 +95,33 @@
 
 .preset__input:checked + .preset__card .preset__title {
   color: var(--tone-ink);
+}
+
+.preset__check {
+  grid-area: check;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  background: var(--tone);
+  color: var(--bg-0);
+  clip-path: var(--clip-corner-sm);
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.preset__check svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}
+
+.preset__input:checked + .preset__card .preset__check {
+  opacity: 1;
+  transform: none;
 }
 
 .preset__body {

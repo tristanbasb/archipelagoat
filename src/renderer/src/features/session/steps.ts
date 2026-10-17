@@ -11,3 +11,8 @@ export const STATUS_PILL: Record<SessionStatus, Status> = {
   hosting: 'busy',
   finished: 'idle',
 }
+
+/** The Studio, opened on one player file of a session; saving there brings the user back. */
+export function studioLink(sessionId: string, fileId: string): string {
+  return `/studio?${new URLSearchParams({ session: sessionId, file: fileId }).toString()}`
+}

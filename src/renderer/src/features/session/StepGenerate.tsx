@@ -13,7 +13,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { GENERATE_STAGE_IDS, type ErrorCode } from '@shared/codes'
@@ -38,15 +38,8 @@ import { describeError } from '../../lib/errors'
 import { PixelConfetti } from './PixelConfetti'
 import { StepNav } from './StepNav'
 import type { StepNumber } from './steps'
+import type { GenerationRun, WizardRuns } from './wizard-runs'
 import './StepGenerate.css'
-
-/** A generation started from this screen. The wizard keeps it while the user moves between steps. */
-export interface GenerationRun {
-  taskId: string
-  startedAt: number
-  /** Its success was already celebrated: the confetti and the jingle play once. */
-  celebrated: boolean
-}
 
 /** Errors the user fixes at an earlier step of the wizard. */
 const STEP_FOR_ERROR: Partial<Record<ErrorCode, StepNumber>> = {
@@ -83,7 +76,7 @@ function useNow(active: boolean): number {
 export interface StepGenerateProps {
   session: Session
   run: GenerationRun | null
-  onRun: Dispatch<SetStateAction<GenerationRun | null>>
+  onRun: WizardRuns['setGeneration']
   goTo: (step: StepNumber) => void
 }
 
@@ -405,7 +398,11 @@ function Done({
                 <td className="gen-slots__num">{t('screens.session.players.slot', { n: slot.slot })}</td>
                 <td className="gen-slots__name">{slot.name}</td>
                 <td>{slot.game}</td>
-                <td className="gen-slots__patch" title={slot.patchFile ?? undefined}>
+                <td
+                  className="gen-slots__patch"
+                  data-none={slot.patchFile === null || undefined}
+                  title={slot.patchFile ?? undefined}
+                >
                   {slot.patchFile ? fileName(slot.patchFile) : t('screens.session.generate.noPatch')}
                 </td>
               </tr>

@@ -1,7 +1,7 @@
 // The organizer's wizard (spec §4.2.5). /session/new names and creates a game; /session/:id?step=1..5
 // then walks it through players, check, rules, generation and hosting.
 import { IconGhost2, IconPlus } from '@tabler/icons-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { SessionStatus } from '@shared/types'
@@ -19,11 +19,12 @@ import { ScreenHeader } from '../../layout/ScreenHeader'
 import { describeError } from '../../lib/errors'
 import { NewSession } from './NewSession'
 import { StepCheck } from './StepCheck'
-import { StepGenerate, type GenerationRun } from './StepGenerate'
+import { StepGenerate } from './StepGenerate'
 import { StepHost } from './StepHost'
 import { StepPlayers } from './StepPlayers'
 import { StepRules } from './StepRules'
 import { STATUS_PILL, STEP_IDS, type StepNumber } from './steps'
+import { useWizardRuns } from './wizard-runs'
 import './SessionWizard.css'
 
 function parseStep(value: string | null): StepNumber | null {
@@ -45,9 +46,8 @@ function Wizard({ id }: { id: string }): React.JSX.Element {
   const { t } = useTranslation()
   const [params, setParams] = useSearchParams()
   const query = useIpcQuery('session:get', { id })
-  // Tasks outlive the step that started them: going back and forth keeps following them.
-  const [generation, setGeneration] = useState<GenerationRun | null>(null)
-  const [hostTaskId, setHostTaskId] = useState<string | null>(null)
+  // Tasks outlive the step, and the screen, that started them: coming back keeps following them.
+  const { generation, setGeneration, hostTaskId, setHostTaskId } = useWizardRuns(id)
   const stepRef = useRef<HTMLDivElement>(null)
   const shownStep = useRef<StepNumber | null>(null)
 

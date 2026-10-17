@@ -293,7 +293,12 @@
       "pointConnect": "Players connect to archipelago.gg, on a port the site gives",
       "pointSleep": "The room sleeps when nobody plays; one click wakes it up",
       "action": "Host on archipelago.gg",
-      "progress": "Sending to archipelago.gg…"
+      "stages": {
+        "upload": "Sending to archipelago.gg…",
+        "room": "Opening the room…",
+        "wake": "Waking the room up…",
+        "port": "Waiting for the room’s port…"
+      }
     },
     "local": {
       "eyebrow": "LAN",

@@ -100,7 +100,7 @@
       "worlds_one": "{{count}} monde à installer",
       "worlds_other": "{{count}} mondes à installer",
       "roms_one": "{{count}} ROM à fournir",
-      "roms_other": "{{count}} ROM à fournir"
+      "roms_other": "{{count}} ROMs à fournir"
     },
     "worldsTitle": "Mondes manquants",
     "worldsBody": "Aucun monde installé ne gère ces jeux.",
@@ -293,7 +293,12 @@
       "pointConnect": "Les joueurs se connectent à archipelago.gg, sur un port donné par le site",
       "pointSleep": "La room s’endort quand personne ne joue\u00a0; un clic la réveille",
       "action": "Héberger sur archipelago.gg",
-      "progress": "Envoi sur archipelago.gg…"
+      "stages": {
+        "upload": "Envoi sur archipelago.gg…",
+        "room": "Création de la room…",
+        "wake": "Réveil de la room…",
+        "port": "Attente du port de la room…"
+      }
     },
     "local": {
       "eyebrow": "LAN",

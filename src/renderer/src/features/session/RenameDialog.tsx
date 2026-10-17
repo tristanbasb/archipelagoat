@@ -6,10 +6,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import type { Session } from '@shared/types'
+import type { EditorDoc, Session } from '@shared/types'
 import { ErrorPanel, Modal, NeonButton, useToast } from '../../design/components'
 import { describeError } from '../../lib/errors'
 import { invoke } from '../../lib/goat'
+import { studioLink } from './steps'
 import './RenameDialog.css'
 
 /** Archipelago's limit on a slot name (`name-too-long`). */
@@ -37,6 +38,17 @@ function keyOf(target: RenameTarget | null): string | null {
   return target ? `${target.fileId}#${target.docIndex}` : null
 }
 
+/**
+ * Where the player is among the parsed documents: at the check's index when the name is there,
+ * else the only document with that name (the parser may skip documents the check counted).
+ */
+function findDoc(docs: EditorDoc[], target: RenameTarget): number {
+  if (docs[target.docIndex]?.name === target.name) return target.docIndex
+  const named = docs.flatMap((doc, index) => (doc.name === target.name ? [index] : []))
+  if (named.length !== 1 || named[0] === undefined) throw new UnreadableFile(target.fileId)
+  return named[0]
+}
+
 export function RenameDialog({ sessionId, target, onClose }: RenameDialogProps): React.JSX.Element {
   const { t } = useTranslation()
   const toast = useToast()
@@ -50,11 +62,12 @@ export function RenameDialog({ sessionId, target, onClose }: RenameDialogProps):
   const trimmed = name.trim()
 
   const rename = useMutation<Session, unknown, { target: RenameTarget; name: string }>({
-    mutationFn: async ({ target: { fileId, docIndex }, name: newName }) => {
+    mutationFn: async ({ target: renaming, name: newName }) => {
+      const { fileId } = renaming
       const { text } = await invoke('session:readFile', { id: sessionId, fileId })
       const { docs } = await invoke('studio:parse', { text })
-      if (!docs[docIndex]) throw new UnreadableFile(fileId)
-      const renamed = docs.map((doc, index) => (index === docIndex ? { ...doc, name: newName } : doc))
+      const at = findDoc(docs, renaming)
+      const renamed = docs.map((doc, index) => (index === at ? { ...doc, name: newName } : doc))
       const rendered = await Promise.all(renamed.map((doc) => invoke('studio:render', { doc })))
       return invoke('session:replaceFile', {
         id: sessionId,
@@ -165,7 +178,7 @@ export function RenameDialog({ sessionId, target, onClose }: RenameDialogProps):
                 variant="secondary"
                 size="sm"
                 icon={<IconFileCode />}
-                onClick={() => void navigate(`/studio?session=${sessionId}&file=${target.fileId}`)}
+                onClick={() => void navigate(studioLink(sessionId, target.fileId))}
               >
                 {t('screens.session.check.fixInStudio')}
               </NeonButton>

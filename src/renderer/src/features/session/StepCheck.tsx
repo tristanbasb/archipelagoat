@@ -36,6 +36,7 @@ import { useWorldInstall, type WorldInstall } from '../../hooks/useWorldInstall'
 import { describeError } from '../../lib/errors'
 import { RenameDialog, type RenameTarget } from './RenameDialog'
 import { StepNav } from './StepNav'
+import { studioLink } from './steps'
 import './StepCheck.css'
 
 /** Issues a new name fixes. */
@@ -438,7 +439,11 @@ function Roms({ needs }: { needs: RomNeed[] }): React.JSX.Element {
   const { t } = useTranslation()
   const navigate = useNavigate()
   return (
-    <PixelPanel tone="yellow" padding="md" title={t('screens.session.check.romsTitle')}>
+    <PixelPanel
+      tone={needs.some((need) => need.status !== 'ok') ? 'yellow' : 'neutral'}
+      padding="md"
+      title={t('screens.session.check.romsTitle')}
+    >
       <p className="check-panel__body">{t('screens.session.check.romsBody')}</p>
       <ul className="check-rows">
         {needs.map((need) => {
@@ -496,7 +501,7 @@ function FilePanel({ sessionId, file, onRename }: FilePanelProps): React.JSX.Ele
           variant="secondary"
           size="sm"
           icon={<IconFileCode />}
-          onClick={() => void navigate(`/studio?session=${sessionId}&file=${file.fileId}`)}
+          onClick={() => void navigate(studioLink(sessionId, file.fileId))}
         >
           {t('screens.session.check.fixInStudio')}
         </NeonButton>

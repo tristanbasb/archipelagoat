@@ -137,7 +137,7 @@ function ResumeRow({ session }: { session: SessionSummary }): React.JSX.Element 
     <li>
       <button
         type="button"
-        className="resume-row"
+        className="resume-row pixel-border"
         onClick={() => void navigate(live ? `/play/${session.id}` : `/session/${session.id}`)}
       >
         <span className="resume-row__icon" aria-hidden="true">
