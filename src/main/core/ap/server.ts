@@ -207,6 +207,8 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
   const runs = new Map<string, Run>()
   /** Starts still preparing or waiting for their server. */
   const starts = new Map<string, Promise<ServerState>>()
+  /** The last port choice: the next one waits for it (see `launch`). */
+  let portChoice: Promise<unknown> = Promise.resolve()
   let reconciling: Promise<void> = Promise.resolve()
   let closing = false
 
@@ -238,6 +240,25 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
   /** The runs whose process runs: starting, ready or stopping. */
   const liveRuns = (): Run[] =>
     [...runs.values()].filter((run) => run.proc !== null && isLive(run.state.status))
+
+  /**
+   * The ports our servers hold, or will hold once they bind: those of the runs whose process runs,
+   * whatever their state (one killed after a failed start may not have let go yet), and those of the
+   * orphans of a previous run.
+   */
+  const reservedPorts = (): Set<number> =>
+    new Set(
+      [...runs.values()]
+        .filter((run) => run.proc !== null || run.orphanPid !== null)
+        .map((run) => run.state.port),
+    )
+
+  /** Runs `choice` once the port choices before it are done, whether they succeeded or not. */
+  function choosePort<T>(choice: () => Promise<T>): Promise<T> {
+    const chosen = portChoice.then(choice)
+    portChoice = chosen.catch(() => undefined)
+    return chosen
+  }
 
   /** A new state for the run, sent to the renderer while it is the session's current one. */
   function setState(run: Run, patch: Partial<ServerState>): void {
@@ -432,50 +453,60 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     await writeSessionHostYaml(deps.settings, workspace, entries, ctx.platform.os)
     const savefile = path.join(workspace, 'output', `${generation.seedName}.apsave`)
     const resumedFromSave = await exists(savefile)
-    const port = await findFreePort(firstPort, lastPort)
-    if (closing) throw new AppError('TASK_CANCELLED', undefined, { detail: 'the app is quitting' })
 
-    const run = newRun(
-      id,
-      {
+    /** Chooses a free port, then registers and spawns the run of the server, which reserves it. */
+    const spawnOnFreePort = async (): Promise<Run> => {
+      const port = await findFreePort(firstPort, lastPort, reservedPorts())
+      if (closing) throw new AppError('TASK_CANCELLED', undefined, { detail: 'the app is quitting' })
+
+      const run = newRun(
+        id,
+        {
+          sessionId: id,
+          status: 'starting',
+          port,
+          addresses: listAddresses(interfaces(), port),
+          startedAt: now().toISOString(),
+          resumedFromSave,
+          error: null,
+        },
+        [secrets.password, secrets.serverPassword].filter((s): s is string => s !== null && s !== ''),
+      )
+      const opts: SpawnApOptions = {
+        exe: deps.locator.exe(install, SERVER),
+        args: buildServerArgs(generation.zipPath, port, savefile, rules),
+        cwd: workspace,
+        // Kept open: it is the console. MultiServer ignores its end, so closing it would stop nothing.
+        stdin: 'pipe',
+        selfManaged: true,
+        // Its own process group under Linux, which a kill then takes as a whole.
+        detached: ctx.platform.os === 'linux',
         sessionId: id,
-        status: 'starting',
-        port,
-        addresses: listAddresses(interfaces(), port),
-        startedAt: now().toISOString(),
-        resumedFromSave,
-        error: null,
-      },
-      [secrets.password, secrets.serverPassword].filter((s): s is string => s !== null && s !== ''),
-    )
-    const opts: SpawnApOptions = {
-      exe: deps.locator.exe(install, SERVER),
-      args: buildServerArgs(generation.zipPath, port, savefile, rules),
-      cwd: workspace,
-      // Kept open: it is the console. MultiServer ignores its end, so closing it would stop nothing.
-      stdin: 'pipe',
-      selfManaged: true,
-      // Its own process group under Linux, which a kill then takes as a whole.
-      detached: ctx.platform.os === 'linux',
-      sessionId: id,
-      onLine: (_stream, line) => onLine(run, line),
+        onLine: (_stream, line) => onLine(run, line),
+      }
+      runs.set(id, run)
+      ctx.bus.emit('server:state', run.state)
+      // A program that cannot start: spawnAp rejects `exited`, and spawn itself may throw.
+      const cannotStart = (error: unknown): void => {
+        run.proc = null
+        fail(run, { code: 'AP_NOT_INSTALLED', detail: String(error) })
+      }
+      try {
+        const proc = spawn(ctx, opts)
+        run.proc = proc
+        run.done = proc.exited.then((exit) => onExit(run, exit), cannotStart)
+        armReadyTimer(run)
+        scheduleProbe(run)
+      } catch (error) {
+        cannotStart(error)
+      }
+      return run
     }
-    runs.set(id, run)
-    ctx.bus.emit('server:state', run.state)
-    // A program that cannot start: spawnAp rejects `exited`, and spawn itself may throw.
-    const cannotStart = (error: unknown): void => {
-      run.proc = null
-      fail(run, { code: 'AP_NOT_INSTALLED', detail: String(error) })
-    }
-    try {
-      const proc = spawn(ctx, opts)
-      run.proc = proc
-      run.done = proc.exited.then((exit) => onExit(run, exit), cannotStart)
-      armReadyTimer(run)
-      scheduleProbe(run)
-    } catch (error) {
-      cannotStart(error)
-    }
+    // A server binds seconds after its spawn (multidata, save, its own public IP lookup), and until
+    // then the OS calls its port free. So one start at a time chooses, and its run, registered before
+    // the next one chooses, reserves the port.
+    const run = await choosePort(spawnOnFreePort)
+    const { port } = run.state
     const address = publicIp().catch(() => null)
 
     await run.ready.promise

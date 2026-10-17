@@ -211,6 +211,9 @@ function fakeSpawn(): { spawn: NonNullable<ServerManagerDeps['spawn']>; procs: F
   return { spawn, procs }
 }
 
+/** The `--port` a driven process was given. */
+const portOf = (proc: FakeProc): number => Number(proc.opts.args[proc.opts.args.indexOf('--port') + 1])
+
 /** Starts the server of `id` with a fake spawn and makes it ready with its listening line. */
 async function startFake(
   manager: ServerManager,
@@ -221,8 +224,7 @@ async function startFake(
   const starting = manager.start(id)
   await vi.waitFor(() => expect(procs.length).toBe(count + 1))
   const proc = procs[count]!
-  const port = Number(proc.opts.args[proc.opts.args.indexOf('--port') + 1])
-  proc.line(`server listening on 0.0.0.0:${port}`)
+  proc.line(`server listening on 0.0.0.0:${portOf(proc)}`)
   return { state: await starting, proc }
 }
 
@@ -721,6 +723,62 @@ describe('local server (driven process)', () => {
     )
     // A new run starts with an empty history.
     expect(manager.history(session.id).log).not.toContain('Shutting down due to inactivity.')
+  })
+
+  it('gives each server its own port before any listens, and never probes the port of another', async () => {
+    const { spawn, procs } = fakeSpawn()
+    // The first two starts finish writing their host.yaml together, so they look for a port at once.
+    let written = 0
+    const together = Promise.withResolvers<void>()
+    const manager = makeManager({
+      spawn,
+      settings: {
+        makeSessionSettings: async (dir, entries) => {
+          const file = await settings.makeSessionSettings(dir, entries)
+          if (++written === 2) together.resolve()
+          if (written <= 2) await together.promise
+          return file
+        },
+      },
+    })
+    const first = await generatedSession('Un')
+    const second = await generatedSession('Deux')
+    const third = await generatedSession('Trois')
+
+    const starting: Promise<ServerState>[] = []
+    const start = (id: string): void => {
+      const promise = manager.start(id)
+      // Left pending by a failed assertion, they are cancelled by the teardown.
+      promise.catch(() => undefined)
+      starting.push(promise)
+    }
+
+    // Two starts at once, then a third while neither server is ready nor even listening: the OS
+    // alone would call the same port free for all three.
+    start(first.id)
+    start(second.id)
+    await vi.waitFor(() => expect(procs).toHaveLength(2))
+    // The first server now binds its port: the third start must skip it without connecting, which
+    // would print a refused connection in that game's console.
+    let connections = 0
+    const listener = createServer((socket) => {
+      connections++
+      socket.on('error', () => undefined)
+      socket.destroy()
+    })
+    await new Promise<void>((resolve) => listener.listen(portOf(procs[0]!), '127.0.0.1', resolve))
+    try {
+      start(third.id)
+      await vi.waitFor(() => expect(procs).toHaveLength(3))
+
+      const ports = new Map(procs.map((proc) => [proc.opts.sessionId, portOf(proc)]))
+      expect(new Set(ports.values()).size).toBe(3)
+      expect(connections).toBe(0)
+      for (const proc of procs) proc.line(`server listening on 0.0.0.0:${portOf(proc)}`)
+      for (const state of await Promise.all(starting)) expect(state.port).toBe(ports.get(state.sessionId))
+    } finally {
+      await new Promise((resolve) => listener.close(resolve))
+    }
   })
 
   it('starts one server per session: a second start answers the running one', async () => {

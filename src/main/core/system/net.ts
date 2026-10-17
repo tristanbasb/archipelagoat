@@ -49,10 +49,18 @@ export async function isPortFree(port: number): Promise<boolean> {
   return canBindLoopback(port)
 }
 
-/** The first free port from `start` to `max`; PORT_IN_USE{port: start} when there is none. */
-export async function findFreePort(start = DEFAULT_PORT, max = MAX_PORT): Promise<number> {
+/**
+ * The first free port from `start` to `max`; PORT_IN_USE{port: start} when there is none. The ports
+ * in `exclude` are skipped without a probe: those of servers that are still starting, which the OS
+ * calls free until they bind, and those of running servers, whose console a probe would litter.
+ */
+export async function findFreePort(
+  start = DEFAULT_PORT,
+  max = MAX_PORT,
+  exclude: ReadonlySet<number> = new Set(),
+): Promise<number> {
   for (let port = start; port <= max; port++) {
-    if (await isPortFree(port)) return port
+    if (!exclude.has(port) && (await isPortFree(port))) return port
   }
   throw new AppError('PORT_IN_USE', { port: start }, { detail: `no free port from ${start} to ${max}` })
 }

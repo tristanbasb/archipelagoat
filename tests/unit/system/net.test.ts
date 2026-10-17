@@ -99,6 +99,32 @@ describe('ports', () => {
     expect(error).toMatchObject({ code: 'PORT_IN_USE', params: { port: busy } })
   })
 
+  it('findFreePort skips the excluded ports without connecting to them', async () => {
+    let connections = 0
+    const server = createServer((socket) => {
+      connections++
+      socket.on('error', () => undefined)
+      socket.destroy()
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    held.push(server)
+    const reserved = (server.address() as AddressInfo).port
+    const free = await releasedPort()
+
+    // A port in use is not even probed when it is excluded...
+    expect(await findFreePort(reserved, reserved, new Set([reserved])).catch((e: unknown) => e)).toMatchObject({
+      code: 'PORT_IN_USE',
+      params: { port: reserved },
+    })
+    expect(connections).toBe(0)
+    // ...and a free port is not taken.
+    expect(await findFreePort(free, free, new Set([free])).catch((e: unknown) => e)).toMatchObject({
+      code: 'PORT_IN_USE',
+      params: { port: free },
+    })
+    expect(await findFreePort(free, free, new Set([reserved]))).toBe(free)
+  })
+
   it('probePort connects to a listening port only', async () => {
     expect(await probePort(await heldPort())).toBe(true)
     expect(await probePort(await releasedPort())).toBe(false)
