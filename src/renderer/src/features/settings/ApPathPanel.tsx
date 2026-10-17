@@ -39,7 +39,8 @@ export function ApPathPanel(): React.JSX.Element {
   const k = (key: string): string => t(`screens.settings.ap.${key}`)
 
   const install = detect.data
-  const custom = config.apPathOverride !== null || install?.kind === 'custom'
+  // A saved folder that no longer holds Archipelago is ignored by detection: it can still be reset.
+  const overridden = config.apPathOverride !== null || install?.kind === 'custom'
   const resetting = setPath.isPending && setPath.variables?.path === null
   const choosing = (pick.isPending || setPath.isPending) && !resetting
 
@@ -85,10 +86,16 @@ export function ApPathPanel(): React.JSX.Element {
                         : k('foundUnknown')
                     }
                   />
-                  <Badge tone={custom ? 'yellow' : 'neutral'} outline>
-                    {custom ? k('custom') : k('auto')}
-                  </Badge>
-                  {install.kind !== 'custom' && <Badge>{k(`kinds.${install.kind}`)}</Badge>}
+                  {install.kind === 'custom' ? (
+                    <Badge tone="yellow" outline>
+                      {k('custom')}
+                    </Badge>
+                  ) : (
+                    <>
+                      <Badge outline>{k('auto')}</Badge>
+                      <Badge>{k(`kinds.${install.kind}`)}</Badge>
+                    </>
+                  )}
                 </div>
                 <PathText path={install.root} />
               </>
@@ -117,7 +124,7 @@ export function ApPathPanel(): React.JSX.Element {
             >
               {k('choose')}
             </NeonButton>
-            {custom && (
+            {overridden && (
               <NeonButton
                 variant="ghost"
                 icon={<IconArrowBackUp />}

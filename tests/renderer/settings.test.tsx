@@ -103,13 +103,13 @@ describe('settings screen', () => {
     const { user } = await renderSettings({
       handlers: {
         'app:setConfig': () => {
-          throw new AppError('SETTINGS_LOCKED')
+          throw new AppError('INVALID_INPUT')
         },
       },
     })
     const glow = screen.getByRole('switch', { name: 'Glow néon' })
     await user.click(glow)
-    expect(await screen.findByText('Les réglages d’Archipelago sont verrouillés')).toBeInTheDocument()
+    expect(await screen.findByText('Requête invalide')).toBeInTheDocument()
     expect(glow).toHaveAttribute('aria-checked', 'true')
   })
 
@@ -286,7 +286,7 @@ describe('settings screen', () => {
     )
   })
 
-  it('choosing an Archipelago folder goes through app:pickPaths then ap:setCustomPath', async () => {
+  it('choosing an Archipelago folder goes through app:pickPaths then ap:setCustomPath, and back', async () => {
     const custom: ApInstall = { ...AP_INSTALL, kind: 'custom', root: 'D:\\Jeux\\Archipelago' }
     let current: ApInstall | null = AP_INSTALL
     const { user, goat } = await renderSettings({
@@ -302,14 +302,23 @@ describe('settings screen', () => {
     const panel = screen.getByRole('region', { name: 'Dossier d’Archipelago' })
     expect(await within(panel).findByText('C:\\ProgramData\\Archipelago')).toBeInTheDocument()
     expect(within(panel).getByText('Archipelago 0.6.8')).toBeInTheDocument()
+    expect(within(panel).getByText('Détection automatique')).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Revenir à la détection automatique' })).toBeNull()
 
     await user.click(within(panel).getByRole('button', { name: 'Choisir un dossier…' }))
 
     expect(await within(panel).findByText('D:\\Jeux\\Archipelago')).toBeInTheDocument()
+    expect(within(panel).getByText('Dossier choisi')).toBeInTheDocument()
+    expect(await screen.findByText('Archipelago trouvé dans ce dossier')).toBeInTheDocument()
     expect(goat.inputsOf('app:pickPaths')).toEqual([
       { mode: 'directory', title: 'Dossier d’installation d’Archipelago' },
     ])
     expect(goat.inputsOf('ap:setCustomPath')).toEqual([{ path: 'D:\\Jeux\\Archipelago' }])
+
+    await user.click(within(panel).getByRole('button', { name: 'Revenir à la détection automatique' }))
+
+    expect(await within(panel).findByText('C:\\ProgramData\\Archipelago')).toBeInTheDocument()
+    expect(goat.inputsOf('ap:setCustomPath')).toEqual([{ path: 'D:\\Jeux\\Archipelago' }, { path: null }])
   })
 
   it('a folder without Archipelago is refused with the reason', async () => {
