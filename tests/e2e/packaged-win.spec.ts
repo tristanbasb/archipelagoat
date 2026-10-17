@@ -115,21 +115,19 @@ test('the portable exe starts', async () => {
     env: await appEnv(dirs),
     stdio: 'ignore',
   })
-  const exited = new Promise<void>((done) => child.once('exit', () => done()))
+  const exited = new Promise<void>((done) => {
+    child.once('exit', () => done())
+    child.once('error', () => done())
+  })
+  const endpoint = `http://127.0.0.1:${port}`
+  const listening = (): Promise<boolean> =>
+    fetch(`${endpoint}/json/version`).then(
+      (answer) => answer.ok,
+      () => false,
+    )
+  let quitTimer: NodeJS.Timeout | undefined
   try {
-    const endpoint = `http://127.0.0.1:${port}`
-    await expect
-      .poll(
-        () =>
-          fetch(`${endpoint}/json/version`).then(
-            (answer) => answer.ok,
-            () => false,
-          ),
-        {
-          timeout: 120_000,
-        },
-      )
-      .toBe(true)
+    await expect.poll(listening, { timeout: 120_000 }).toBe(true)
     const browser = await chromium.connectOverCDP(endpoint)
     const context = browser.contexts()[0]
     if (!context) throw new Error('the portable app has no browser context')
@@ -141,9 +139,12 @@ test('the portable exe starts', async () => {
     await expectStarts({ page, problems }, await translator('fr'), version)
     // Quits as a user closing the window would; the portable exe then removes what it unpacked.
     void page.evaluate(() => window.close()).catch(() => undefined)
-    await Promise.race([exited, new Promise((done) => setTimeout(done, 60_000))])
+    await Promise.race([exited, new Promise((done) => (quitTimer = setTimeout(done, 60_000)))])
   } finally {
-    if (child.exitCode === null) spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'])
+    clearTimeout(quitTimer)
+    if (child.exitCode === null && child.pid !== undefined) {
+      spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'])
+    }
     await exited
   }
   expect(child.exitCode).toBe(0)

@@ -2,8 +2,8 @@
 // container under Xvfb, as root: `node scripts/smoke-linux-docker.mjs` (GOAT_E2E_LINUX_SMOKE=1).
 // linux-unpacked, the deb (installed with dpkg) and the extracted tar.gz each start and show the home
 // screen without an error. The AppImage cannot be mounted in a container (no FUSE): it is asked for its
-// version, extracting itself (APPIMAGE_EXTRACT_AND_RUN, since its runtime only reads its own options
-// first, before any other argument).
+// version, extracting itself. The APPIMAGE_EXTRACT_AND_RUN variable asks for that whatever the command
+// line holds (a launcher such as Playwright puts its own arguments first).
 //
 // Chromium refuses to run as root with its sandbox: every start passes --no-sandbox.
 import { execFileSync } from 'node:child_process'
