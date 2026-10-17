@@ -1,7 +1,8 @@
-// The `worlds` service: inventory and installation of APWorlds (Task 10). Task 11 injects the catalog.
+// The `worlds` service: inventory and installation of APWorlds (Task 10), from the catalog too (Task 11).
 import { createWorldInstaller, type WorldInstaller } from '@main/core/worlds/install'
 import { defineService } from './registry'
-// The `locator` and `processes` entries of Services, used below.
+// The `catalog`, `locator` and `processes` entries of Services, used below.
+import type {} from './catalog.service'
 import type {} from './locator.service'
 import type {} from './processes.service'
 
@@ -16,8 +17,8 @@ defineService(
   (ctx, get) =>
     createWorldInstaller(ctx, {
       locator: get('locator'),
-      // No catalog yet: a catalog source answers NOT_FOUND.
-      lookupCatalog: () => null,
+      // Asked when a catalog source is prepared: the catalog is created on first use.
+      lookupCatalog: (id) => get('catalog').lookup(id),
       listProcesses: () => get('processes').list(),
     }),
   { eager: false },

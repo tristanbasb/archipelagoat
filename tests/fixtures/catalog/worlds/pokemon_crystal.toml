@@ -1,0 +1,8 @@
+name = "Pokemon Crystal"
+home = "https://discord.com/channels/731205301247803413/1365127145709502575"
+default_url = "https://github.com/gerbiljames/Archipelago/releases/download/{{version}}/pokemon_crystal.apworld"
+
+[versions]
+"5.4.6" = {}
+"6.0.0" = {}
+"6.0.4" = {}

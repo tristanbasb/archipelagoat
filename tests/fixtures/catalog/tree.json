@@ -1,0 +1,140 @@
+{
+  "sha": "23cdf71f297e761b88d96ac20d9cc208269ce4a2",
+  "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/trees/23cdf71f297e761b88d96ac20d9cc208269ce4a2",
+  "tree": [
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee11630c5934becc8e23cb1ded6559bbb5be4c94",
+      "size": 8220,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/ee11630c5934becc8e23cb1ded6559bbb5be4c94"
+    },
+    {
+      "path": "apworlds",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8b2557beb1494701ded99ddbf893a2db7135dec8",
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/trees/8b2557beb1494701ded99ddbf893a2db7135dec8"
+    },
+    {
+      "path": "apworlds/Twilight Princess-0.3.0.apworld",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fcdb452cd363ade56111195ee36b899995c1a566",
+      "size": 155321,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/fcdb452cd363ade56111195ee36b899995c1a566"
+    },
+    {
+      "path": "index.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c2aeb887d0ed5f0f22d6c175d042e91290f465a",
+      "size": 1563,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/9c2aeb887d0ed5f0f22d6c175d042e91290f465a"
+    },
+    {
+      "path": "index.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a3ecafdaebbe40124f3eccf41c5e18f8f733d699",
+      "size": 219,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/a3ecafdaebbe40124f3eccf41c5e18f8f733d699"
+    },
+    {
+      "path": "index",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6a2254ad5353d12f3cbb1f36efdac96ff65ed265",
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/trees/6a2254ad5353d12f3cbb1f36efdac96ff65ed265"
+    },
+    {
+      "path": "index/Schedule_I.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2e478a04fcad1392d69c9e86e3baf2bffd11f03e",
+      "size": 280,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/2e478a04fcad1392d69c9e86e3baf2bffd11f03e"
+    },
+    {
+      "path": "index/Twilight Princess.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "09694a4e7106fa1fc7bc6faaab50c7b597c87b27",
+      "size": 252,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/09694a4e7106fa1fc7bc6faaab50c7b597c87b27"
+    },
+    {
+      "path": "index/celeste.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8eed816e4d76e3c8bfb5fcd1ed68cf53fd1c13a1",
+      "size": 443,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/8eed816e4d76e3c8bfb5fcd1ed68cf53fd1c13a1"
+    },
+    {
+      "path": "index/gl.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3605ab20421f4b08fe8d8785087893412f4430e9",
+      "size": 743,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/3605ab20421f4b08fe8d8785087893412f4430e9"
+    },
+    {
+      "path": "index/hk.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca0f5bc4cab2fc4095f522d526c86ca8124ab616",
+      "size": 72,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/ca0f5bc4cab2fc4095f522d526c86ca8124ab616"
+    },
+    {
+      "path": "index/minecraft.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "928de22fdc7c82583cf6ba8c4db80dd65f3a8c87",
+      "size": 272,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/928de22fdc7c82583cf6ba8c4db80dd65f3a8c87"
+    },
+    {
+      "path": "index/pmd_eos.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "774417dddcb09937652a686a13a5337cdb0f9791",
+      "size": 276,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/774417dddcb09937652a686a13a5337cdb0f9791"
+    },
+    {
+      "path": "index/pokemon_crystal.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7321e446c06bbc995a73577d3bcb5251ed772953",
+      "size": 266,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/7321e446c06bbc995a73577d3bcb5251ed772953"
+    },
+    {
+      "path": "index/sms.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19630c49a44bac46a3bf3b54f66f586ab1633d33",
+      "size": 355,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/19630c49a44bac46a3bf3b54f66f586ab1633d33"
+    },
+    {
+      "path": "meta",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c0a93d4a5edcea5d5e161008a727a3b7a7e59987",
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/trees/c0a93d4a5edcea5d5e161008a727a3b7a7e59987"
+    },
+    {
+      "path": "meta/celeste.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8c2a1d241deaa87c020eda029f2dd6a1f193beb1",
+      "size": 5791,
+      "url": "https://api.github.com/repos/ionium-ap/Archipelago-index/git/blobs/8c2a1d241deaa87c020eda029f2dd6a1f193beb1"
+    }
+  ],
+  "truncated": false
+}
