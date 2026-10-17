@@ -456,6 +456,25 @@ describe('LiveGameScreen', () => {
     expect(screen.queryByText(/son port peut changer/)).not.toBeInTheDocument()
   })
 
+  it('web: archipelago.gg out of reach keeps what the session knows', async () => {
+    await renderLive({
+      'session:get': () => WEB,
+      'webhost:room': () => {
+        throw new AppError('WEBHOST_UNAVAILABLE')
+      },
+      'webhost:log': () => ({ text: '', nextByte: 0 }),
+    })
+    expect(
+      await screen.findByText('L’état de la room est indisponible : archipelago.gg est indisponible'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Adresse du serveur' })).toHaveTextContent(
+      'archipelago.gg:38281',
+    )
+    // Whether the room is awake, only archipelago.gg can say.
+    expect(screen.queryByText(/Room (éveillée|endormie)/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Réveiller la room' })).toBeEnabled()
+  })
+
   it('web: follows the room log, sends remote commands and opens the room as owner', async () => {
     const { goat, user } = await renderLive({
       'session:get': () => WEB,

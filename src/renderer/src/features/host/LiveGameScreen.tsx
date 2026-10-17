@@ -489,10 +489,13 @@ function WebGame({ session, hosting }: { session: Session; hosting: WebHosting }
         subtitle={t(`${KEY}.subtitle.web`, { name: session.name, host: current.host })}
         actions={
           <>
-            <StatusPill
-              status={awake ? 'info' : 'idle'}
-              label={t(awake ? `${KEY}.status.webAwake` : `${KEY}.status.webAsleep`)}
-            />
+            {/* Only from archipelago.gg's answer: the session alone cannot tell. */}
+            {room.data && (
+              <StatusPill
+                status={awake ? 'info' : 'idle'}
+                label={t(awake ? `${KEY}.status.webAwake` : `${KEY}.status.webAsleep`)}
+              />
+            )}
             <NeonButton
               variant={awake ? 'secondary' : 'primary'}
               icon={<IconSunrise />}
