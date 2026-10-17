@@ -61,10 +61,21 @@ export interface HttpGetOptions {
   timeoutMs?: number
 }
 
+/**
+ * What `getJson` and `getText` answer. `fromCache` is true when the body came from the disk cache: a
+ * 304 (the server confirmed it) or a failed network. `stale` is set, to true, only in the second
+ * case: the server could not be asked, so the body may be out of date.
+ */
+export interface HttpAnswer<T> {
+  data: T
+  fromCache: boolean
+  stale?: true
+}
+
 /** Implemented by Task 5 (createHttp); a stub answering NOT_IMPLEMENTED until then. */
 export interface Http {
-  getJson<T>(url: string, opts?: HttpGetOptions): Promise<{ data: T; fromCache: boolean }>
-  getText(url: string, opts?: HttpGetOptions): Promise<{ data: string; fromCache: boolean }>
+  getJson<T>(url: string, opts?: HttpGetOptions): Promise<HttpAnswer<T>>
+  getText(url: string, opts?: HttpGetOptions): Promise<HttpAnswer<string>>
   fetchRaw(url: string, init?: RequestInit & { timeoutMs?: number }): Promise<Response>
 }
 

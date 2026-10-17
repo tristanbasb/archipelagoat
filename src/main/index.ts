@@ -3,14 +3,14 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { createConfigStore } from '@main/core/config'
-import type { CoreContext, Http } from '@main/core/context'
+import type { CoreContext } from '@main/core/context'
 import { createEventBus } from '@main/core/events'
 import { exec } from '@main/core/exec'
-import { consoleSink, createLogger } from '@main/core/logger'
+import { consoleSink, createFileSink, createLogger } from '@main/core/logger'
 import { createSecretStore } from '@main/core/secrets'
+import { apUserAgent, createHttp } from '@main/core/system/http'
 import { createAllowedPaths } from '@main/core/system/user-path'
 import { createTaskManager } from '@main/core/tasks'
-import { AppError } from '@shared/errors'
 import { EVENT_NAMES } from '@shared/ipc/event-names'
 import { registerHandlers } from './ipc'
 import { isAllowedExternalUrl } from './ipc/app'
@@ -33,14 +33,10 @@ const os = currentOs()
 const dataRoot = resolveDataRoot({ os, env: process.env, home: app.getPath('home'), testEnv })
 
 // Plain objects that need no `ready`: created now so that early second-instance events are kept.
-const log = createLogger([consoleSink])
+const log = createLogger([consoleSink, createFileSink(join(dataRoot, 'logs'))])
 const bus = createEventBus(log)
 const lifecycle = createLifecycle({ bus, log, quit: () => app.quit() })
 let mainWindow: BrowserWindow | null = null
-
-// Replaced by createHttp in Task 5.
-const notImplemented = (): Promise<never> => Promise.reject(new AppError('NOT_IMPLEMENTED'))
-const http: Http = { getJson: notImplemented, getText: notImplemented, fetchRaw: notImplemented }
 
 const devServerUrl = !app.isPackaged ? process.env.ELECTRON_RENDERER_URL : undefined
 const rendererFile = join(__dirname, '../renderer/index.html')
@@ -150,7 +146,12 @@ async function main(): Promise<void> {
     platform,
     log,
     exec,
-    http,
+    http: createHttp({
+      userAgent: apUserAgent(platform.appVersion),
+      cacheDir: join(platform.paths.dataRoot, 'catalog'),
+      log,
+      githubToken: () => ctx.secrets.get('github.token'),
+    }),
     tasks,
     config,
     secrets: createSecretStore(join(platform.paths.userData, 'secrets.bin'), platform, config),
