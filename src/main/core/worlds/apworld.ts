@@ -130,12 +130,15 @@ export async function readApworld(file: string): Promise<ApworldContents> {
 const BAD_CHARS = /[<>:"|?*\\/\p{Cc}]/u
 const DEVICE = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\.|\s|$)/i
 
+/** Whether every OS can create a file of that name (one path component). */
+export const isPortableFileName = (name: string): boolean =>
+  name !== '' && !BAD_CHARS.test(name) && !DEVICE.test(name) && !/[. ]$/.test(name)
+
 /**
  * Whether `<module>.apworld` is a file name every OS can create and that Archipelago's scan picks up
  * (it skips names starting with `_` or `.`).
  */
-export const isSafeModule = (module: string): boolean =>
-  !BAD_CHARS.test(module) && !DEVICE.test(module) && !/[. ]$/.test(module) && !/^[_.]/.test(module)
+export const isSafeModule = (module: string): boolean => isPortableFileName(module) && !/^[_.]/.test(module)
 
 /** `foo-v1.2.apworld` → `foo-v1.2` (Python's Path.stem). */
 const fileStem = (file: string): string => path.parse(file).name

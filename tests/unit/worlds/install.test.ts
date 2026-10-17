@@ -309,6 +309,16 @@ describe('prepare', () => {
       targetFileName: 'foo.apworld',
       trust: 'unknown',
     })
+    // A name without the extension gets it; a device name is never written.
+    const bare = 'https://example.test/download/foo%20build'
+    await expect(installer.prepare({ kind: 'url', url: bare }, task())).resolves.toMatchObject({
+      module: 'foo',
+    })
+    const device = 'https://example.test/con.apworld'
+    expect(await failure(installer.prepare({ kind: 'url', url: device }, task()))).toMatchObject({
+      code: 'WORLD_INVALID',
+      params: { reason: 'name-mismatch' },
+    })
     for (const bad of ['http://example.test/foo.apworld', 'not a url']) {
       expect(await failure(installer.prepare({ kind: 'url', url: bad }, task()))).toMatchObject({
         code: 'INVALID_INPUT',

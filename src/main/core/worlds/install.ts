@@ -26,6 +26,7 @@ import type {
 import {
   AP_CONTAINER_VERSION,
   inspectApworld,
+  isPortableFileName,
   isSafeModule,
   readApworld,
   type ApworldInspection,
@@ -98,8 +99,10 @@ function assetName(raw: string): string {
   } catch {
     name = segment
   }
-  name = name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '_').replace(/[. ]+$/, '') || 'world'
-  return /\.apworld$/i.test(name) ? name : `${name}.apworld`
+  name = name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '_').replace(/[. ]+$/, '')
+  if (!/\.apworld$/i.test(name)) name = `${name}.apworld`
+  // `con.apworld` names a device on Windows: such a link gets a neutral name (and fails the name check).
+  return isPortableFileName(name) ? name : 'world.apworld'
 }
 
 function throwIfCancelled(signal: AbortSignal): void {
