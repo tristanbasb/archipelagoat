@@ -20,7 +20,7 @@ import {
   type Status,
 } from '../../design/components'
 import { NEON_SERIES, cssVars } from '../../design/classes'
-import { useIpcMutation } from '../../hooks/useIpc'
+import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { fileName } from '../../hooks/useOpenRequests'
 import { describeError } from '../../lib/errors'
 import { StepNav } from './StepNav'
@@ -41,6 +41,10 @@ export function StepPlayers({ session, onNext }: StepPlayersProps): React.JSX.El
   const [ignored, setIgnored] = useState<string[]>([])
   /** The file whose removal waits for a confirmation. */
   const [removing, setRemoving] = useState<PlayerFile | null>(null)
+  // Each file as the session validates it now (a world installed since, other rules, Archipelago
+  // installed): session.json keeps what its import found, shown only until this answer comes.
+  const validation = useIpcQuery('session:validate', { id: session.id }, { refetchOnMount: 'always' })
+  const checked = new Map(validation.data?.files.map((file) => [file.fileId, file.docs]))
 
   const store = (updated: Session): void => {
     queryClient.setQueryData(['session:get', { id: session.id }], updated)
@@ -82,7 +86,10 @@ export function StepPlayers({ session, onNext }: StepPlayersProps): React.JSX.El
       ],
     })
 
-  const files = session.players
+  const files = session.players.map((file) => {
+    const docs = checked.get(file.id)
+    return docs ? { ...file, docs } : file
+  })
   const playerCount = files.reduce((sum, file) => sum + file.docs.length, 0)
   const slots = firstSlots(files)
 

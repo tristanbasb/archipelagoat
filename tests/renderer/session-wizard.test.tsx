@@ -837,6 +837,42 @@ describe('session wizard', () => {
     expect(within(alert).getByText(body)).toBeInTheDocument()
   })
 
+  it('step 1 shows each file as the session validates it now, not as it was imported', async () => {
+    // Imported before its world was installed: session.json still holds that error.
+    const stale = playerFile('f1', 'Link.yaml', [
+      doc(0, 'Link', 'A Link to the Past', [
+        {
+          severity: 'error',
+          code: 'game-not-installed',
+          path: 'game',
+          params: { game: 'A Link to the Past' },
+        },
+      ]),
+    ])
+    let validation = READY
+    const { goat } = await openWizard('/session/s1?step=1', {
+      handlers: {
+        'session:get': () => session({ players: [stale, MADELINE] }),
+        'session:validate': () => validation,
+      },
+    })
+    const players = await screen.findByRole('list', { name: 'Fichiers des joueurs' })
+    await waitFor(() => expect(within(players).getAllByText('Prêt')).toHaveLength(2))
+    expect(within(players).queryByText('1 erreur')).toBeNull()
+    expect(goat.inputsOf('session:validate')).toEqual([{ id: 's1' }])
+
+    // Still in error now: the pill says so.
+    validation = {
+      ...READY,
+      files: [{ fileId: 'f1', docs: stale.docs }, READY.files[1]!],
+      blocking: true,
+    }
+    navigateTo('/session/s1?step=2')
+    navigateTo('/session/s1?step=1')
+    const again = await screen.findByRole('list', { name: 'Fichiers des joueurs' })
+    expect(await within(again).findByText('1 erreur')).toBeInTheDocument()
+  })
+
   it('step 1 asks before removing a file, and says a copy is kept', async () => {
     let current = session()
     const { goat, user } = await openWizard('/session/s1?step=1', {
