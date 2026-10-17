@@ -11,7 +11,7 @@ import {
   type ValidationContext,
 } from '@main/core/yaml/validate'
 import { renderPlayerYaml } from '@main/core/yaml/writer'
-import type { IssueCode } from '@shared/codes'
+import { ISSUE_CODES, type IssueCode } from '@shared/codes'
 import { docFromSchema } from '@shared/studio-model'
 import type { GameSchema, Issue, PlayerDoc, PlayerFile } from '@shared/types'
 
@@ -104,6 +104,20 @@ const ISSUE_CASES: IssueCase[] = [
 ]
 
 describe('validatePlayerDocs', () => {
+  it('has a case for every YAML, game, name, requires and options issue code', () => {
+    // encoding-fallback comes from the bytes (load.test.ts); the others belong to files and worlds.
+    const elsewhere: IssueCode[] = [
+      'encoding-fallback',
+      'not-yaml-file',
+      'world-no-manifest',
+      'world-version-conflict',
+      'patch-server-stale',
+    ]
+    expect(ISSUE_CASES.map(([code]) => code).sort()).toEqual(
+      ISSUE_CODES.filter((code) => !elsewhere.includes(code)).sort(),
+    )
+  })
+
   it.each(ISSUE_CASES)('detects %s (%s)', (code, severity, text, extra) => {
     const issues = issuesOf(text, { ...CTX, ...extra })
     expect(issues.map((issue) => issue.code)).toContain(code)
