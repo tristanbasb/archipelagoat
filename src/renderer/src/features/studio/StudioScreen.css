@@ -1,0 +1,74 @@
+/* The Studio: the action bar, then the editor (left) and the live YAML with its check (right). */
+
+.studio {
+  /* Room for the sticky action bar above the sticky side column. */
+  --studio-bar: 64px;
+}
+
+.studio .screen-header {
+  margin-bottom: var(--sp-6);
+}
+
+.studio__problem {
+  margin-bottom: var(--sp-5);
+}
+
+.studio__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-12);
+  color: var(--neon-violet);
+}
+
+.studio__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  align-items: start;
+  gap: var(--sp-6);
+}
+
+.studio__editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+/*
+ * The preview follows the scroll, under the action bar, and fits in the window: the code box takes
+ * the height the check leaves it (title bar 36px and status bar 32px around the screen).
+ */
+.studio__side {
+  position: sticky;
+  top: calc(var(--studio-bar) + var(--sp-3));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+  height: calc(100vh - 36px - 32px - var(--studio-bar) - var(--sp-3) - var(--sp-4));
+  min-height: 420px;
+}
+
+/* The code box takes what the check leaves (a zero basis: its long content must not push the check out). */
+.studio__side .yaml-preview {
+  flex: 1 1 0;
+  min-height: 220px;
+}
+
+/* The check keeps its own height, up to 45% of the column; its list scrolls past that. */
+.studio__side .issue-panel {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: 45%;
+}
+
+.studio__docs {
+  justify-self: start;
+}
+
+@media (max-width: 1180px) {
+  .studio__layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.85fr);
+    gap: var(--sp-5);
+  }
+}

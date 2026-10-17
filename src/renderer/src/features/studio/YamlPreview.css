@@ -1,0 +1,170 @@
+/* The live YAML: a CRT code box with line numbers, coloured in neon. */
+
+.yaml-preview .pixel-panel__head {
+  align-items: center;
+}
+
+.yaml-preview .pixel-panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* LIVE, with a lit pixel that pulses while an update is on its way. */
+.yaml-preview__live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.yaml-preview__live[data-pending]::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--neon-yellow);
+  box-shadow: var(--glow-yellow);
+  animation: yaml-pulse 700ms steps(2, end) infinite;
+}
+
+@keyframes yaml-pulse {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.yaml-preview__empty {
+  padding: var(--sp-4);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.yaml-preview__error {
+  margin: 0 var(--sp-4) var(--sp-3);
+  color: color-mix(in srgb, var(--neon-pink) 75%, #fff);
+  font-size: var(--fs-12);
+}
+
+.yaml-code {
+  position: relative;
+  flex: 1;
+  min-height: 120px;
+  margin: 0 var(--sp-3) var(--sp-3);
+  padding: var(--sp-3) 0;
+  overflow: auto;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 2px, color-mix(in srgb, #000 22%, transparent) 2px 3px),
+    radial-gradient(
+      120% 90% at 20% 0%,
+      color-mix(in srgb, var(--neon-cyan) 7%, transparent),
+      transparent 60%
+    ),
+    var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  counter-reset: yaml-line;
+  transition: opacity var(--dur) var(--ease-out);
+}
+
+.yaml-code[data-pending] {
+  opacity: 0.72;
+}
+
+.yaml-code:focus-visible {
+  outline-offset: 2px;
+}
+
+.yaml-code code {
+  display: block;
+  min-width: max-content;
+}
+
+.yaml-code__line {
+  display: block;
+  padding-right: var(--sp-4);
+  white-space: pre;
+  counter-increment: yaml-line;
+}
+
+.yaml-code__line::before {
+  content: counter(yaml-line);
+  display: inline-block;
+  width: 3.4em;
+  margin-right: var(--sp-3);
+  padding-right: var(--sp-2);
+  color: var(--text-mute);
+  text-align: right;
+  box-shadow: inset -1px 0 0 var(--line);
+  user-select: none;
+}
+
+/* The option being edited. */
+.yaml-code__line[data-active] {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--neon-violet) 22%, transparent),
+    transparent 90%
+  );
+}
+
+.yaml-code__line[data-active]::before {
+  color: color-mix(in srgb, var(--neon-violet) 70%, #fff);
+  box-shadow: inset -2px 0 0 var(--neon-violet);
+}
+
+/* Tokens. Root keys (no indentation before them) in violet, nested keys in cyan. */
+.yt--key {
+  color: color-mix(in srgb, var(--neon-cyan) 80%, #fff);
+}
+
+.yaml-code__line > .yt--key:first-child {
+  color: color-mix(in srgb, var(--neon-violet) 62%, #fff);
+  font-weight: 700;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--neon-violet) 45%, transparent);
+}
+
+.yt--punct {
+  color: var(--text-dim);
+}
+
+.yt--string {
+  color: color-mix(in srgb, var(--neon-yellow) 55%, #fff);
+}
+
+.yt--quoted {
+  color: color-mix(in srgb, var(--neon-yellow) 85%, #fff);
+}
+
+.yt--number {
+  color: color-mix(in srgb, var(--neon-green) 80%, #fff);
+}
+
+.yt--bool {
+  color: color-mix(in srgb, var(--neon-magenta) 55%, #fff);
+}
+
+.yt--null {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.yt--comment {
+  color: var(--text-mute);
+  font-style: italic;
+}
+
+:where(.fx-off, .fx-no-glow) .yaml-code__line > .yt--key:first-child {
+  text-shadow: none;
+}
+
+:where(.fx-off, .fx-no-anim) .yaml-preview__live[data-pending]::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yaml-preview__live[data-pending]::after {
+    animation: none;
+  }
+}

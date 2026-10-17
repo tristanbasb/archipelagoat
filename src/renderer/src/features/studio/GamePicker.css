@@ -1,0 +1,75 @@
+/* The game field, where its schema comes from, and the offer to write the templates. */
+
+.game-picker__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.game-picker__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--neon-cyan);
+  font-size: var(--fs-12);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.game-picker__link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.template-offer {
+  --pb-color: color-mix(in srgb, var(--neon-yellow) 55%, transparent);
+  --pb-fill: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--neon-yellow) 10%, var(--bg-2)),
+    var(--bg-1) 70%
+  );
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+.template-offer__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: color-mix(in srgb, var(--neon-yellow) 16%, transparent);
+  color: var(--neon-yellow);
+  clip-path: var(--clip-corner);
+}
+
+.template-offer__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.template-offer__main {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.template-offer__title {
+  color: var(--tone-ink);
+  font-size: var(--fs-16);
+}
+
+.template-offer__body {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.template-offer__action {
+  justify-self: start;
+}

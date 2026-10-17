@@ -1,1 +1,217 @@
-{}
+{
+  "eyebrow": "EDIT MODE",
+  "subtitle": "Crée ou retouche le YAML d’un joueur, option par option, avec l’aperçu en direct.",
+  "source": {
+    "new": "Nouveau YAML",
+    "session": "Joueur d’une partie",
+    "unsaved": "Non enregistré",
+    "saved": "Enregistré"
+  },
+  "actions": {
+    "label": "Actions du YAML",
+    "new": "Nouveau",
+    "open": "Ouvrir",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "saveAndBack": "Enregistrer et revenir",
+    "backToSession": "Retour à la partie",
+    "export": "Exporter",
+    "addToSession": "Ajouter à une partie",
+    "shortcut": "Ctrl+S enregistre"
+  },
+  "start": {
+    "eyebrow": "PRESS START",
+    "title": "Choisis un jeu pour commencer",
+    "body": "Le Studio part du template du jeu : chaque option à sa valeur par défaut, que tu ajustes ensuite.",
+    "or": "ou",
+    "open": "Ouvrir un YAML existant",
+    "loading": "Chargement du jeu…"
+  },
+  "player": {
+    "eyebrow": "PLAYER 1",
+    "title": "Joueur",
+    "name": "Nom du joueur",
+    "nameHint": "16 caractères au plus. {number} devient un numéro si le nom est déjà pris.",
+    "nameTooLong": "Trop long : 16 caractères au plus.",
+    "description": "Description",
+    "descriptionPlaceholder": "Ex. : course rapide, sans pièges"
+  },
+  "docs": {
+    "label": "Joueurs de ce fichier",
+    "unnamed": "Joueur {{n}}"
+  },
+  "game": {
+    "label": "Jeu",
+    "placeholder": "Cherche parmi tes jeux…",
+    "empty": "Aucun jeu ne correspond",
+    "loading": "Chargement des jeux…",
+    "loadError": "La liste des jeux n’a pas pu être lue",
+    "source": {
+      "local": "Template local",
+      "site": "Template d’archipelago.gg",
+      "none": "Pas de template"
+    },
+    "notInstalled": "Pas installé",
+    "toWorlds": "Voir dans Mondes",
+    "multi": "Ce fichier tire son jeu au hasard parmi plusieurs, et s’enregistre tel quel. Choisir un jeu ici en fait un YAML de ce seul jeu : sa section devient éditable, les autres restent dans le fichier.",
+    "noneTitle": "Aucun jeu disponible",
+    "noneBody": "Installe Archipelago, ou un monde, pour créer un YAML.",
+    "toInstall": "Installer Archipelago",
+    "changeTitle": "Changer de jeu ?",
+    "changeBody": "Les options de {{from}} seront remplacées par celles de {{to}}, à leurs valeurs par défaut.",
+    "changeConfirm": "Changer de jeu",
+    "changed": "Jeu changé pour {{game}}",
+    "schemaError": "Le template de {{game}} n’a pas pu être lu"
+  },
+  "templates": {
+    "title": "Pas encore de template pour {{game}}",
+    "body": "Archipelago peut écrire le template de chacun de tes mondes installés. Le Studio proposera alors chaque option de ce jeu.",
+    "generate": "Générer les templates",
+    "generating": "Génération des templates…",
+    "failed": "La génération des templates a échoué",
+    "fallback": "En attendant, les options déjà dans le fichier restent modifiables en YAML."
+  },
+  "presets": {
+    "label": "Presets",
+    "defaults": "Valeurs par défaut",
+    "applied": "Preset « {{name}} » appliqué",
+    "reset": "Valeurs par défaut rétablies",
+    "undo": "Annuler",
+    "hint": "Un preset repart des valeurs par défaut du jeu."
+  },
+  "options": {
+    "filter": "Filtrer les options",
+    "filterPlaceholder": "Nom ou description…",
+    "clearFilter": "Effacer le filtre",
+    "expandAll": "Tout déplier",
+    "collapseAll": "Tout replier",
+    "noMatch": "Aucune option ne correspond à « {{query}} »",
+    "count_one": "{{count}} option",
+    "count_other": "{{count}} options",
+    "modified_one": "{{count}} modifiée",
+    "modified_other": "{{count}} modifiées",
+    "problems_one": "{{count}} problème",
+    "problems_other": "{{count}} problèmes",
+    "groups": {
+      "game": "Options du jeu",
+      "items": "Objets et lieux",
+      "unknown": "Autres options du fichier",
+      "file": "Options du fichier"
+    },
+    "unknownHint": "Le template de ce jeu ne connaît pas ces options : elles sont gardées telles quelles.",
+    "fileHint": "Sans template, chaque option se modifie en YAML."
+  },
+  "option": {
+    "mode": "Mode de {{option}}",
+    "simple": "Simple",
+    "weighted": "Pondéré",
+    "random": "Aléatoire pour {{option}}",
+    "reset": "Valeur par défaut pour {{option}}",
+    "info": "Description de {{option}}",
+    "default": "Par défaut",
+    "modified": "Modifiée",
+    "unknown": "Inconnue du template",
+    "on": "Activé",
+    "off": "Désactivé",
+    "randomTitle": "Tirage au hasard",
+    "randomBody": "Archipelago choisira la valeur en générant la partie.",
+    "randomKinds": "Tirage de {{option}}",
+    "randomValues": {
+      "random": "Aléatoire",
+      "random-low": "Plutôt bas",
+      "random-middle": "Plutôt au milieu",
+      "random-high": "Plutôt haut"
+    },
+    "current": "Valeur actuelle : {{value}}",
+    "otherValue": "Autre valeur",
+    "textHint": "Une des valeurs proposées, ou ton propre texte.",
+    "ownText": "Autre texte pour {{option}}",
+    "ownTextPlaceholder": "Ou ton propre texte…",
+    "rawHint": "En YAML : une liste (« - élément ») ou des paires « clé: valeur ».",
+    "rawLocked": "Cette valeur ne tient pas dans le contrôle visuel : elle reste en YAML.",
+    "rawBack": "Revenir au contrôle visuel",
+    "weights": "Poids de {{option}}",
+    "weightsHint": "Plus un poids est grand, plus sa valeur a de chances d’être tirée.",
+    "add": "Ajouter {{value}}",
+    "remove": "Retirer {{value}}",
+    "values": "Valeurs de {{option}}",
+    "custom": "Autre valeur à ajouter",
+    "customPlaceholder": "Nombre ou nom",
+    "customAdd": "Ajouter"
+  },
+  "preview": {
+    "title": "Aperçu YAML",
+    "eyebrow": "LIVE",
+    "copy": "Copier",
+    "copied": "Copié",
+    "copyLabel": "Copier le YAML",
+    "pending": "Mise à jour…",
+    "empty": "L’aperçu apparaît dès que tu choisis un jeu.",
+    "error": "L’aperçu n’a pas pu être calculé"
+  },
+  "check": {
+    "title": "Vérification",
+    "eyebrow": "CHECK",
+    "ok": "Aucun problème trouvé",
+    "pending": "Vérification…",
+    "errors_one": "{{count}} erreur",
+    "errors_other": "{{count}} erreurs",
+    "warnings_one": "{{count}} alerte",
+    "warnings_other": "{{count}} alertes",
+    "error": "Erreur",
+    "warning": "Alerte",
+    "value": "Valeur : {{value}}",
+    "range": "attendu entre {{min}} et {{max}}",
+    "name": "Nom du joueur",
+    "game": "Jeu",
+    "general": "Fichier",
+    "reasons": {
+      "empty-list": "une liste vide ne laisse rien à tirer",
+      "weight": "chaque poids doit être un nombre positif",
+      "negative-random-range": "Archipelago lit mal un random-range négatif : il tire toujours la dernière borne",
+      "merge-tag": "Archipelago ne lit pas les fusions YAML (<<)",
+      "format": "une accolade est seule : écris-la deux fois pour la garder dans le nom",
+      "aliases": "trop d’alias YAML (& et *) imbriqués"
+    }
+  },
+  "save": {
+    "done": "Enregistré dans {{file}}",
+    "exported": "Exporté dans {{file}}",
+    "sessionDone": "Joueur mis à jour dans la partie",
+    "invalidRaw": "Un bloc YAML est invalide",
+    "invalidRawBody": "Corrige-le avant d’enregistrer : sinon cette option serait perdue."
+  },
+  "session": {
+    "title": "Ajouter à une partie",
+    "eyebrow": "NEW CHALLENGER",
+    "body": "Le YAML est copié dans la partie choisie, comme un fichier déposé.",
+    "listLabel": "Parties en préparation",
+    "empty": "Aucune partie en préparation",
+    "emptyBody": "Crée une partie depuis l’écran Partie, puis reviens y ajouter ce YAML.",
+    "create": "Créer une partie",
+    "players_one": "{{count}} joueur",
+    "players_other": "{{count}} joueurs",
+    "status": {
+      "draft": "En préparation",
+      "generated": "Générée"
+    },
+    "adding": "Ajout…",
+    "added": "Ajouté à « {{name}} »",
+    "open": "Ouvrir la partie"
+  },
+  "load": {
+    "failed": "Ce YAML n’a pas pu être ouvert",
+    "unreadable": "Ce fichier ne se lit pas comme un YAML de joueur",
+    "empty": "Ce fichier ne contient aucun joueur",
+    "line": "ligne {{line}}",
+    "dismiss": "Fermer"
+  },
+  "discard": {
+    "title": "Abandonner tes modifications ?",
+    "openTitle": "Ouvrir {{file}} ?",
+    "body": "Le YAML en cours n’est pas enregistré : ses modifications seront perdues.",
+    "confirm": "Abandonner",
+    "openConfirm": "Ouvrir quand même",
+    "keep": "Garder mon YAML"
+  }
+}

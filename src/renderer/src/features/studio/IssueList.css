@@ -1,0 +1,117 @@
+/* The live check: a summary line, then each issue (a link to its option when it has one). */
+
+.issue-panel .pixel-panel__head {
+  align-items: center;
+}
+
+.issue-panel .pixel-panel__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.issue-panel__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  font-weight: 600;
+}
+
+.issue-panel__summary[data-tone] {
+  color: var(--tone-ink);
+}
+
+.issue-panel__summary svg {
+  width: 18px;
+  height: 18px;
+  color: var(--neon-green);
+}
+
+.issue-list {
+  display: grid;
+  gap: 2px;
+  min-height: 0;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.issue-list__entry {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2);
+  border: 0;
+  background: none;
+  font-size: var(--fs-12);
+  text-align: left;
+}
+
+button.issue-list__entry {
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+button.issue-list__entry:hover {
+  background: var(--bg-3);
+}
+
+button.issue-list__entry:focus-visible {
+  outline-offset: -2px;
+}
+
+.issue-list__icon {
+  display: inline-flex;
+  flex: none;
+  padding-top: 1px;
+}
+
+.issue-list__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.issue-list__item[data-severity='error'] .issue-list__icon {
+  color: var(--neon-pink);
+}
+
+.issue-list__item[data-severity='warning'] .issue-list__icon {
+  color: var(--neon-yellow);
+}
+
+.issue-list__body {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.issue-list__where {
+  margin-right: 2px;
+  color: color-mix(in srgb, var(--neon-cyan) 75%, #fff);
+  font-weight: 700;
+}
+
+.issue-list__body .issue-detail {
+  color: var(--text-dim);
+}
+
+.issue-list__go {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  color: var(--text-mute);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+button.issue-list__entry:hover .issue-list__go {
+  color: var(--neon-cyan);
+  transform: translateX(2px);
+}

@@ -1,0 +1,93 @@
+/* The games a YAML can be added to. */
+
+.session-picker__body {
+  margin-bottom: var(--sp-4);
+  color: var(--text-dim);
+}
+
+.session-picker__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-6);
+  color: var(--neon-cyan);
+}
+
+.session-picker__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-row {
+  --pb-color: var(--line);
+  --pb-fill: var(--bg-1);
+  --pb-step: var(--corner-sm);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 0;
+  background: none;
+  text-align: left;
+  transition: filter var(--dur) var(--ease-out);
+}
+
+.session-row:hover:not(:disabled) {
+  --pb-color: color-mix(in srgb, var(--neon-cyan) 55%, transparent);
+  --pb-fill: color-mix(in srgb, var(--neon-cyan) 7%, var(--bg-1));
+}
+
+.session-row:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.session-row__icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: color-mix(in srgb, var(--neon-cyan) 14%, transparent);
+  color: var(--neon-cyan);
+  clip-path: var(--clip-corner);
+}
+
+.session-row__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.session-row__text {
+  display: grid;
+  min-width: 0;
+}
+
+.session-row__name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row__meta {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row__go {
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, var(--neon-cyan) 78%, #fff);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.session-row:hover .session-row__go {
+  transform: translateX(2px);
+}

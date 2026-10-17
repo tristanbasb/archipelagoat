@@ -1,0 +1,73 @@
+/* Presets as a row of chips. */
+
+.preset-menu {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.preset-menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.preset-menu__label svg {
+  width: 14px;
+  height: 14px;
+  color: var(--neon-violet);
+}
+
+.preset-menu__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  background: color-mix(in srgb, var(--neon-violet) 12%, var(--bg-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--neon-violet) 45%, transparent);
+  color: color-mix(in srgb, var(--neon-violet) 70%, #fff);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  clip-path: var(--clip-corner-sm);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.preset-chip svg {
+  width: 14px;
+  height: 14px;
+}
+
+.preset-chip:hover {
+  background: color-mix(in srgb, var(--neon-violet) 26%, var(--bg-2));
+  color: #fff;
+}
+
+.preset-chip:active {
+  transform: translateY(1px);
+}
+
+.preset-chip[data-defaults] {
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.preset-chip[data-defaults]:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}

@@ -1,0 +1,75 @@
+/* Who plays and what: name and game side by side, then description and presets. */
+
+.player-panel__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-4) var(--sp-5);
+  align-items: start;
+}
+
+.player-panel__description,
+.player-panel__presets {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .player-panel__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.player-panel__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--neon-violet);
+}
+
+.player-panel__name .input {
+  font-weight: 700;
+}
+
+.player-panel__count {
+  flex: none;
+  color: var(--text-mute);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-panel__count[data-over] {
+  color: var(--neon-pink);
+  font-weight: 700;
+}
+
+.player-panel .input-frame[data-invalid] {
+  --pb-color: color-mix(in srgb, var(--neon-pink) 70%, transparent);
+}
+
+.player-panel__over {
+  color: color-mix(in srgb, var(--neon-pink) 78%, #fff);
+}
+
+.player-panel__issues {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.player-panel__issues li[data-severity='error'] {
+  color: color-mix(in srgb, var(--neon-pink) 78%, #fff);
+}
+
+.player-panel__issues li[data-severity='warning'] {
+  color: color-mix(in srgb, var(--neon-yellow) 78%, #fff);
+}
+
+.player-panel__multi {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
+  background: color-mix(in srgb, var(--neon-cyan) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--neon-cyan);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
