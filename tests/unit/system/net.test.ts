@@ -2,7 +2,6 @@ import { createServer, type AddressInfo, type Server } from 'node:net'
 import type { NetworkInterfaceInfo } from 'node:os'
 import type { Http } from '@main/core/context'
 import {
-  DEFAULT_PORT,
   fetchPublicIp,
   findFreePort,
   isPortFree,
@@ -10,6 +9,7 @@ import {
   MAX_PORT,
   probePort,
 } from '@main/core/system/net'
+import { DEFAULT_PORT } from '@shared/data/ap-constants'
 import { AppError } from '@shared/errors'
 
 let held: Server[]

@@ -3,12 +3,12 @@
 // loopback: a listen on 0.0.0.0 would make Windows ask whether to let ArchipelaGOAT through its firewall.
 import { connect, createServer } from 'node:net'
 import os from 'node:os'
+import { DEFAULT_PORT } from '@shared/data/ap-constants'
 import { AppError } from '@shared/errors'
 import type { Address } from '@shared/types'
 import type { Http } from '../context'
 
-/** Archipelago's default port, then the next ones (spec §3.11). */
-export const DEFAULT_PORT = 38281
+/** The last port a server may take: Archipelago's default (38281), then the next ones (spec §3.11). */
 export const MAX_PORT = 38381
 
 const PUBLIC_IP_URL = 'https://checkip.amazonaws.com'

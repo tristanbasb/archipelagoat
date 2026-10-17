@@ -13,16 +13,9 @@ import type { CoreContext } from '@main/core/context'
 import { buildSessionSettingsEntries } from '@main/core/sessions/rules'
 import type { SessionStore } from '@main/core/sessions/store'
 import { writeSessionHostYaml } from '@main/core/sessions/workspace'
-import {
-  DEFAULT_PORT,
-  fetchPublicIp,
-  findFreePort,
-  listAddresses,
-  MAX_PORT,
-  probePort,
-} from '@main/core/system/net'
+import { fetchPublicIp, findFreePort, listAddresses, MAX_PORT, probePort } from '@main/core/system/net'
 import { redact } from '@main/core/system/redact'
-import { AP_EXES } from '@shared/data/ap-constants'
+import { AP_EXES, DEFAULT_PORT } from '@shared/data/ap-constants'
 import { matchApError } from '@shared/data/error-catalog'
 import { SERVER_EVENT_PATTERNS, SERVER_HOSTING_RE, SERVER_READY_RE } from '@shared/data/log-patterns'
 import { AppError, type AppErrorData } from '@shared/errors'
