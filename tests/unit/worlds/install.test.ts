@@ -6,6 +6,7 @@ import type { ProcessInfo } from '@main/core/ap/processes'
 import type { ExecFn } from '@main/core/exec'
 import type { TaskHandle } from '@main/core/tasks'
 import { createWorldInstaller, type WorldInstaller } from '@main/core/worlds/install'
+import type { WikiRelease } from '@main/core/worlds/wiki-release'
 import { registerHandlers } from '@main/ipc'
 import { createIpcRegistry } from '@main/ipc/registry'
 import { createServices } from '@main/services'
@@ -26,6 +27,9 @@ let paths: ApPaths
 let processes: ProcessInfo[] | Error
 let clock: number
 let catalog: Map<string, CatalogEntry>
+/** What the wiki release resolver answers, and what it was asked. */
+let wikiRelease: WikiRelease | AppError
+let wikiAsked: [string, string, string][]
 let installer: WorldInstaller
 let changes: number
 
@@ -54,11 +58,17 @@ beforeEach(() => {
   processes = []
   clock = 1_000_000
   catalog = new Map()
+  wikiRelease = new AppError('NOT_FOUND')
+  wikiAsked = []
   changes = 0
   core.ctx.bus.on('worlds:changed', () => changes++)
   installer = createWorldInstaller(core.ctx, {
     locator: { detect: () => Promise.resolve(install) },
     lookupCatalog: (id) => catalog.get(id) ?? null,
+    resolveWikiRelease: (...args) => {
+      wikiAsked.push(args)
+      return wikiRelease instanceof AppError ? Promise.reject(wikiRelease) : Promise.resolve(wikiRelease)
+    },
     listProcesses: () =>
       processes instanceof Error ? Promise.reject(processes) : Promise.resolve(processes),
     now: () => clock,
@@ -130,6 +140,7 @@ describe('prepare', () => {
       sha256: sha256(readFileSync(src)),
       trust: 'unknown',
       homepage: null,
+      origin: null,
       conflicts: [],
       warnings: [],
     })
@@ -291,6 +302,7 @@ describe('prepare', () => {
     core.ctx.http = { ...httpStub, fetchRaw }
     const entry: CatalogEntry = {
       id: 'pokemon_crystal',
+      source: 'index',
       game: 'Pokemon Crystal',
       displayName: 'Pokémon Crystal',
       homepage: 'https://github.com/owner/crystal',
@@ -301,6 +313,7 @@ describe('prepare', () => {
       hasPopTracker: false,
       wiki: null,
       latest: { version: '3.1.0', url, sha256: sha256(bytes) },
+      download: null,
       installedVersion: null,
       trust: 'indexed-verified',
     }
@@ -314,6 +327,7 @@ describe('prepare', () => {
       sha256: sha256(bytes),
       trust: 'indexed-verified',
       homepage: 'https://github.com/owner/crystal',
+      origin: url,
     })
     expect(handle.progress.mock.calls.map(([stage]) => stage)).toEqual(
       expect.arrayContaining(['download', 'inspect']),
@@ -336,6 +350,93 @@ describe('prepare', () => {
     expect(filesIn(stagingDir())).toEqual([])
   })
 
+  it('resolves the latest GitHub release of a world only the wiki lists, then checks its digest', async () => {
+    const src = await userFile('frogmonster.apworld', { game: 'Frogmonster' })
+    const bytes = readFileSync(src)
+    const url = 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/download/v0.2.5/frogmonster.apworld'
+    const fetchRaw = vi.fn((asked: string) =>
+      Promise.resolve(asked === url ? new Response(bytes) : new Response('nope', { status: 404 })),
+    )
+    core.ctx.http = { ...httpStub, fetchRaw }
+    const pageUrl = 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/latest'
+    const entry: CatalogEntry = {
+      id: 'wiki:Frogmonster',
+      source: 'wiki',
+      game: 'Frogmonster',
+      displayName: 'Frogmonster',
+      homepage: 'https://github.com/Rooby-Roo/Archipelago/tree/Frogmonster',
+      tags: [],
+      supported: false,
+      afterDark: false,
+      requiresRomAtGeneration: false,
+      hasPopTracker: false,
+      wiki: {
+        title: 'Frogmonster',
+        url: 'https://archipelago.miraheze.org/wiki/Frogmonster',
+        status: 'Custom',
+        maintainer: 'RoobyRoo (APWorld), Ben Jungwirth (client)',
+        setupUrl: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/blob/main/README.md',
+      },
+      latest: null,
+      download: { kind: 'github-latest', repo: 'rooby-roo/frogmonsterapworld', pageUrl },
+      installedVersion: null,
+      trust: 'wiki-release',
+    }
+    catalog.set(entry.id, entry)
+    const source = { kind: 'catalog', id: entry.id } as const
+    wikiRelease = { version: '0.2.5', url, sha256: sha256(bytes) }
+
+    const plan = await installer.prepare(source, task())
+    expect(wikiAsked).toEqual([['rooby-roo/frogmonsterapworld', 'Frogmonster', pageUrl]])
+    expect(fetchRaw).toHaveBeenCalledWith(url, expect.anything())
+    // The trust screen still comes first: inspected, planned, nothing installed yet. It shows where
+    // the file comes from (FrogmonsterAPWorld), which is not the repository the page names as its
+    // homepage.
+    expect(plan).toMatchObject({
+      source,
+      module: 'frogmonster',
+      targetFileName: 'frogmonster.apworld',
+      sha256: sha256(bytes),
+      trust: 'wiki-release',
+      homepage: 'https://github.com/Rooby-Roo/Archipelago/tree/Frogmonster',
+      origin: url,
+    })
+    expect(filesIn(paths.customWorlds)).toEqual([])
+    await installer.confirm(plan.planId)
+    expect(readFileSync(join(paths.customWorlds, 'frogmonster.apworld'))).toEqual(bytes)
+
+    // GitHub's digest is checked like a sha256 of the index.
+    wikiRelease = { version: '0.2.5', url, sha256: '0'.repeat(64) }
+    expect(await failure(installer.prepare(source, task()))).toMatchObject({ code: 'DOWNLOAD_HASH_MISMATCH' })
+    // What the resolver refuses reaches the caller, with the page to download the world from by hand.
+    wikiRelease = new AppError('WORLD_RELEASE_UNAVAILABLE', { reason: 'ambiguous', url: pageUrl })
+    expect(await failure(installer.prepare(source, task()))).toMatchObject({
+      code: 'WORLD_RELEASE_UNAVAILABLE',
+      params: { reason: 'ambiguous', url: pageUrl },
+    })
+    // Downloads are code: an asset link that is not https is refused.
+    wikiRelease = { version: '0.2.5', url: url.replace('https:', 'http:'), sha256: null }
+    expect(await failure(installer.prepare(source, task()))).toMatchObject({ code: 'INVALID_INPUT' })
+    // Cancelled while the release was asked: nothing is downloaded.
+    wikiRelease = { version: '0.2.5', url, sha256: null }
+    const cancelled = { ...task(), signal: AbortSignal.abort() }
+    expect(await failure(installer.prepare(source, cancelled))).toMatchObject({ code: 'TASK_CANCELLED' })
+    expect(fetchRaw).toHaveBeenCalledTimes(2)
+    // A page to open in the browser is nothing the app can install.
+    catalog.set(entry.id, { ...entry, download: { kind: 'page', url: 'https://emilyv99.itch.io/x' } })
+    expect(await failure(installer.prepare(source, task()))).toMatchObject({ code: 'NOT_FOUND' })
+    expect(wikiAsked).toHaveLength(5)
+    expect(filesIn(stagingDir())).toEqual([])
+
+    // Without a digest, the file is still inspected and planned.
+    catalog.set(entry.id, entry)
+    await expect(installer.prepare(source, task())).resolves.toMatchObject({
+      sha256: sha256(bytes),
+      trust: 'wiki-release',
+    })
+    expect(fetchRaw).toHaveBeenLastCalledWith(url, expect.anything())
+  })
+
   it('downloads a world from an https link, keeping the asset name', async () => {
     const src = await userFile('foo-v2.0.0.apworld', { module: 'foo' })
     core.ctx.http = { ...httpStub, fetchRaw: () => Promise.resolve(new Response(readFileSync(src))) }
@@ -345,6 +446,8 @@ describe('prepare', () => {
       module: 'foo',
       targetFileName: 'foo.apworld',
       trust: 'unknown',
+      // The source says it already.
+      origin: null,
     })
     // A name without the extension gets it; a device name is never written.
     const bare = 'https://example.test/download/foo%20build'

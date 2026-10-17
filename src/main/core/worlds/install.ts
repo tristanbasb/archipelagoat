@@ -39,6 +39,7 @@ import {
   scanWorlds,
   worldId,
 } from './inventory'
+import type { WikiReleaseResolver } from './wiki-release'
 
 /** A plan not confirmed within this delay is dropped, with its staged file. */
 export const PLAN_TTL_MS = 60 * 60 * 1000
@@ -47,6 +48,8 @@ export interface WorldInstallerDeps {
   locator: Pick<Locator, 'detect'>
   /** The catalog entry of an id, null when unknown (Task 11 provides it). */
   lookupCatalog: (id: string) => CatalogEntry | null
+  /** The release of a world the wiki alone lists (`resolveWikiRelease`), asked when it is installed. */
+  resolveWikiRelease: WikiReleaseResolver
   /** The Archipelago programs running (`restartNeeded`). Default: `listApProcesses`. */
   listProcesses?: () => Promise<ProcessInfo[]>
   /** The clock of plan expiry. Default: `Date.now`. */
@@ -75,6 +78,8 @@ interface Staged {
   file: string
   source: WorldSource
   entry: CatalogEntry | null
+  /** The link a catalog world was downloaded from. */
+  origin: string | null
 }
 
 const forbidden = (reason: string, detail: string): AppError =>
@@ -199,16 +204,24 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
       const file = await assertUserPath(source.path, { kind: 'file', exts: ['.apworld'] })
       const staged = path.join(dir, path.basename(file))
       await copyFile(file, staged)
-      return { file: staged, source: { kind: 'file', path: file }, entry: null }
+      return { file: staged, source: { kind: 'file', path: file }, entry: null, origin: null }
     }
     if (source.kind === 'url') {
       const url = httpsUrl(source.url)
-      return { file: await fetchTo(dir, url, null, task), source, entry: null }
+      return { file: await fetchTo(dir, url, null, task), source, entry: null, origin: null }
     }
     const entry = deps.lookupCatalog(source.id)
-    if (!entry?.latest) throw new AppError('NOT_FOUND', undefined, { detail: source.id })
-    const url = httpsUrl(entry.latest.url)
-    return { file: await fetchTo(dir, url, entry.latest.sha256, task), source, entry }
+    let release = entry?.latest ?? null
+    // A world only the wiki lists: the latest release its page points to, asked now.
+    if (entry && release === null && entry.download?.kind === 'github-latest') {
+      task.progress('download', null)
+      const { repo, pageUrl } = entry.download
+      release = await deps.resolveWikiRelease(repo, entry.game, pageUrl)
+      throwIfCancelled(task.signal)
+    }
+    if (!entry || release === null) throw new AppError('NOT_FOUND', undefined, { detail: source.id })
+    const url = httpsUrl(release.url)
+    return { file: await fetchTo(dir, url, release.sha256, task), source, entry, origin: url }
   }
 
   /**
@@ -310,6 +323,7 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
           sha256: inspection.sha256,
           trust,
           homepage: staged.entry?.homepage ?? null,
+          origin: staged.origin,
           conflicts,
           warnings,
         }

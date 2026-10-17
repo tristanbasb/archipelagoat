@@ -305,6 +305,14 @@
   padding: 0;
 }
 
+/* The installed pill of a wiki world, and the button that asks GitHub for a later release. */
+.catalog-card__installed {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
 /* Installed version → catalog version, when an update waits. */
 .catalog-card__delta {
   color: var(--neon-cyan);

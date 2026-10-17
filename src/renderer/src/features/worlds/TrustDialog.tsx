@@ -6,11 +6,13 @@ import {
   IconCopy,
   IconExternalLink,
   IconFileCode,
+  IconFileUpload,
   IconShieldExclamation,
 } from '@tabler/icons-react'
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppErrorData } from '@shared/errors'
+import { isAllowedExternalUrl } from '@shared/external-url'
 import type { TaskProgress, TrustTier, WorldInfo, WorldInstallPlan, WorldSource } from '@shared/types'
 import {
   Badge,
@@ -40,6 +42,8 @@ export interface TrustDialogProps {
   queued?: number
   onConfirm: () => void
   onCancel: () => void
+  /** Installs a file the player picks instead, when the catalog has none to give. */
+  onPickFile?: () => void
 }
 
 const TIER_TONE: Record<TrustTier, Tone> = {
@@ -83,6 +87,7 @@ export function TrustDialog({
   queued = 0,
   onConfirm,
   onCancel,
+  onPickFile,
 }: TrustDialogProps): React.JSX.Element {
   const { t } = useTranslation()
   // The installed worlds name the conflicts; loaded while the new one is inspected.
@@ -133,7 +138,7 @@ export function TrustDialog({
       footer={footer}
     >
       {failedToPrepare ? (
-        <PrepareError error={error} />
+        <PrepareError error={error} onPickFile={onPickFile} />
       ) : plan ? (
         <PlanReview
           plan={plan}
@@ -156,10 +161,48 @@ export function TrustDialog({
   )
 }
 
-function PrepareError({ error }: { error: AppErrorData }): React.JSX.Element {
+function PrepareError({
+  error,
+  onPickFile,
+}: {
+  error: AppErrorData
+  onPickFile?: () => void
+}): React.JSX.Element {
   const { t } = useTranslation()
   const { title, body, detail } = describeError(error, t)
-  return <ErrorPanel title={title} body={body} detail={detail} detailLabel={t('common.technicalDetails')} />
+  // No release to install from the catalog: the page it names has the file, which the player then
+  // installs from here.
+  const unavailable = error.code === 'WORLD_RELEASE_UNAVAILABLE'
+  const page = unavailable ? error.params?.url : undefined
+  const actions = unavailable ? (
+    <>
+      {typeof page === 'string' && isAllowedExternalUrl(page) && <OpenPageButton url={page} />}
+      {onPickFile && (
+        <NeonButton variant="primary" size="sm" icon={<IconFileUpload />} onClick={onPickFile}>
+          {t('worldInstall.pickFile')}
+        </NeonButton>
+      )}
+    </>
+  ) : undefined
+  return (
+    <ErrorPanel
+      title={title}
+      body={body}
+      detail={detail}
+      detailLabel={t('common.technicalDetails')}
+      actions={actions}
+    />
+  )
+}
+
+function OpenPageButton({ url }: { url: string }): React.JSX.Element {
+  const { t } = useTranslation()
+  const open = useOpenExternal()
+  return (
+    <NeonButton variant="secondary" size="sm" icon={<IconExternalLink />} onClick={() => open(url)}>
+      {t('worldInstall.openDownloadPage')}
+    </NeonButton>
+  )
 }
 
 interface PlanReviewProps {
@@ -203,6 +246,17 @@ function PlanReview({ plan, worlds, error, acked, onAck }: PlanReviewProps): Rea
             {sourceValue(plan.source)}
           </span>
         </dd>
+        {/* Where the code really comes from: a catalog entry is only a name. */}
+        {plan.origin && (
+          <>
+            <dt>{t('worldInstall.origin')}</dt>
+            <dd>
+              <span className="trust-dialog__path trust-dialog__mono" title={plan.origin}>
+                {plan.origin.replace(/^https:\/\//, '')}
+              </span>
+            </dd>
+          </>
+        )}
         <dt>{t('worldInstall.authors')}</dt>
         <dd>{authors}</dd>
         <dt>{t('worldInstall.file')}</dt>
@@ -334,7 +388,8 @@ function HashChip({ sha256 }: { sha256: string }): React.JSX.Element {
   )
 }
 
-function ExternalLink({ url }: { url: string }): React.JSX.Element {
+/** Opens a link in the browser; a refusal is said in a toast. */
+function useOpenExternal(): (url: string) => void {
   const { t } = useTranslation()
   const toast = useToast()
   const open = useIpcMutation('app:openExternal', {
@@ -343,8 +398,13 @@ function ExternalLink({ url }: { url: string }): React.JSX.Element {
       toast.push({ tone: 'error', title, body })
     },
   })
+  return (url) => open.mutate({ url })
+}
+
+function ExternalLink({ url }: { url: string }): React.JSX.Element {
+  const open = useOpenExternal()
   return (
-    <button type="button" className="trust-dialog__link" onClick={() => open.mutate({ url })}>
+    <button type="button" className="trust-dialog__link" onClick={() => open(url)}>
       <span>{url.replace(/^https:\/\//, '')}</span>
       <IconExternalLink aria-hidden="true" />
     </button>

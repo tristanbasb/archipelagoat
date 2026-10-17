@@ -7,6 +7,7 @@ import {
   IconCircleCheck,
   IconDisc,
   IconDownload,
+  IconExternalLink,
   IconFileCode,
   IconFileUpload,
   IconPencil,
@@ -296,12 +297,12 @@ function MissingWorlds({ worlds, start, onInstalled }: MissingWorldsProps): Reac
   const toast = useToast()
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set())
   const [askingFiles, setAskingFiles] = useState(false)
-  const pick = useIpcMutation('app:pickPaths', {
-    onError: (error) => {
-      const { title, body } = describeError(error, t)
-      toast.push({ tone: 'error', title, body })
-    },
-  })
+  const showError = (error: unknown): void => {
+    const { title, body } = describeError(error, t)
+    toast.push({ tone: 'error', title, body })
+  }
+  const pick = useIpcMutation('app:pickPaths', { onError: showError })
+  const open = useIpcMutation('app:openExternal', { onError: showError })
 
   const askFile = async (game: string): Promise<string | null> => {
     try {
@@ -382,9 +383,27 @@ function MissingWorlds({ worlds, start, onInstalled }: MissingWorldsProps): Reac
                   {t('screens.session.check.fromCatalog')}
                 </Badge>
               ) : (
-                <span className="check-row__hint">{t('screens.session.check.notInCatalog')}</span>
+                <span className="check-row__hint">
+                  {t(
+                    world.downloadPage
+                      ? 'screens.session.check.onPage'
+                      : 'screens.session.check.notInCatalog',
+                  )}
+                </span>
               )}
             </span>
+            {/* A world of the wiki the catalog cannot install: its file is on its page. */}
+            {!world.catalogId && world.downloadPage && (
+              <NeonButton
+                variant="ghost"
+                size="sm"
+                icon={<IconExternalLink />}
+                aria-label={t('screens.session.check.openPageLabel', { game: world.game })}
+                onClick={() => world.downloadPage && open.mutate({ url: world.downloadPage })}
+              >
+                {t('screens.session.check.openPage')}
+              </NeonButton>
+            )}
             {world.catalogId ? (
               <NeonButton
                 variant="secondary"

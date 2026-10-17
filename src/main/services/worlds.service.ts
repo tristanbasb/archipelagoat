@@ -4,6 +4,7 @@ import { stat } from 'node:fs/promises'
 import type { CoreContext } from '@main/core/context'
 import { createWorldInstaller, type WorldInstaller, type WorldInstallerDeps } from '@main/core/worlds/install'
 import { disabledWorldsDir, NOT_LOADED_STATES } from '@main/core/worlds/inventory'
+import { resolveWikiRelease } from '@main/core/worlds/wiki-release'
 import type { ValidationContext } from '@main/core/yaml/validate'
 import type { ApInstall, WorldInfo } from '@shared/types'
 import { defineService } from './registry'
@@ -127,6 +128,7 @@ defineService(
       locator: get('locator'),
       // Asked when a catalog source is prepared: the catalog is created on first use.
       lookupCatalog: (id) => get('catalog').lookup(id),
+      resolveWikiRelease: (repo, game, pageUrl) => resolveWikiRelease(ctx.http, repo, game, pageUrl),
       listProcesses: () => get('processes').list(),
     }),
   { eager: false },

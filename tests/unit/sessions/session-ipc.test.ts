@@ -75,7 +75,7 @@ describe('session handlers', () => {
       text: 'name: Alice\ngame: Zork\nZork: {}\n',
     })
     expect(await call<SessionValidation>('session:validate', { id: created.id })).toMatchObject({
-      missingWorlds: [{ game: 'Zork', catalogId: null }],
+      missingWorlds: [{ game: 'Zork', catalogId: null, downloadPage: null }],
       blocking: true,
     })
 

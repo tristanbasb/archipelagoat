@@ -224,8 +224,8 @@ describe('session wizard', () => {
       ],
       sessionIssues: [],
       missingWorlds: [
-        { game: 'Celeste', catalogId: 'celeste' },
-        { game: 'Custom Quest', catalogId: null },
+        { game: 'Celeste', catalogId: 'celeste', downloadPage: null },
+        { game: 'Custom Quest', catalogId: null, downloadPage: null },
       ],
       romNeeds: [
         {
@@ -293,6 +293,33 @@ describe('session wizard', () => {
       },
     ])
     expect(await screen.findByRole('dialog', { name: 'Nouveau monde' })).toBeInTheDocument()
+  })
+
+  it('step 2 offers the download page of a wiki world the catalog cannot install', async () => {
+    const page = 'https://github.com/someone/Archipelago/releases?q=Shapez'
+    const { goat, user } = await openWizard('/session/s1?step=2', {
+      handlers: {
+        'session:get': () => session(),
+        'session:validate': () => ({
+          ...READY,
+          missingWorlds: [{ game: 'Shapez 2', catalogId: null, downloadPage: page }],
+          blocking: true,
+        }),
+        'app:openExternal': () => undefined,
+      },
+    })
+
+    const worlds = await screen.findByRole('region', { name: 'Mondes manquants' })
+    expect(
+      within(worlds).getByText('Télécharge son fichier .apworld depuis sa page, puis choisis-le.'),
+    ).toBeInTheDocument()
+    expect(within(worlds).queryByText(/Hors catalogue/)).not.toBeInTheDocument()
+    await user.click(within(worlds).getByRole('button', { name: 'Page de téléchargement de Shapez 2' }))
+    await waitFor(() => expect(goat.inputsOf('app:openExternal')).toEqual([{ url: page }]))
+    // The file is then chosen as for any world outside the catalog.
+    expect(
+      within(worlds).getByRole('button', { name: 'Choisir le fichier .apworld de Shapez 2' }),
+    ).toBeInTheDocument()
   })
 
   it('step 2 rename action replaces the file with the new name and revalidates', async () => {

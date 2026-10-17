@@ -158,6 +158,25 @@ describe('describeError', () => {
       expect(generic.body).not.toContain('{{')
     })
 
+    it.each(['fr', 'en'] as const)(
+      'says why a world only the wiki lists cannot be installed, with the page to get it from (%s)',
+      async (lang) => {
+        await i18n.changeLanguage(lang)
+        const url = 'https://github.com/owner/repo/releases?q=Game&expanded=true'
+        const texts = new Set<string>()
+        for (const reason of ['no-release', 'no-apworld', 'ambiguous']) {
+          const described = describeError({ code: 'WORLD_RELEASE_UNAVAILABLE', params: { reason, url } })
+          expect(described.title).toBe(i18n.t(`errors.WORLD_RELEASE_UNAVAILABLE_${reason}`))
+          // The link keeps its & as it is: the texts are not HTML.
+          expect(described.body).toContain(url)
+          expect(described.action).toEqual({ labelKey: 'errors.actions.worlds', to: '/worlds' })
+          texts.add(described.title).add(described.body)
+        }
+        expect(texts.size).toBe(6)
+        expect(describeError({ code: 'WORLD_RELEASE_UNAVAILABLE', params: { url } }).body).toContain(url)
+      },
+    )
+
     it('keeps the plain text for a reason or a phase with no text of its own', () => {
       for (const params of [{ reason: 'traversal' }, { phase: 'late' }, { reason: 'a.b:c' }]) {
         const described = describeError({ code: 'PATH_FORBIDDEN', params })

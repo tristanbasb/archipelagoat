@@ -15,12 +15,20 @@ export function normalize(text: string): string {
     .toLowerCase()
 }
 
-/** True when every word of the query appears in one of the fields. */
-export function matchesQuery(query: string, fields: readonly (string | null | undefined)[]): boolean {
+/**
+ * True when every word of the query appears in one of the fields, or is one of the `keywords`
+ * (matched as whole words only).
+ */
+export function matchesQuery(
+  query: string,
+  fields: readonly (string | null | undefined)[],
+  keywords: readonly string[] = [],
+): boolean {
   const words = normalize(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
   const haystack = normalize(fields.filter(Boolean).join('\n'))
-  return words.every((word) => haystack.includes(word))
+  const whole = new Set(keywords.map(normalize))
+  return words.every((word) => whole.has(word) || haystack.includes(word))
 }
 
 /** The folder that holds a world (a world file itself cannot be opened). */

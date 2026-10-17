@@ -170,12 +170,28 @@ export interface WorldInstallPlan {
   sha256: string
   trust: TrustTier
   homepage: string | null
+  /**
+   * The link a catalog world was downloaded from (its source only names the catalog entry): where
+   * its code really comes from, whatever its homepage says. Null for a file or a link.
+   */
+  origin: string | null
   conflicts: { worldId: string; version: string | null; winner: 'new' | 'existing' }[]
   warnings: IssueCode[]
 }
 
+/** `index`: a world of the ionium index (enriched by the wiki); `wiki`: listed by a wiki page alone. */
+export type CatalogSource = 'index' | 'wiki'
+
+/**
+ * Where a wiki-only world is downloaded from. `github-latest`: the latest stable release of `repo`
+ * (`owner/repo`), resolved when it is installed; `page`: any other link, opened in the browser.
+ */
+export type CatalogDownload =
+  { kind: 'github-latest'; repo: string; pageUrl: string } | { kind: 'page'; url: string }
+
 export interface CatalogEntry {
   id: string
+  source: CatalogSource
   game: string
   displayName: string
   homepage: string | null
@@ -192,6 +208,8 @@ export interface CatalogEntry {
     setupUrl: string | null
   } | null
   latest: { version: string; url: string; sha256: string | null } | null
+  /** Null for every index entry (`latest` says what it installs). */
+  download: CatalogDownload | null
   installedVersion: string | null
   trust: TrustTier
 }
@@ -351,7 +369,11 @@ export interface RomNeed {
 export interface SessionValidation {
   files: { fileId: string; docs: PlayerDoc[] }[]
   sessionIssues: Issue[]
-  missingWorlds: { game: string; catalogId: string | null }[]
+  /**
+   * `catalogId`: the entry to install the world from; else `downloadPage`, the page its file is
+   * downloaded from by hand (`downloadPageOf`), when the catalog lists it with one.
+   */
+  missingWorlds: { game: string; catalogId: string | null; downloadPage: string | null }[]
   romNeeds: RomNeed[]
   blocking: boolean
 }

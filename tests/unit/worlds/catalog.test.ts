@@ -20,6 +20,7 @@ import {
 import { registerHandlers } from '@main/ipc'
 import { createIpcRegistry } from '@main/ipc/registry'
 import { createServices } from '@main/services'
+import { isInstallable } from '@shared/catalog'
 import { apExeFileName } from '@shared/data/ap-constants'
 import type {
   ApInstall,
@@ -33,6 +34,7 @@ import type {
 } from '@shared/types'
 import optOutFile from '../../../resources/catalog-optout.json'
 import { createTestContext, hostOs, silentLogger, type TestCore } from '../../helpers/core'
+import { githubFixture } from '../../helpers/http-server'
 import { apworldManifest, makeApworld } from '../../helpers/make-apworld'
 
 // --- fixtures: real files of the ionium index and real wiki answers, reduced -------------------------
@@ -49,10 +51,24 @@ const ioniumWorld = (stem: string): IoniumWorld => {
   return world
 }
 const allWorlds = (): IoniumWorld[] => WORLD_STEMS.map(ioniumWorld)
+// The second page also holds real pages of worlds no file of the index describes (Frogmonster, Hexcells
+// Infinite, Keymaster's Keep, BK Simulator, Kao the Kangaroo Round 2, Here Comes Niko!, Hunie Pop,
+// Resident Evil 2 Remake), as the wiki API answers for them.
 const allPages = (): WikiPage[] => [
   ...parseWikiPages(fixtureJson('wiki-page1.json')),
   ...parseWikiPages(fixtureJson('wiki-page2.json')),
 ]
+/** A wiki page made up for a test: a custom world with nothing filled in but what it says. */
+const madePage = (title: string, fields: Partial<WikiPage> = {}): WikiPage => ({
+  title,
+  status: 'Custom',
+  maintainer: null,
+  setupUrl: null,
+  homepage: null,
+  download: null,
+  repos: [],
+  ...fields,
+})
 const memberTitles = (name: string): Set<string> =>
   new Set(
     (fixtureJson(name) as { query: { categorymembers: { title: string }[] } }).query.categorymembers.map(
@@ -121,6 +137,8 @@ interface FakeRemote {
   files: Map<string, string>
   /** Other answers (apworld downloads), by URL. */
   downloads: Map<string, Buffer<ArrayBuffer>>
+  /** Answers of api.github.com other than the tree of the index, by path. */
+  github: Map<string, unknown>
   offline: boolean
   rateLimited: boolean
   /** Every URL asked, in order. */
@@ -133,7 +151,7 @@ function makeRemote(): FakeRemote {
     ['index.lock', fixtureText('index.lock')],
   ])
   for (const stem of WORLD_STEMS) files.set(`index/${stem}.toml`, worldText(stem))
-  return { files, downloads: new Map(), offline: false, rateLimited: false, requests: [] }
+  return { files, downloads: new Map(), github: new Map(), offline: false, rateLimited: false, requests: [] }
 }
 
 /** The recorded tree, with the blobs of the served files (their sha recomputed from their content). */
@@ -178,6 +196,8 @@ function fakeFetch(remote: FakeRemote): typeof fetch {
       }
       if (url.pathname === TREE_PATH && url.searchParams.get('recursive') === '1')
         return json(treeOf(remote.files))
+      const answer = remote.github.get(url.pathname)
+      if (answer !== undefined) return json(answer)
     }
     if (url.href.startsWith(INDEX_RAW)) {
       const text = remote.files.get(decodeURIComponent(url.href.slice(INDEX_RAW.length)))
@@ -449,6 +469,8 @@ describe('parseWikiPages', () => {
       status: 'Core-verified',
       maintainer: 'BadMagic100, qwint',
       setupUrl: 'https://archipelago.gg/tutorial/#Hollow%20Knight',
+      homepage: 'https://github.com/ArchipelagoMW-HollowKnight/Archipelago.HollowKnight',
+      download: null,
       repos: ['archipelagomw-hollowknight/archipelago.hollowknight'],
     })
 
@@ -460,6 +482,12 @@ describe('parseWikiPages', () => {
       status: 'Custom',
       maintainer: 'qixils (current), KonoTyran (former)',
       setupUrl: 'https://github.com/qixils/NeoForgeAP/blob/mc/26.2/README.md',
+      homepage: 'https://github.com/qixils/NeoForgeAP',
+      download: {
+        kind: 'github-latest',
+        repo: 'qixils/neoforgeap',
+        pageUrl: 'https://github.com/qixils/NeoForgeAP/releases/latest',
+      },
       repos: ['qixils/neoforgeap'],
     })
     // Several download links: the GitHub one gives the repository, the Thunderstore one nothing.
@@ -474,8 +502,89 @@ describe('parseWikiPages', () => {
       status: null,
       maintainer: null,
       setupUrl: null,
+      homepage: null,
+      download: null,
       repos: [],
     })
+    // A world only the wiki lists: its repository link, which is not the one it is downloaded from.
+    expect(page('Frogmonster')).toEqual({
+      title: 'Frogmonster',
+      status: 'Custom',
+      maintainer: 'RoobyRoo (APWorld), Ben Jungwirth (client)',
+      setupUrl: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/blob/main/README.md',
+      homepage: 'https://github.com/Rooby-Roo/Archipelago/tree/Frogmonster',
+      download: {
+        kind: 'github-latest',
+        repo: 'rooby-roo/frogmonsterapworld',
+        pageUrl: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/latest',
+      },
+      repos: ['rooby-roo/archipelago', 'rooby-roo/frogmonsterapworld'],
+    })
+    // Paragraphs are separated like line breaks.
+    expect(page('Hexcells Infinite')?.maintainer).toBe('Heaxeus (old version), Chainsawkitten (fork)')
+  })
+
+  it('tells a download link to the latest GitHub release from a page to open', () => {
+    const real = (title: string): WikiPage['download'] | undefined =>
+      allPages().find((page) => page.title === title)?.download
+    // /releases without a search lists the latest release first.
+    expect(real('Hexcells Infinite')).toEqual({
+      kind: 'github-latest',
+      repo: 'chainsawkitten/hexcellsinfiniteap',
+      pageUrl: 'https://github.com/Chainsawkitten/HexcellsInfiniteAP/releases',
+    })
+    // A search among the releases of a fork of many games.
+    expect(real("Keymaster's Keep")).toEqual({
+      kind: 'page',
+      url: 'https://github.com/silasary/Archipelago/releases?q=%22Keymaster%27s+Keep%22&expanded=true',
+    })
+    expect(real('Kao the Kangaroo Round 2')).toEqual({
+      kind: 'page',
+      url: 'https://github.com/kierokeke/Kao-the-Kangaroo-Round-2-Archipelago/releases/tag/KaotheKangarooRound2',
+    })
+    // The first link counts: itch.io, though GitHub's latest release comes second.
+    expect(real('BK Simulator')).toEqual({ kind: 'page', url: 'https://emilyv99.itch.io/bk-simulator' })
+    // Two links, the APWorld's first.
+    expect(real('Resident Evil 2 Remake')).toMatchObject({ repo: 'fuzzygameson/re2r_ap_world' })
+    expect(real('Here Comes Niko!')).toBeNull()
+
+    const download = (html: string): WikiPage['download'] | undefined => {
+      const infoboxes = JSON.stringify([
+        { data: [{ type: 'data', data: { source: 'ap-download', value: html } }] },
+      ])
+      return parseWikiPages({ query: { pages: [{ title: 'X', pageprops: { infoboxes } }] } })[0]?.download
+    }
+    const link = (href: string): string => `<a href="${href}">GitHub</a>`
+    const latest = (repo: string, pageUrl: string): WikiPage['download'] => ({
+      kind: 'github-latest',
+      repo,
+      pageUrl,
+    })
+    for (const href of [
+      'https://github.com/Owner/Repo/releases/latest',
+      'https://github.com/Owner/Repo/releases/latest/',
+      'https://github.com/Owner/Repo/releases/',
+      'https://www.github.com/Owner/Repo/releases',
+      'http://github.com/Owner/Repo/releases/latest#assets',
+    ]) {
+      expect(download(link(href)), href).toEqual(latest('owner/repo', href))
+    }
+    for (const href of [
+      'https://github.com/Owner/Repo/releases?q=Game&expanded=true',
+      'https://github.com/Owner/Repo/releases/latest?q=x',
+      'https://github.com/Owner/Repo/releases/tag/v1.0.0',
+      'https://github.com/Owner/Repo/releases/download/v1.0.0/game.apworld',
+      'https://github.com/Owner/Repo/blob/main/game.apworld',
+      'https://github.com/Owner/Repo/raw/main/game.apworld',
+      'https://github.com/Owner/Repo',
+      'https://gitlab.com/owner/repo/-/releases',
+      'https://codeberg.org/owner/repo/releases/latest',
+      'https://owner.itch.io/game',
+    ]) {
+      expect(download(link(href)), href).toEqual({ kind: 'page', url: href })
+    }
+    expect(download('GitHub (soon)')).toBeNull()
+    expect(download(link('javascript:alert(1)'))).toBeNull()
   })
 
   it('decodes HTML entities and ignores what is not an API answer', () => {
@@ -527,13 +636,29 @@ describe('parseWikiPages', () => {
         status: null,
         maintainer: "Ann & Bob 'B' x &constructor;",
         setupUrl: 'https://archipelago.miraheze.org/wiki/Setup_Guide?a=1&b=2',
+        homepage: 'https://github.com/Foo/Bar.git',
+        download: {
+          kind: 'github-latest',
+          repo: 'foo/bar',
+          pageUrl: 'https://github.com/foo/bar/releases/latest',
+        },
         repos: ['foo/bar'],
       },
     ])
     expect(parseWikiPages(null)).toEqual([])
     expect(
       parseWikiPages({ query: { pages: [{ pageid: 1 }, { title: 'Bad', pageprops: { infoboxes: '{' } }] } }),
-    ).toEqual([{ title: 'Bad', status: null, maintainer: null, setupUrl: null, repos: [] }])
+    ).toEqual([
+      {
+        title: 'Bad',
+        status: null,
+        maintainer: null,
+        setupUrl: null,
+        homepage: null,
+        download: null,
+        repos: [],
+      },
+    ])
   })
 })
 
@@ -557,7 +682,7 @@ describe('joinCatalog', () => {
       }),
     ]
     const entries = joinCatalog(allWorlds(), allPages(), installed, joinOptions())
-    // celeste is disabled in the index.
+    // celeste is disabled in the index. Then the pages of the wiki no world of the index is joined to.
     expect(entries.map((entry) => entry.id)).toEqual([
       'Schedule_I',
       'Twilight Princess',
@@ -567,11 +692,21 @@ describe('joinCatalog', () => {
       'pmd_eos',
       'pokemon_crystal',
       'sms',
+      'wiki:BK Simulator',
+      'wiki:Frogmonster',
+      'wiki:Here Comes Niko!',
+      'wiki:Hexcells Infinite',
+      'wiki:Hunie Pop',
+      'wiki:Kao the Kangaroo Round 2',
+      "wiki:Keymaster's Keep",
+      'wiki:Resident Evil 2 Remake',
     ])
     const entry = byId(entries)
+    expect(entries.filter((e) => e.source === 'index').every((e) => e.download === null)).toBe(true)
 
     expect(entry.pokemon_crystal).toEqual({
       id: 'pokemon_crystal',
+      source: 'index',
       game: 'Pokemon Crystal',
       displayName: 'Pokemon Crystal',
       homepage: 'https://discord.com/channels/731205301247803413/1365127145709502575',
@@ -593,6 +728,7 @@ describe('joinCatalog', () => {
         url: 'https://github.com/gerbiljames/Archipelago/releases/download/6.0.4/pokemon_crystal.apworld',
         sha256: SHA.crystal604,
       },
+      download: null,
       installedVersion: '6.0.0',
       trust: 'indexed-verified',
     })
@@ -691,6 +827,7 @@ describe('joinCatalog', () => {
 
   it('hides after dark entries unless showAfterDark', () => {
     // Schedule I is tagged "ad" in the index; Super Mario Sunshine is put in the wiki's category here.
+    // Resident Evil 2 Remake is in the category; Hunie Pop only says "After Dark" in its status.
     const afterDarkTitles = new Set([...memberTitles('wiki-afterdark.json'), 'Super Mario Sunshine'])
     const shown = joinCatalog(
       allWorlds(),
@@ -698,16 +835,16 @@ describe('joinCatalog', () => {
       [],
       joinOptions({ afterDarkTitles, showAfterDark: true }),
     )
-    expect(shown.filter((entry) => entry.afterDark).map((entry) => entry.id)).toEqual(['Schedule_I', 'sms'])
+    const afterDark = ['Schedule_I', 'sms', 'wiki:Hunie Pop', 'wiki:Resident Evil 2 Remake']
+    expect(shown.filter((entry) => entry.afterDark).map((entry) => entry.id)).toEqual(afterDark)
     const hidden = joinCatalog(
       allWorlds(),
       allPages(),
       [],
       joinOptions({ afterDarkTitles, showAfterDark: false }),
     )
-    expect(hidden.map((entry) => entry.id)).not.toContain('Schedule_I')
-    expect(hidden.map((entry) => entry.id)).not.toContain('sms')
-    expect(hidden).toHaveLength(shown.length - 2)
+    for (const id of afterDark) expect(hidden.map((entry) => entry.id)).not.toContain(id)
+    expect(hidden).toHaveLength(shown.length - afterDark.length)
   })
 
   it('excludes games and repos listed in catalog-optout.json', () => {
@@ -717,6 +854,217 @@ describe('joinCatalog', () => {
     expect(ids).not.toContain('pokemon_crystal')
     expect(ids).not.toContain('sms')
     expect(ids).toContain('pmd_eos')
+    // Their wiki pages do not bring them back.
+    expect(ids.filter((id) => id.startsWith('wiki:'))).toHaveLength(8)
+
+    // A world only the wiki lists: by its game (accents and case set aside), or by any of its repositories.
+    const wikiOptOut = { games: ['FROGMONSTER'], repos: ['Chainsawkitten/HexcellsInfiniteAPWorld'] }
+    const left = joinCatalog(allWorlds(), allPages(), [], joinOptions({ optOut: wikiOptOut })).map(
+      (e) => e.id,
+    )
+    expect(left).not.toContain('wiki:Frogmonster')
+    expect(left).not.toContain('wiki:Hexcells Infinite')
+    expect(left).toContain('wiki:BK Simulator')
+  })
+
+  it('builds an entry for a world only the wiki lists, its release asked when it is installed', () => {
+    const entries = byId(joinCatalog(allWorlds(), allPages(), [], joinOptions()))
+    expect(entries['wiki:Frogmonster']).toEqual({
+      id: 'wiki:Frogmonster',
+      source: 'wiki',
+      game: 'Frogmonster',
+      displayName: 'Frogmonster',
+      homepage: 'https://github.com/Rooby-Roo/Archipelago/tree/Frogmonster',
+      tags: [],
+      supported: false,
+      afterDark: false,
+      requiresRomAtGeneration: false,
+      hasPopTracker: false,
+      wiki: {
+        title: 'Frogmonster',
+        url: 'https://archipelago.miraheze.org/wiki/Frogmonster',
+        status: 'Custom',
+        maintainer: 'RoobyRoo (APWorld), Ben Jungwirth (client)',
+        setupUrl: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/blob/main/README.md',
+      },
+      latest: null,
+      download: {
+        kind: 'github-latest',
+        repo: 'rooby-roo/frogmonsterapworld',
+        pageUrl: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/latest',
+      },
+      installedVersion: null,
+      trust: 'wiki-release',
+    })
+    expect(isInstallable(entries['wiki:Frogmonster'] as CatalogEntry)).toBe(true)
+    // A link to open in the browser, or none: nothing the app installs, nothing it vouches for.
+    expect(entries["wiki:Keymaster's Keep"]).toMatchObject({
+      homepage: null,
+      download: { kind: 'page' },
+      trust: 'unknown',
+      wiki: { url: "https://archipelago.miraheze.org/wiki/Keymaster's_Keep" },
+    })
+    expect(entries['wiki:Here Comes Niko!']).toMatchObject({
+      homepage: 'https://github.com/niieli/Niko-Archipelago',
+      download: null,
+      trust: 'unknown',
+    })
+    for (const id of ["wiki:Keymaster's Keep", 'wiki:Here Comes Niko!']) {
+      expect(isInstallable(entries[id] as CatalogEntry), id).toBe(false)
+    }
+    // The wiki's categories, as for the worlds of the index.
+    const tagged = byId(
+      joinCatalog(
+        allWorlds(),
+        allPages(),
+        [],
+        joinOptions({ romTitles: new Set(['Frogmonster']), popTrackerTitles: new Set(['Frogmonster']) }),
+      ),
+    )
+    expect(tagged['wiki:Frogmonster']).toMatchObject({ requiresRomAtGeneration: true, hasPopTracker: true })
+  })
+
+  it('never lists twice a world of the index, nor one it disables, nor one shipped with Archipelago', () => {
+    const page = madePage
+    const latest = (repo: string): WikiPage['download'] => ({
+      kind: 'github-latest',
+      repo,
+      pageUrl: `https://github.com/${repo}/releases/latest`,
+    })
+    const pages = [
+      ...allPages(),
+      // Named like a world of the index (its display name; accents and case set aside).
+      page('Minecraft NeoForge'),
+      page('POKÉMON CRYSTAL'),
+      // Downloaded from the repository a world of the index is released from.
+      page('Crystal Clear', { download: latest('gerbiljames/archipelago') }),
+      // A search in that same fork may be another game: it stays.
+      page('Crystal Fork', {
+        download: { kind: 'page', url: 'https://github.com/gerbiljames/Archipelago/releases?q=Fork' },
+      }),
+      // Core-verified, though missing from the core table.
+      page('Future Core', { status: 'Core-verified' }),
+    ]
+    const ids = joinCatalog(allWorlds(), pages, [], joinOptions()).map((entry) => entry.id)
+    const wikiIds = ids.filter((id) => id.startsWith('wiki:'))
+    // Joined to a world of the index (by name or by repository): Pokemon Crystal, Pokémon Mystery
+    // Dungeon, Minecraft... Celeste is disabled by the index for 0.6.8 and does not come back. A Link to
+    // the Past (Core-verified) and Sonic Adventure 2 Battle (no status) ship with Archipelago 0.6.8.
+    expect(wikiIds).toEqual([
+      'wiki:BK Simulator',
+      'wiki:Crystal Fork',
+      'wiki:Frogmonster',
+      'wiki:Here Comes Niko!',
+      'wiki:Hexcells Infinite',
+      'wiki:Hunie Pop',
+      'wiki:Kao the Kangaroo Round 2',
+      "wiki:Keymaster's Keep",
+      'wiki:Resident Evil 2 Remake',
+    ])
+    expect(ids).not.toContain('celeste')
+
+    // A core world found in Archipelago's own folder counts too.
+    const core = installedWorld({ module: 'frog', location: 'core', game: 'Frogmonster' })
+    expect(joinCatalog(allWorlds(), allPages(), [core], joinOptions()).map((e) => e.id)).not.toContain(
+      'wiki:Frogmonster',
+    )
+    // Without the index, no page can be told apart from the worlds it lists.
+    expect(joinCatalog([], allPages(), [], joinOptions())).toEqual([])
+  })
+
+  it('never brings back through its repository a page joined to a world disabled, opted out or hidden', () => {
+    // Each page has a title of its own and is joined to its world by repository alone; its download
+    // (a page to open, or none) is from no repository of the index either.
+    const pages = [
+      ...allPages().filter(
+        (page) =>
+          !['Celeste', 'Schedule I', 'Pokémon Mystery Dungeon: Explorers of Sky'].includes(page.title),
+      ),
+      madePage('Celeste Classic', {
+        repos: ['doshyw/celestearchipelago'],
+        download: { kind: 'page', url: 'https://example.org/celeste' },
+      }),
+      madePage('Explorers of Sky', {
+        repos: ['crypticmonkey33/archipelagoexplorersofsky'],
+        download: { kind: 'page', url: 'https://example.org/eos' },
+      }),
+      madePage('Narcopelago', { repos: ['mach8s/narcopelago'] }),
+    ]
+    const wikiIds = (opts: Partial<JoinOptions>): string[] =>
+      joinCatalog(allWorlds(), pages, [], joinOptions(opts))
+        .map((entry) => entry.id)
+        .filter((id) => id.startsWith('wiki:'))
+    const madeUp = ['wiki:Celeste Classic', 'wiki:Explorers of Sky', 'wiki:Narcopelago']
+    // Celeste is disabled for 0.6.8; Schedule I is After Dark (hidden, then shown); Explorers of Sky
+    // is listed, then opted out by its game.
+    for (const opts of [
+      { showAfterDark: false },
+      { showAfterDark: true },
+      { optOut: { games: ['Pokemon Mystery Dungeon Explorers of Sky'], repos: [] } },
+    ]) {
+      const listed = wikiIds(opts)
+      for (const id of madeUp) expect(listed, `${id} ${JSON.stringify(opts)}`).not.toContain(id)
+    }
+    // Not joined to any world (the repository leads to no file of the index), the same page is listed.
+    const alone = madePage('Celeste Classic', {
+      repos: ['someone/celeste-classic'],
+      download: { kind: 'page', url: 'https://example.org/celeste' },
+    })
+    expect(joinCatalog(allWorlds(), [alone], [], joinOptions()).map((entry) => entry.id)).toContain(
+      'wiki:Celeste Classic',
+    )
+  })
+
+  it('never brings back a disabled world whose page differs by its punctuation or bears its file name', () => {
+    // Real files of the index: both disabled, neither released from GitHub (no repository to join by).
+    const disabled = ['factorio_saws', 'apsudoku'].map((stem) => {
+      const world = parseIoniumToml(fixtureText(`disabled/${stem}.toml`), stem)
+      if (!world) throw new Error(`fixture ${stem} does not parse`)
+      return world
+    })
+    // Their real pages: "Factorio: Space Age Without Space" (a release search in a fork) and "APSudoku".
+    const pages = [...allPages(), ...parseWikiPages(fixtureJson('wiki-disabled.json'))]
+    const factorio = 'wiki:Factorio: Space Age Without Space'
+    // Unknown to the index, both pages are listed.
+    const unknown = joinCatalog(allWorlds(), pages, [], joinOptions()).map((entry) => entry.id)
+    expect(unknown).toEqual(expect.arrayContaining([factorio, 'wiki:APSudoku']))
+
+    const ids = joinCatalog([...allWorlds(), ...disabled], pages, [], joinOptions()).map((entry) => entry.id)
+    expect(ids).not.toContain(factorio)
+    expect(ids).not.toContain('wiki:APSudoku')
+    expect(ids).not.toContain('factorio_saws')
+  })
+
+  it('gives a wiki entry the version of the installed custom world of its game', () => {
+    const installed = [
+      installedWorld({
+        module: 'frogmonster',
+        game: 'frogmonster',
+        manifest: manifest('frogmonster', '0.2.4'),
+      }),
+      installedWorld({
+        module: 'hexcells',
+        game: 'Hexcells Infinite',
+        manifest: manifest('Hexcells Infinite', null),
+      }),
+      // Disabled: Archipelago does not see it.
+      installedWorld({ module: 'bk', location: 'disabled', game: 'BK Simulator' }),
+      // Its game written otherwise than the title of its page (as "AP_10" for the page "AP 10").
+      installedWorld({
+        module: 'kao2',
+        game: 'Kao_the_Kangaroo:Round_2',
+        manifest: manifest('Kao_the_Kangaroo:Round_2', '1.1.0'),
+      }),
+      // No game known: by its module.
+      installedWorld({ module: 'here_comes_niko' }),
+    ]
+    const entries = byId(joinCatalog(allWorlds(), allPages(), installed, joinOptions()))
+    expect(entries['wiki:Frogmonster']?.installedVersion).toBe('0.2.4')
+    expect(entries['wiki:Hexcells Infinite']?.installedVersion).toBe('unknown')
+    expect(entries['wiki:BK Simulator']?.installedVersion).toBeNull()
+    expect(entries['wiki:Kao the Kangaroo Round 2']?.installedVersion).toBe('1.1.0')
+    expect(entries['wiki:Here Comes Niko!']?.installedVersion).toBe('unknown')
+    expect(entries['wiki:Resident Evil 2 Remake']?.installedVersion).toBeNull()
   })
 })
 
@@ -775,6 +1123,7 @@ describe('createCatalog', () => {
   it('fetches the tree once, the files of the index and every page of the wiki', async () => {
     const snapshot = await newCatalog().snapshot(false)
     expect(snapshot).toMatchObject({ fetchedAt: '2026-10-17T08:00:00.000Z', stale: false, errors: [] })
+    // After Dark worlds stay hidden: Schedule I, Hunie Pop and Resident Evil 2 Remake.
     expect(snapshot.entries.map((entry) => entry.id)).toEqual([
       'Twilight Princess',
       'gl',
@@ -783,6 +1132,12 @@ describe('createCatalog', () => {
       'pmd_eos',
       'pokemon_crystal',
       'sms',
+      'wiki:BK Simulator',
+      'wiki:Frogmonster',
+      'wiki:Here Comes Niko!',
+      'wiki:Hexcells Infinite',
+      'wiki:Kao the Kangaroo Round 2',
+      "wiki:Keymaster's Keep",
     ])
     expect(apiRequests(remote)).toEqual([`https://api.github.com${TREE_PATH}?recursive=1`])
     expect(rawRequests(remote).sort()).toEqual([...remote.files.keys()].sort())
@@ -809,11 +1164,39 @@ describe('createCatalog', () => {
     expect(catalog.lookupByGame('Hollow Knight')).toMatchObject({ id: 'hk', trust: 'core' })
     expect(catalog.lookup('pokemon_crystal')?.game).toBe('Pokemon Crystal')
     expect(catalog.lookup('celeste')).toBeNull()
+    // Nor does its wiki page bring it back.
+    expect(catalog.lookupByGame('Celeste')).toBeNull()
+    // Worlds only the wiki lists, by their page title.
+    expect(catalog.lookupByGame('Frogmonster')).toMatchObject({
+      id: 'wiki:Frogmonster',
+      source: 'wiki',
+      latest: null,
+      download: { kind: 'github-latest', repo: 'rooby-roo/frogmonsterapworld' },
+    })
+    expect(catalog.lookup("wiki:Keymaster's Keep")?.download?.kind).toBe('page')
     // After Dark worlds are left out of the snapshot, and of the lookups, until the settings allow them.
     expect(catalog.lookup('Schedule_I')).toBeNull()
+    expect(catalog.lookupByGame('Hunie Pop')).toBeNull()
     core.ctx.config.update({ showAfterDark: true })
     await catalog.snapshot(false)
     expect(catalog.lookupByGame('Schedule I')?.id).toBe('Schedule_I')
+    expect(catalog.lookupByGame('Hunie Pop')?.id).toBe('wiki:Hunie Pop')
+  })
+
+  it('lookupByGame prefers the entry with a release to install', async () => {
+    // Two files of the index for one game: the older one has no release any more.
+    remote.files.set(
+      'index/pokemon_crystal_old.toml',
+      'name = "Pokemon Crystal"\ndefault_url = "https://example.com/{{version}}/x.apworld"\n[versions]\n',
+    )
+    const catalog = newCatalog()
+    const snapshot = await catalog.snapshot(false)
+    expect(snapshot.entries.filter((entry) => entry.game === 'Pokemon Crystal').map((e) => e.id)).toEqual([
+      'pokemon_crystal',
+      'pokemon_crystal_old',
+    ])
+    expect(catalog.lookupByGame('Pokemon Crystal')?.id).toBe('pokemon_crystal')
+    expect(catalog.lookup('pokemon_crystal_old')).toMatchObject({ latest: null, download: null })
   })
 
   it('answers from the snapshot on disk while it is fresh, without the network', async () => {
@@ -823,10 +1206,51 @@ describe('createCatalog', () => {
     const again = newCatalog()
     // The last snapshot is read back before anything is fetched.
     expect(again.lookup('pmd_eos')?.latest?.sha256).toBe(SHA.pmd032)
+    expect(again.lookup('wiki:Hexcells Infinite')).toMatchObject({
+      homepage: 'https://github.com/Chainsawkitten/HexcellsInfiniteAPWorld',
+      download: { kind: 'github-latest', repo: 'chainsawkitten/hexcellsinfiniteap' },
+    })
     const snapshot = await again.snapshot(false)
     expect(snapshot).toMatchObject({ fetchedAt: '2026-10-17T08:00:00.000Z', stale: false, errors: [] })
-    expect(snapshot.entries).toHaveLength(7)
+    expect(snapshot.entries).toHaveLength(13)
     expect(remote.requests).toEqual([])
+  })
+
+  it('drops a catalog saved by an older version and fetches it again', async () => {
+    await newCatalog().snapshot(false)
+    const file = join(catalogDir(), 'catalog.json')
+    const saved = JSON.parse(readFileSync(file, 'utf8')) as {
+      version: number
+      wiki: { pages: Record<string, unknown>[] }
+    }
+    expect(saved.version).toBe(2)
+    // What version 1 wrote: wiki pages without their repository link and download.
+    const older = {
+      ...saved,
+      version: 1,
+      wiki: {
+        ...saved.wiki,
+        pages: saved.wiki.pages.map((page) =>
+          Object.fromEntries(
+            Object.entries(page).filter(([key]) => key !== 'homepage' && key !== 'download'),
+          ),
+        ),
+      },
+    }
+    writeFileSync(file, JSON.stringify(older))
+    remote.requests = []
+    clock = START + HOUR / 2
+
+    const again = newCatalog()
+    expect(again.lookup('pmd_eos')).toBeNull()
+    const snapshot = await again.snapshot(false)
+    expect(snapshot).toMatchObject({ fetchedAt: '2026-10-17T08:30:00.000Z', stale: false, errors: [] })
+    expect(snapshot.entries).toHaveLength(13)
+    expect(apiRequests(remote)).toHaveLength(1)
+    expect(wikiRequests(remote)).toHaveLength(5)
+    // The blobs of the index were kept: none is downloaded again.
+    expect(rawRequests(remote)).toEqual([])
+    expect((JSON.parse(readFileSync(file, 'utf8')) as { version: number }).version).toBe(2)
   })
 
   it('returns stale snapshot from disk when offline or rate limited', async () => {
@@ -959,7 +1383,8 @@ describe('catalog service', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('worlds prepare with a catalog source resolves the entry url and sha256', async () => {
+  /** An Archipelago 0.6.8 and the services, the network being `remote`. */
+  function servicesWith(remote: FakeRemote) {
     const ap = join(root, 'AP')
     mkdirSync(ap)
     writeFileSync(join(ap, apExeFileName('ArchipelagoLauncher', hostOs)), '')
@@ -967,17 +1392,6 @@ describe('catalog service', () => {
     core.ctx.config.updateInternal({ apPathOverride: ap })
     const exec: ExecFn = () => Promise.resolve({ code: 0, stdout: '', stderr: '' })
     core.ctx.exec = exec
-
-    // The world the index points to; its hash goes in the lock in place of the real one.
-    const world = await makeApworld(join(root, 'build', 'pmd_eos.apworld'), {
-      game: 'Pokemon Mystery Dungeon Explorers of Sky',
-    })
-    const bytes = readFileSync(world)
-    const remote = makeRemote()
-    remote.files.set('index.lock', (remote.files.get('index.lock') ?? '').replace(SHA.pmd032, sha256(bytes)))
-    const url =
-      'https://github.com/CrypticMonkey33/ArchipelagoExplorersOfSky/releases/download/v0.3.2/pmd_eos.apworld'
-    remote.downloads.set(url, bytes)
     core.ctx.http = createHttp({
       userAgent: 'Test/1.0 (unit)',
       cacheDir: join(core.ctx.platform.paths.dataRoot, 'catalog'),
@@ -995,6 +1409,29 @@ describe('catalog service', () => {
       if (!result.ok) throw new Error(`${name} failed: ${result.error.code}`)
       return result.value as T
     }
+    /** The plan `worlds:prepareInstall` builds for a catalog id. */
+    const prepare = async (id: string): Promise<WorldInstallPlan> => {
+      const { taskId } = await call<{ taskId: string }>('worlds:prepareInstall', {
+        source: { kind: 'catalog', id },
+      })
+      await vi.waitFor(() => expect(done.map((event) => event.taskId)).toContain(taskId))
+      return done.find((event) => event.taskId === taskId)?.result as WorldInstallPlan
+    }
+    return { call, prepare }
+  }
+
+  it('worlds prepare with a catalog source resolves the entry url and sha256', async () => {
+    // The world the index points to; its hash goes in the lock in place of the real one.
+    const world = await makeApworld(join(root, 'build', 'pmd_eos.apworld'), {
+      game: 'Pokemon Mystery Dungeon Explorers of Sky',
+    })
+    const bytes = readFileSync(world)
+    const remote = makeRemote()
+    remote.files.set('index.lock', (remote.files.get('index.lock') ?? '').replace(SHA.pmd032, sha256(bytes)))
+    const url =
+      'https://github.com/CrypticMonkey33/ArchipelagoExplorersOfSky/releases/download/v0.3.2/pmd_eos.apworld'
+    remote.downloads.set(url, bytes)
+    const { call, prepare } = servicesWith(remote)
 
     const snapshot = await call<CatalogSnapshot>('catalog:list', {})
     expect(snapshot.entries.find((entry) => entry.id === 'pmd_eos')?.latest).toEqual({
@@ -1003,18 +1440,14 @@ describe('catalog service', () => {
       sha256: sha256(bytes),
     })
 
-    const { taskId } = await call<{ taskId: string }>('worlds:prepareInstall', {
-      source: { kind: 'catalog', id: 'pmd_eos' },
-    })
-    await vi.waitFor(() => expect(done.map((event) => event.taskId)).toContain(taskId))
-    const plan = done.find((event) => event.taskId === taskId)?.result as WorldInstallPlan
-    expect(plan).toMatchObject({
+    expect(await prepare('pmd_eos')).toMatchObject({
       source: { kind: 'catalog', id: 'pmd_eos' },
       module: 'pmd_eos',
       targetFileName: 'pmd_eos.apworld',
       sha256: sha256(bytes),
       trust: 'indexed-verified',
       homepage: 'https://discord.com/channels/731205301247803413/1175911373822242946',
+      origin: url,
     })
     expect(remote.requests).toContain(url)
 
@@ -1022,5 +1455,41 @@ describe('catalog service', () => {
     remote.requests = []
     await call<CatalogSnapshot>('catalog:list', { force: true })
     expect(apiRequests(remote)).toHaveLength(1)
+  })
+
+  it('worlds prepare with a world only the wiki lists asks GitHub for its latest release', async () => {
+    const world = await makeApworld(join(root, 'build', 'frogmonster.apworld'), { game: 'Frogmonster' })
+    const bytes = readFileSync(world)
+    const remote = makeRemote()
+    // The real answer of GitHub, its digest that of the file built here.
+    const release = githubFixture('apworld-frogmonster.json') as {
+      assets: { name: string; digest: string }[]
+    }
+    for (const asset of release.assets)
+      if (asset.name === 'frogmonster.apworld') asset.digest = `sha256:${sha256(bytes)}`
+    remote.github.set('/repos/rooby-roo/frogmonsterapworld/releases/latest', release)
+    const url = 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/download/v0.2.5/frogmonster.apworld'
+    remote.downloads.set(url, bytes)
+    const { call, prepare } = servicesWith(remote)
+
+    const snapshot = await call<CatalogSnapshot>('catalog:list', {})
+    // Nothing asked of GitHub but the tree of the index while the catalog is listed.
+    expect(apiRequests(remote)).toEqual([`https://api.github.com${TREE_PATH}?recursive=1`])
+    expect(snapshot.entries.find((entry) => entry.id === 'wiki:Frogmonster')?.latest).toBeNull()
+
+    expect(await prepare('wiki:Frogmonster')).toMatchObject({
+      source: { kind: 'catalog', id: 'wiki:Frogmonster' },
+      module: 'frogmonster',
+      targetFileName: 'frogmonster.apworld',
+      sha256: sha256(bytes),
+      trust: 'wiki-release',
+      homepage: 'https://github.com/Rooby-Roo/Archipelago/tree/Frogmonster',
+      // The asset GitHub named: where the code comes from, whatever the page calls its homepage.
+      origin: url,
+    })
+    expect(apiRequests(remote)).toContain(
+      'https://api.github.com/repos/rooby-roo/frogmonsterapworld/releases/latest',
+    )
+    expect(remote.requests).toContain(url)
   })
 })

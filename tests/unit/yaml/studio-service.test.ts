@@ -46,6 +46,7 @@ function studio(): Studio {
     worlds: createWorlds(core.ctx, {
       locator,
       lookupCatalog: () => null,
+      resolveWikiRelease: () => Promise.reject(new Error('no catalog')),
       listProcesses: () => Promise.resolve([]),
     }),
     templates: {

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { AppError } from '@shared/errors'
-import type { CatalogEntry, CatalogSnapshot, WorldInfo, WorldManifest } from '@shared/types'
+import type { CatalogEntry, CatalogSnapshot, WorldInfo, WorldInstallPlan, WorldManifest } from '@shared/types'
 import { WorldsScreen } from '@renderer/features/worlds/WorldsScreen'
 import { installGoatMock } from './goat-mock'
 import { renderApp, renderWithProviders } from './render-app'
@@ -80,6 +80,7 @@ const WORLDS: WorldInfo[] = [
 
 function entry(fields: Partial<CatalogEntry> & Pick<CatalogEntry, 'id' | 'game'>): CatalogEntry {
   return {
+    source: 'index',
     displayName: fields.game,
     homepage: `https://github.com/example/${fields.id}`,
     tags: [],
@@ -93,6 +94,7 @@ function entry(fields: Partial<CatalogEntry> & Pick<CatalogEntry, 'id' | 'game'>
       url: `https://github.com/example/${fields.id}/releases/download/v1.0.0/${fields.id}.apworld`,
       sha256: 'ab'.repeat(32),
     },
+    download: null,
     installedVersion: null,
     trust: 'indexed-verified',
     ...fields,
@@ -139,6 +141,40 @@ const SNAPSHOT: CatalogSnapshot = {
   fetchedAt: '2026-10-17T12:00:00.000Z',
   stale: false,
   errors: [],
+}
+
+/** A world only the wiki lists: no release known in advance, what to download comes from its page. */
+function wikiEntry(game: string, download: CatalogEntry['download']): CatalogEntry {
+  return entry({
+    id: `wiki:${game}`,
+    game,
+    source: 'wiki',
+    homepage: null,
+    supported: false,
+    wiki: wiki(game, 'Custom'),
+    latest: null,
+    download,
+    trust: download?.kind === 'github-latest' ? 'wiki-release' : 'unknown',
+  })
+}
+
+const FROGMONSTER_PAGE = 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/latest'
+const SHAPEZ_PAGE = 'https://github.com/Jaspersa/Archipelago/releases?q=shapez'
+const LAKELANDS_PAGE = 'https://someone.itch.io/lakelands'
+
+const WIKI_SNAPSHOT: CatalogSnapshot = {
+  ...SNAPSHOT,
+  entries: [
+    ...ENTRIES,
+    wikiEntry('Frogmonster', {
+      kind: 'github-latest',
+      repo: 'rooby-roo/frogmonsterapworld',
+      pageUrl: FROGMONSTER_PAGE,
+    }),
+    wikiEntry('Shapez 2', { kind: 'page', url: SHAPEZ_PAGE }),
+    wikiEntry('Lakelands', { kind: 'page', url: LAKELANDS_PAGE }),
+    wikiEntry('Lost Cartridge', null),
+  ],
 }
 
 /** Shows the current query string, to check what the screen leaves in the URL. */
@@ -453,6 +489,8 @@ describe('WorldsScreen', () => {
     expect(screen.queryByText('HuniePop')).toBeNull()
     expect(screen.queryByRole('button', { name: '18+' })).toBeNull()
     expect(screen.getByText('3 mondes')).toBeInTheDocument()
+    // Nothing comes from the wiki alone: no source to choose.
+    expect(screen.queryByRole('combobox', { name: 'Source' })).toBeNull()
 
     const search = screen.getByRole('searchbox', { name: 'Rechercher dans le catalogue' })
     await user.type(search, 'hollow')
@@ -492,6 +530,183 @@ describe('WorldsScreen', () => {
     await user.click(screen.getByRole('button', { name: '18+' }))
     await waitFor(() => expect(within(grid).getAllByRole('article')).toHaveLength(1))
     expect(within(grid).getByRole('article', { name: 'HuniePop' })).toBeInTheDocument()
+  })
+
+  it('marks the worlds only the wiki lists as unofficial, with what each offers to download', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => WIKI_SNAPSHOT,
+      'app:openExternal': () => undefined,
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    expect(within(grid).getAllByRole('article')).toHaveLength(7)
+
+    // The latest GitHub release its page points to: installable, its version known once installed.
+    const frog = within(grid).getByRole('article', { name: 'Frogmonster' })
+    expect(within(frog).getByText('Dernière version sur GitHub')).toBeInTheDocument()
+    expect(within(frog).getByText('Release du wiki')).toBeInTheDocument()
+    expect(within(frog).getByRole('button', { name: 'Installer Frogmonster' })).toBeInTheDocument()
+    const badge = within(frog).getByText('Wiki')
+    await user.hover(badge)
+    const tooltip = await screen.findByRole('tooltip')
+    expect(tooltip).toHaveTextContent('Listé seulement sur le wiki d’Archipelago')
+    expect(tooltip).toHaveTextContent('absent de l’index communautaire ionium-ap')
+    expect(tooltip).toHaveTextContent('personne d’autre ne l’a vérifié')
+    await user.unhover(badge)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull())
+
+    // Any other link: its page opens in the browser, nothing is installed from it.
+    const shapez = within(grid).getByRole('article', { name: 'Shapez 2' })
+    expect(within(shapez).queryByText('Dernière version sur GitHub')).toBeNull()
+    expect(within(shapez).getByText('Source inconnue')).toBeInTheDocument()
+    expect(within(shapez).queryByRole('button', { name: /^Installer/ })).toBeNull()
+    const download = within(shapez).getByRole('button', { name: 'Page de téléchargement de Shapez 2' })
+    expect(download).toHaveTextContent('Page de téléchargement')
+    await user.click(download)
+    await waitFor(() => expect(goat.inputsOf('app:openExternal')).toEqual([{ url: SHAPEZ_PAGE }]))
+    expect(goat.inputsOf('worlds:prepareInstall')).toEqual([])
+
+    // A site the app does not open (it would refuse the link): its wiki page carries it.
+    const lakelands = within(grid).getByRole('article', { name: 'Lakelands' })
+    expect(within(lakelands).getByText('Lien de téléchargement sur le wiki')).toBeInTheDocument()
+    expect(within(lakelands).queryByRole('button', { name: /page de téléchargement/i })).toBeNull()
+    await user.click(within(lakelands).getByRole('button', { name: 'Fiche de Lakelands sur le wiki' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('app:openExternal')).toEqual([
+        { url: SHAPEZ_PAGE },
+        { url: 'https://archipelago.miraheze.org/wiki/Lakelands' },
+      ]),
+    )
+
+    // No link at all: nothing to offer.
+    const lost = within(grid).getByRole('article', { name: 'Lost Cartridge' })
+    expect(within(lost).getByText('Pas de version compatible')).toBeInTheDocument()
+    expect(within(lost).queryByRole('button', { name: /Installer|page de téléchargement/ })).toBeNull()
+
+    // The worlds of the index carry no such badge.
+    const celeste = within(grid).getByRole('article', { name: 'Celeste' })
+    expect(within(celeste).queryByText('Wiki')).toBeNull()
+    expect(within(celeste).getByText('v1.0.0')).toBeInTheDocument()
+  })
+
+  it('filters the catalog by source, which the search and clearing the filters cover too', async () => {
+    installGoatMock({ 'worlds:list': () => WORLDS, 'catalog:list': () => WIKI_SNAPSHOT })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    const source = screen.getByRole('combobox', { name: 'Source' })
+    expect(source).toHaveValue('any')
+    expect(
+      within(source)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Toutes les sources', 'Index communautaire', 'Wiki seul (non officiel)'])
+
+    await user.selectOptions(source, 'wiki')
+    await waitFor(() => expect(within(grid).getAllByRole('article')).toHaveLength(4))
+    expect(within(grid).getByRole('article', { name: 'Frogmonster' })).toBeInTheDocument()
+    expect(within(grid).queryByRole('article', { name: 'Celeste' })).toBeNull()
+
+    await user.selectOptions(source, 'index')
+    await waitFor(() => expect(within(grid).queryByRole('article', { name: 'Frogmonster' })).toBeNull())
+    expect(within(grid).getAllByRole('article')).toHaveLength(3)
+    expect(within(grid).getByRole('article', { name: 'Celeste' })).toBeInTheDocument()
+
+    // Clearing the filters brings every source back.
+    await user.selectOptions(source, 'wiki')
+    await user.click(screen.getByRole('button', { name: 'Effacer les filtres' }))
+    await waitFor(() => expect(within(grid).getAllByRole('article')).toHaveLength(7))
+    expect(source).toHaveValue('any')
+
+    // The search finds the source as well, as a whole word: nothing else of these cards says "index".
+    const search = screen.getByRole('searchbox', { name: 'Rechercher dans le catalogue' })
+    await user.type(search, 'index')
+    await waitFor(() => expect(within(grid).getAllByRole('article')).toHaveLength(3))
+    for (const game of ['Celeste', 'Hollow Knight', 'Pokemon Emerald']) {
+      expect(within(grid).getByRole('article', { name: game })).toBeInTheDocument()
+    }
+    await user.clear(search)
+    await user.type(search, 'wiki')
+    await waitFor(() => expect(within(grid).getAllByRole('article')).toHaveLength(4))
+    expect(within(grid).queryByRole('article', { name: 'Celeste' })).toBeNull()
+    // A word that is only a piece of "index" finds nothing through it (as "x" in "Mega Man X").
+    await user.clear(search)
+    await user.type(search, 'celeste x')
+    expect(await screen.findByText('Aucun monde ne correspond')).toBeInTheDocument()
+  })
+
+  it('installs a world only the wiki lists through the trust screen', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => WIKI_SNAPSHOT,
+      'worlds:prepareInstall': () => ({ taskId: 'wiki-1' }),
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const frog = await screen.findByRole('article', { name: 'Frogmonster' })
+    await user.click(within(frog).getByRole('button', { name: 'Installer Frogmonster' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: { kind: 'catalog', id: 'wiki:Frogmonster' } },
+      ]),
+    )
+
+    // The main process resolved the release meanwhile: the trust screen says where it comes from.
+    const plan = {
+      planId: 'wiki-plan',
+      source: { kind: 'catalog', id: 'wiki:Frogmonster' },
+      module: 'frogmonster',
+      targetFileName: 'frogmonster.apworld',
+      manifest: manifest('Frogmonster', '0.4.2'),
+      sha256: 'cd'.repeat(32),
+      trust: 'wiki-release',
+      homepage: 'https://github.com/Rooby-Roo/Archipelago/tree/Frogmonster',
+      origin: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/download/v0.4.2/frogmonster.apworld',
+      conflicts: [],
+      warnings: [],
+    } satisfies WorldInstallPlan
+    goat.emit('task:done', { taskId: 'wiki-1', kind: 'world-prepare', result: plan })
+    const dialog = await screen.findByRole('dialog', { name: 'Installer Frogmonster ?' })
+    expect(within(dialog).getByText('Release du wiki')).toBeInTheDocument()
+    expect(within(dialog).getByText('wiki:Frogmonster')).toBeInTheDocument()
+    expect(within(dialog).getByText('0.4.2')).toBeInTheDocument()
+    // The repository the file is downloaded from, not only the one the page names as its homepage.
+    expect(within(dialog).getByText('Téléchargé depuis')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        'github.com/Rooby-Roo/FrogmonsterAPWorld/releases/download/v0.4.2/frogmonster.apworld',
+      ),
+    ).toBeInTheDocument()
+    // Nothing is installed before the player says they understand.
+    expect(within(dialog).getByRole('button', { name: 'Installer' })).toBeDisabled()
+  })
+
+  it('asks GitHub again for an installed world only the wiki lists, through the trust screen', async () => {
+    const installed = {
+      ...WIKI_SNAPSHOT,
+      entries: WIKI_SNAPSHOT.entries.map((item) =>
+        item.id === 'wiki:Frogmonster' ? { ...item, installedVersion: '0.2.4' } : item,
+      ),
+    }
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => installed,
+      'worlds:prepareInstall': () => ({ taskId: 'wiki-2' }),
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const frog = await screen.findByRole('article', { name: 'Frogmonster' })
+    expect(within(frog).getByText('Installé · 0.2.4')).toBeInTheDocument()
+    expect(within(frog).queryByRole('button', { name: 'Installer Frogmonster' })).toBeNull()
+    await user.click(
+      within(frog).getByRole('button', { name: 'Chercher une version plus récente de Frogmonster' }),
+    )
+    await waitFor(() =>
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: { kind: 'catalog', id: 'wiki:Frogmonster' } },
+      ]),
+    )
+    // An installed world of the index has its update in the catalog already: no such button.
+    const hollow = screen.getByRole('article', { name: 'Hollow Knight' })
+    expect(within(hollow).queryByRole('button', { name: /Chercher une version plus récente/ })).toBeNull()
   })
 
   it('shows stale banner when snapshot stale', async () => {

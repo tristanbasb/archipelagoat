@@ -50,6 +50,7 @@ function plan(overrides: Partial<JoinPlan> = {}): JoinPlan {
 function catalogEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
   return {
     id: 'pokemon_emerald',
+    source: 'index',
     game: 'Pokemon Emerald',
     displayName: 'Pokémon Emerald',
     homepage: null,
@@ -60,6 +61,7 @@ function catalogEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
     hasPopTracker: false,
     wiki: null,
     latest: { version: '2.4.1', url: 'https://example.invalid/pokemon_emerald.apworld', sha256: null },
+    download: null,
     installedVersion: null,
     trust: 'indexed-verified',
     ...overrides,
@@ -300,6 +302,7 @@ describe('join screen', () => {
       sha256: 'a'.repeat(64),
       trust: 'core',
       homepage: null,
+      origin: 'https://example.invalid/pokemon_emerald.apworld',
       conflicts: [],
       warnings: [],
     } satisfies WorldInstallPlan
@@ -329,7 +332,37 @@ describe('join screen', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'JOUER' })).toBeEnabled())
   })
 
-  it('asks for the .apworld file when the catalog has no release of the game', async () => {
+  it('installs a missing world only the wiki lists, from the latest release its page points to', async () => {
+    const wikiOnly = catalogEntry({
+      id: 'wiki:Pokemon Emerald',
+      source: 'wiki',
+      latest: null,
+      download: {
+        kind: 'github-latest',
+        repo: 'someone/emerald-apworld',
+        pageUrl: 'https://github.com/someone/emerald-apworld/releases/latest',
+      },
+      trust: 'wiki-release',
+    })
+    const { goat, user } = await openPlan(
+      plan({ checklist: { ...plan().checklist, world: check('missing', 'world-missing') }, ready: false }),
+      {
+        'catalog:list': () => ({ entries: [wikiOnly], fetchedAt: null, stale: false, errors: [] }),
+        'worlds:prepareInstall': () => ({ taskId: 'world-1' }),
+      },
+    )
+
+    const checklist = screen.getByRole('region', { name: 'Prêt à jouer ?' })
+    await user.click(within(checklist).getByRole('button', { name: 'Installer le monde' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: { kind: 'catalog', id: 'wiki:Pokemon Emerald' } },
+      ]),
+    )
+    expect(goat.inputsOf('app:pickPaths')).toEqual([])
+  })
+
+  it('asks for the .apworld file when the catalog has nothing to download for the game', async () => {
     const worldFile = 'D:\\Mondes\\pokemon_emerald.apworld'
     const { goat, user } = await openPlan(
       plan({ checklist: { ...plan().checklist, world: check('missing', 'world-missing') }, ready: false }),
@@ -357,6 +390,47 @@ describe('join screen', () => {
         filters: [{ name: 'Mondes Archipelago', extensions: ['apworld'] }],
       }),
     ])
+  })
+
+  it('points to the download page of a world the wiki lists without a release to install', async () => {
+    const page = 'https://github.com/someone/Archipelago/releases?q=Emerald'
+    const { goat, user } = await openPlan(
+      plan({ checklist: { ...plan().checklist, world: check('missing', 'world-missing') }, ready: false }),
+      {
+        'catalog:list': () => ({
+          entries: [
+            catalogEntry({ latest: null }),
+            // A wiki page whose link is no GitHub release: the player downloads the file by hand.
+            catalogEntry({
+              id: 'wiki:Pokemon Emerald',
+              source: 'wiki',
+              latest: null,
+              download: { kind: 'page', url: page },
+              trust: 'unknown',
+            }),
+          ],
+          fetchedAt: null,
+          stale: false,
+          errors: [],
+        }),
+        // The player has no file yet: the dialog is closed.
+        'app:pickPaths': () => [],
+        'app:openExternal': () => undefined,
+      },
+    )
+
+    const checklist = screen.getByRole('region', { name: 'Prêt à jouer\u00a0?' })
+    await user.click(within(checklist).getByRole('button', { name: 'Installer le monde' }))
+    expect(
+      await screen.findByText(
+        /ArchipelaGOAT ne sait pas installer Pokemon Emerald seul.+depuis sa page, puis choisis-le/,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/n’est pas dans le catalogue/)).toBeNull()
+    await waitFor(() => expect(goat.inputsOf('app:pickPaths')).toHaveLength(1))
+    await user.click(screen.getByRole('button', { name: 'Ouvrir sa page' }))
+    await waitFor(() => expect(goat.inputsOf('app:openExternal')).toEqual([{ url: page }]))
+    expect(goat.inputsOf('worlds:prepareInstall')).toEqual([])
   })
 
   it('cancels the preparation when the player gives up', async () => {

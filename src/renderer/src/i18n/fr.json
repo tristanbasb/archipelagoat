@@ -179,6 +179,7 @@
       "url": "Lien",
       "catalog": "Catalogue"
     },
+    "origin": "Téléchargé depuis",
     "file": "Fichier installé",
     "authors": "Auteurs",
     "authorsUnknown": "Non renseignés",
@@ -205,7 +206,10 @@
     "installing": "Installation…",
     "installed": "{{game}} est installé",
     "restartTitle": "Redémarre les programmes Archipelago ouverts",
-    "restartBody": "Ils ne verront {{game}} qu’après un redémarrage."
+    "restartBody": "Ils ne verront {{game}} qu’après un redémarrage.",
+    "openDownloadPage": "Ouvrir la page de téléchargement",
+    "pickFile": "Choisir le fichier .apworld",
+    "pickFileTitle": "Choisir le fichier .apworld du monde"
   },
   "errors": {
     "NOT_IMPLEMENTED": "Cette fonction n’est pas encore disponible",
@@ -230,6 +234,10 @@
     "WORLD_INCOMPATIBLE": "Ce monde n’est pas compatible avec ta version d’Archipelago",
     "WORLD_CORRUPT_BLOCKING": "Un monde cassé bloque Archipelago",
     "WORLD_CORRUPT_BLOCKING_file": "Le monde cassé {{file}} bloque Archipelago",
+    "WORLD_RELEASE_UNAVAILABLE": "Aucune version de ce monde à installer",
+    "WORLD_RELEASE_UNAVAILABLE_no-release": "Ce monde n’a pas de version stable sur GitHub",
+    "WORLD_RELEASE_UNAVAILABLE_no-apworld": "La dernière version de ce monde n’a pas d’APWorld",
+    "WORLD_RELEASE_UNAVAILABLE_ambiguous": "Plusieurs APWorlds dans la dernière version de ce monde",
     "YAML_PARSE": "Ce YAML est illisible",
     "GENERATION_PREFLIGHT": "La partie n’est pas prête à être générée",
     "GENERATION_PREFLIGHT_hosting": "Le serveur local de la partie tourne",
@@ -293,6 +301,10 @@
       "WORLD_INCOMPATIBLE": "Cherche une version du monde faite pour ta version d’Archipelago, ou mets Archipelago à jour.",
       "WORLD_CORRUPT_BLOCKING": "Un APWorld corrompu empêche Archipelago de démarrer. Mets-le de côté depuis l’écran Mondes ou le diagnostic.",
       "WORLD_CORRUPT_BLOCKING_file": "{{file}} est un APWorld corrompu et empêche Archipelago de démarrer. Mets-le de côté depuis l’écran Mondes ou le diagnostic.",
+      "WORLD_RELEASE_UNAVAILABLE": "ArchipelaGOAT ne trouve pas son fichier .apworld. Télécharge-le depuis sa page\u00a0: {{url}}, puis installe le fichier téléchargé.",
+      "WORLD_RELEASE_UNAVAILABLE_no-release": "Son dépôt GitHub n’a publié aucune version stable (seulement des préversions, ou rien). Télécharge-le depuis sa page\u00a0: {{url}}, puis installe le fichier .apworld téléchargé.",
+      "WORLD_RELEASE_UNAVAILABLE_no-apworld": "Sa dernière version sur GitHub ne contient aucun fichier .apworld. Regarde sur sa page comment l’obtenir\u00a0: {{url}}, puis installe le fichier téléchargé.",
+      "WORLD_RELEASE_UNAVAILABLE_ambiguous": "Sa dernière version sur GitHub contient plusieurs fichiers .apworld, et aucun ne porte seul le nom du jeu. Choisis le bon sur sa page\u00a0: {{url}}, puis installe-le.",
       "YAML_PARSE": "Une erreur de syntaxe empêche de le lire (souvent une tabulation ou un deux-points oublié). Corrige-le dans le Studio.",
       "GENERATION_PREFLIGHT": "Des vérifications ont échoué avant le lancement. Corrige les points signalés à l’étape Vérification.",
       "GENERATION_PREFLIGHT_hosting": "Arrête le serveur local depuis l’écran de la partie en cours, puis relance la génération\u00a0: la nouvelle partie remplace celle qu’il fait tourner.",

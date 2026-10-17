@@ -31,6 +31,8 @@ Linux, en français et en anglais, sans terminal ni édition de `host.yaml` à l
   chaque alerte avec son action.
 - **Mondes** : les APWorlds installés, et le catalogue de la communauté (index ionium et wiki
   d’Archipelago) avec un écran de confiance et une empreinte sha256 vérifiée avant chaque installation.
+  Le catalogue propose aussi les jeux non officiels que seul le wiki d’Archipelago liste, signalés comme
+  tels et toujours derrière l’écran de confiance.
 - **Studio YAML** : le YAML d’un joueur option par option, en mode simple ou pondéré, avec l’aperçu et la
   validation en direct.
 - **Organiser une partie** : joueurs, vérification, règles, génération, hébergement. Ensuite, l’adresse
@@ -104,7 +106,7 @@ indique leur emplacement à Archipelago ; elle ne les copie nulle part ailleurs 
   le randomizer multiworld que l’app installe et pilote.
 - [Wiki d’Archipelago](https://archipelago.miraheze.org/) (contenu sous licence
   [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)) : statuts, mainteneurs et
-  liens des mondes du catalogue, lus à l’exécution.
+  liens des mondes du catalogue, et les jeux que seul le wiki liste, lus à l’exécution.
 - [Index ionium](https://github.com/ionium-ap/Archipelago-index) : la liste communautaire des APWorlds et
   de leurs empreintes, lue à l’exécution, jamais redistribuée.
 
@@ -160,7 +162,8 @@ terminal and no hand-editing of `host.yaml`.
 - **Doctor**: broken APWorlds, port 38281 in use, an Archipelago program left open, connectivity…
   each warning with its fix.
 - **Worlds**: your installed APWorlds, and the community catalog (the ionium index and the Archipelago
-  wiki) with a trust screen and a verified sha256 before every install.
+  wiki) with a trust screen and a verified sha256 before every install. The catalog also offers the
+  unofficial games only the Archipelago wiki lists, flagged as such and always behind the trust screen.
 - **YAML studio**: a player’s YAML option by option, in simple or weighted mode, with a live preview and
   live validation.
 - **Organize a game**: players, check, rules, generation, hosting. Then the address and a message to
@@ -234,7 +237,7 @@ never copies them anywhere else and never sends them.
   the multiworld randomizer the app installs and drives.
 - [Archipelago wiki](https://archipelago.miraheze.org/) (content under
   [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)): status, maintainers and links
-  of the catalog’s worlds, read at runtime.
+  of the catalog’s worlds, and the games only the wiki lists, read at runtime.
 - [ionium index](https://github.com/ionium-ap/Archipelago-index): the community list of APWorlds and
   their hashes, read at runtime, never redistributed.
 

@@ -1,6 +1,6 @@
 // The "Catalog" tab: the worlds of the community index for this Archipelago version, joined with
-// the Archipelago wiki (status, maintainer, categories). Search, filters, and an install button
-// that goes through the trust screen.
+// the Archipelago wiki (status, maintainer, categories), then the worlds only the wiki lists. Search,
+// filters, and an install button that goes through the trust screen.
 import { useQueryClient } from '@tanstack/react-query'
 import {
   IconArrowBigUpLines,
@@ -21,7 +21,9 @@ import {
 import { useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import type { CatalogEntry, CatalogSnapshot } from '@shared/types'
+import { isInstallable } from '@shared/catalog'
+import { isAllowedExternalUrl } from '@shared/external-url'
+import type { CatalogEntry, CatalogSnapshot, CatalogSource } from '@shared/types'
 import {
   Badge,
   EmptyState,
@@ -58,12 +60,14 @@ const ANY = '*'
 const AFTER_DARK_TAG = 'ad'
 
 type RomFilter = 'any' | 'none' | 'needed'
+type SourceFilter = 'any' | CatalogSource
 
 interface Filters {
   query: string
   status: string
   tag: string
   rom: RomFilter
+  source: SourceFilter
   installed: boolean
   updates: boolean
   popTracker: boolean
@@ -75,6 +79,7 @@ const NO_FILTERS: Filters = {
   status: ANY,
   tag: ANY,
   rom: 'any',
+  source: 'any',
   installed: false,
   updates: false,
   popTracker: false,
@@ -89,16 +94,23 @@ function isFiltering(filters: Filters): boolean {
 
 function keep(entry: CatalogEntry, filters: Filters): boolean {
   return (
-    matchesQuery(filters.query, [
-      entry.displayName,
-      entry.game,
-      entry.id,
-      entry.wiki?.maintainer,
-      ...entry.tags,
-    ]) &&
+    matchesQuery(
+      filters.query,
+      [
+        entry.displayName,
+        entry.game,
+        // The id of a wiki entry only repeats its title.
+        entry.source === 'index' ? entry.id : null,
+        entry.wiki?.maintainer,
+        ...entry.tags,
+      ],
+      // A whole word: "x" or "de" must not find every world of the index.
+      [entry.source],
+    ) &&
     (filters.status === ANY || entry.wiki?.status === filters.status) &&
     (filters.tag === ANY || entry.tags.includes(filters.tag)) &&
     (filters.rom === 'any' || entry.requiresRomAtGeneration === (filters.rom === 'needed')) &&
+    (filters.source === 'any' || entry.source === filters.source) &&
     (!filters.installed || entry.installedVersion !== null) &&
     (!filters.updates || hasUpdate(entry)) &&
     (!filters.popTracker || entry.hasPopTracker) &&
@@ -210,6 +222,7 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
     entries.flatMap((entry) => entry.tags).filter((tag) => tag !== AFTER_DARK_TAG),
     collator,
   )
+  const fromWiki = entries.some((entry) => entry.source === 'wiki')
   const fetchedAt = snapshot.fetchedAt
     ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(
         new Date(snapshot.fetchedAt),
@@ -274,6 +287,19 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
             label: t(`screens.worlds.catalog.roms.${rom}`),
           }))}
         />
+        {fromWiki && (
+          <Select<SourceFilter>
+            className="worlds-toolbar__select"
+            label={t('screens.worlds.catalog.source')}
+            hideLabel
+            value={filters.source}
+            onChange={(source) => filter({ source })}
+            options={(['any', 'index', 'wiki'] as const).map((source) => ({
+              value: source,
+              label: t(`screens.worlds.catalog.sources.${source}`),
+            }))}
+          />
+        )}
       </div>
 
       <div className="worlds-catalog__bar">
@@ -518,6 +544,10 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
                 {t('screens.worlds.catalog.version', { version: entry.latest.version })}
               </span>
             ))}
+          {/* Its version is only known once installed: GitHub is not asked for every card. */}
+          {!entry.latest && entry.download?.kind === 'github-latest' && (
+            <span className="catalog-card__version">{t('screens.worlds.catalog.latestRelease')}</span>
+          )}
           {maintainer && (
             <span className="catalog-card__maintainer">
               {t('screens.worlds.catalog.by', { name: maintainer })}
@@ -525,6 +555,14 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
           )}
         </p>
         <div className="catalog-card__badges">
+          {entry.source === 'wiki' && (
+            <HelpBadge
+              tone="violet"
+              icon={<IconBook2 />}
+              label={t('screens.worlds.catalog.wikiBadge')}
+              help={t('screens.worlds.catalog.wikiHelp')}
+            />
+          )}
           {status && <Badge tone={statusTone(status)}>{status}</Badge>}
           {entry.requiresRomAtGeneration && (
             <HelpBadge
@@ -561,7 +599,7 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
         </div>
       </div>
       <footer className="catalog-card__foot">
-        <InstallAction entry={entry} onInstall={onInstall} />
+        <InstallAction entry={entry} onInstall={onInstall} onOpen={onOpen} />
         <div className="catalog-card__links">
           {entry.wiki && (
             <LinkButton
@@ -593,13 +631,7 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
   )
 }
 
-function InstallAction({
-  entry,
-  onInstall,
-}: {
-  entry: CatalogEntry
-  onInstall: (entry: CatalogEntry) => void
-}): React.JSX.Element {
+function InstallAction({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const game = entry.displayName
   if (hasUpdate(entry)) {
@@ -616,25 +648,64 @@ function InstallAction({
     )
   }
   if (entry.installedVersion !== null) {
-    return (
+    const pill = (
       <StatusPill
         status="ok"
         label={t('screens.worlds.catalog.installedPill', { version: entry.installedVersion })}
       />
     )
+    // Its latest release is only asked when installing: the player asks again, the trust screen
+    // shows which version it found before anything is replaced.
+    if (entry.latest === null && entry.download?.kind === 'github-latest') {
+      return (
+        <span className="catalog-card__installed">
+          {pill}
+          <LinkButton
+            tip={t('screens.worlds.catalog.checkUpdate')}
+            label={t('screens.worlds.catalog.checkUpdateOf', { game })}
+            icon={<IconRefresh />}
+            onClick={() => onInstall(entry)}
+          />
+        </span>
+      )
+    }
+    return pill
   }
-  if (!entry.latest) return <StatusPill status="idle" label={t('screens.worlds.catalog.unavailable')} />
-  return (
-    <NeonButton
-      variant="primary"
-      size="sm"
-      icon={<IconDownload />}
-      aria-label={t('screens.worlds.catalog.installGame', { game })}
-      onClick={() => onInstall(entry)}
-    >
-      {t('screens.worlds.catalog.install')}
-    </NeonButton>
-  )
+  if (isInstallable(entry)) {
+    return (
+      <NeonButton
+        variant="primary"
+        size="sm"
+        icon={<IconDownload />}
+        aria-label={t('screens.worlds.catalog.installGame', { game })}
+        onClick={() => onInstall(entry)}
+      >
+        {t('screens.worlds.catalog.install')}
+      </NeonButton>
+    )
+  }
+  if (entry.download?.kind === 'page') {
+    // No release ArchipelaGOAT can fetch: the player downloads the file, then installs it.
+    const { url } = entry.download
+    // A site the app does not open (itch.io, GitLab…): the link is on the wiki page of the card.
+    if (!isAllowedExternalUrl(url)) {
+      return <StatusPill status="idle" label={t('screens.worlds.catalog.downloadOnWiki')} />
+    }
+    return (
+      <Tooltip content={t('screens.worlds.catalog.downloadPageHelp')}>
+        <NeonButton
+          variant="secondary"
+          size="sm"
+          icon={<IconExternalLink />}
+          aria-label={t('screens.worlds.catalog.downloadPageOf', { game })}
+          onClick={() => onOpen(url)}
+        >
+          {t('screens.worlds.catalog.downloadPage')}
+        </NeonButton>
+      </Tooltip>
+    )
+  }
+  return <StatusPill status="idle" label={t('screens.worlds.catalog.unavailable')} />
 }
 
 /** A badge whose meaning shows on hover; its label says enough for the keyboard and screen readers. */

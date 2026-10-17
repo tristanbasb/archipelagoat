@@ -27,6 +27,7 @@ function plan(overrides: Partial<WorldInstallPlan> = {}): WorldInstallPlan {
     sha256: SHA,
     trust: 'wiki-release',
     homepage: 'https://github.com/AliceMousie/Archipelago',
+    origin: null,
     conflicts: [{ worldId: CRYSTAL_ID, version: '3.0.2', winner: 'new' }],
     warnings: [],
     ...overrides,
@@ -183,9 +184,65 @@ describe('useWorldInstall', () => {
     goat.emit('task:failed', { taskId: 't2', kind: 'world-prepare', error: goatError('WORLD_INVALID') })
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('Ce fichier n’est pas un APWorld valide')).toBeInTheDocument()
+    // Another file would fail the same way: none is offered.
+    expect(within(dialog).queryByRole('button', { name: 'Choisir le fichier .apworld' })).toBeNull()
     await user.click(within(dialog).getByRole('button', { name: 'Fermer' }))
     await waitFor(() => expect(onResult).toHaveBeenCalledTimes(2))
     expect(onResult).toHaveBeenLastCalledWith({ installed: false })
+  })
+
+  it('offers the download page, then a file, when the catalog has no release to give', async () => {
+    let next = 0
+    const page = 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/latest'
+    const file = 'C:\\Téléchargements\\frogmonster.apworld'
+    const goat = installGoatMock({
+      'worlds:prepareInstall': () => ({ taskId: `t${++next}` }),
+      'worlds:confirmInstall': () => ({ world: WORLD, restartNeeded: false }),
+      'app:openExternal': () => undefined,
+      'app:pickPaths': () => [file],
+    })
+    const onResult = vi.fn()
+    const catalog: WorldSource = { kind: 'catalog', id: 'wiki:Frogmonster' }
+    const { user } = await renderWithProviders(<Harness sources={[catalog]} onResult={onResult} />)
+    await user.click(screen.getByRole('button', { name: 'Lancer' }))
+    await waitFor(() => expect(goat.inputsOf('worlds:prepareInstall')).toEqual([{ source: catalog }]))
+    goat.emit('task:failed', {
+      taskId: 't1',
+      kind: 'world-prepare',
+      error: goatError('WORLD_RELEASE_UNAVAILABLE', { reason: 'no-release', url: page }),
+    })
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Ce monde n’a pas de version stable sur GitHub')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Ouvrir la page de téléchargement' }))
+    await waitFor(() => expect(goat.inputsOf('app:openExternal')).toEqual([{ url: page }]))
+
+    // The file downloaded by hand: the same install goes on from it, its caller still waiting.
+    await user.click(within(dialog).getByRole('button', { name: 'Choisir le fichier .apworld' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: catalog },
+        { source: { kind: 'file', path: file } },
+      ]),
+    )
+    expect(goat.inputsOf('app:pickPaths')).toEqual([
+      {
+        mode: 'file',
+        title: 'Choisir le fichier .apworld du monde',
+        filters: [{ name: 'APWorld', extensions: ['apworld'] }],
+      },
+    ])
+    expect(onResult).not.toHaveBeenCalled()
+    goat.emit('task:done', {
+      taskId: 't2',
+      kind: 'world-prepare',
+      result: plan({ source: { kind: 'file', path: file } }),
+    })
+    const review = await screen.findByRole('dialog', { name: 'Installer Pokemon Crystal\u00a0?' })
+    await user.click(within(review).getByRole('checkbox', { name: 'J’ai compris' }))
+    await user.click(within(review).getByRole('button', { name: 'Installer' }))
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith({ installed: true }))
+    expect(onResult).toHaveBeenCalledTimes(1)
   })
 
   it('gives up the waiting installs when the screen goes away', async () => {

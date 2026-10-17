@@ -7,6 +7,7 @@ import { toAppErrorData, type AppErrorData } from '@shared/errors'
 import type { WorldInstallPlan, WorldSource } from '@shared/types'
 import { useToast } from '../design/components'
 import { TrustDialog } from '../features/worlds/TrustDialog'
+import { describeError } from '../lib/errors'
 import { invoke } from '../lib/goat'
 import { useTask } from './useTask'
 
@@ -123,6 +124,39 @@ export function useWorldInstall(): WorldInstall {
     }
   }
 
+  /**
+   * The catalog had no file to give (WORLD_RELEASE_UNAVAILABLE): the player picks the one downloaded
+   * by hand, and the same install goes on from it, its caller still waiting for the outcome.
+   */
+  const installFromFile = async (): Promise<void> => {
+    if (!current) return
+    const job = current
+    let paths: string[]
+    try {
+      paths = await invoke('app:pickPaths', {
+        mode: 'file',
+        title: t('worldInstall.pickFileTitle'),
+        filters: [{ name: 'APWorld', extensions: ['apworld'] }],
+      })
+    } catch (error) {
+      const { title, body } = describeError(error, t)
+      toast.push({ tone: 'error', title, body })
+      return
+    }
+    const [path] = paths
+    if (path === undefined || finished.current.has(job.id)) return
+    // A new id: the effect above inspects the file as it inspects any new job.
+    const id = ++lastId.current
+    const source: WorldSource = { kind: 'file', path }
+    setQueue((jobs) =>
+      jobs.map((other) =>
+        other.id === job.id
+          ? { ...other, id, source, taskId: null, prepareError: null, installError: null }
+          : other,
+      ),
+    )
+  }
+
   const cancel = (): void => {
     if (!current || current.installing) return
     if (current.taskId && task.status === 'running') {
@@ -151,6 +185,7 @@ export function useWorldInstall(): WorldInstall {
       queued={Math.max(0, queue.length - 1)}
       onConfirm={() => void confirm()}
       onCancel={cancel}
+      onPickFile={() => void installFromFile()}
     />
   )
 

@@ -5,31 +5,10 @@ import { assertUserPath } from '@main/core/system/user-path'
 import type { ServiceContainer } from '@main/services/registry'
 import type {} from '@main/services/updater.service'
 import { AppError } from '@shared/errors'
+import { isAllowedExternalUrl } from '@shared/external-url'
 import type { RegisterHandler } from './registry'
 
 const GITHUB_TOKEN = 'github.token'
-
-const EXTERNAL_HOSTS = [
-  'archipelago.gg',
-  'github.com',
-  'archipelago.miraheze.org',
-  'tasvideos.org',
-  'discord.gg',
-  'learn.microsoft.com',
-]
-
-/** https only, default port, and an allow-listed host or one of its subdomains. */
-export function isAllowedExternalUrl(raw: string): boolean {
-  let url: URL
-  try {
-    url = new URL(raw)
-  } catch {
-    return false
-  }
-  if (url.protocol !== 'https:' || url.port !== '') return false
-  const host = url.hostname.toLowerCase()
-  return EXTERNAL_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`))
-}
 
 /** Files that app:openPath hands to the OS: documents only, never anything it could execute. */
 const OPENABLE_FILES = new Set(['.txt', '.log', '.yaml', '.yml', '.json', '.zip'])

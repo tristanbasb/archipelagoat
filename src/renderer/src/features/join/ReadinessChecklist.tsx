@@ -4,6 +4,7 @@ import { IconAlertTriangle, IconArchive, IconCheck, IconMinus, IconRefresh, Icon
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
+import { downloadPageOf, isInstallable } from '@shared/catalog'
 import { toAppErrorData, type AppErrorData } from '@shared/errors'
 import type { BizhawkState, CheckItem, JoinPlan, WorldSource } from '@shared/types'
 import { Badge, ErrorPanel, NeonButton, PixelPanel, ProgressBar, useToast } from '../../design/components'
@@ -77,6 +78,12 @@ export function ReadinessChecklist({ plan, onRefresh }: ReadinessChecklistProps)
   const wait = useTaskOutcome()
   const worldInstall = useWorldInstall()
   const pickPaths = useIpcMutation('app:pickPaths')
+  const openExternal = useIpcMutation('app:openExternal', {
+    onError: (error) => {
+      const { title, body } = describeError(error, t)
+      toast.push({ tone: 'error', title, body })
+    },
+  })
   const vaultScan = useIpcMutation('vault:scan')
   const bizhawkInstall = useIpcMutation('bizhawk:install')
   const bizhawkConfigure = useIpcMutation('bizhawk:configureAp')
@@ -92,15 +99,29 @@ export function ReadinessChecklist({ plan, onRefresh }: ReadinessChecklistProps)
   const [rechecking, setRechecking] = useState(false)
   const task = useTask(busy?.taskId ?? null)
 
-  /** The catalog entry of the game when it has a release to download, or an .apworld the player picks. */
+  /** The catalog entry of the game when it has something to download, or an .apworld the player picks. */
   const worldSource = async (): Promise<WorldSource | null> => {
     if (game !== null) {
       const snapshot = catalog.data ?? (await catalog.refetch()).data
-      const entry = snapshot?.entries.find(
-        (candidate) => candidate.game === game && candidate.latest !== null,
-      )
+      const entries = snapshot?.entries.filter((candidate) => candidate.game === game) ?? []
+      const entry = entries.find(isInstallable)
       if (entry) return { kind: 'catalog', id: entry.id }
-      toast.push({ tone: 'info', title: t('screens.join.checklist.worldNotInCatalog', { game }) })
+      // Listed by the wiki with a page to download it from: the toast stays, to open it once the
+      // file dialog is closed.
+      const page = entries.map(downloadPageOf).find((url): url is string => url !== null)
+      toast.push(
+        page === undefined
+          ? { tone: 'info', title: t('screens.join.checklist.worldNotInCatalog', { game }) }
+          : {
+              tone: 'info',
+              title: t('screens.join.checklist.worldOnPage', { game }),
+              action: {
+                label: t('screens.join.checklist.openWorldPage'),
+                onClick: () => openExternal.mutate({ url: page }),
+              },
+              duration: 0,
+            },
+      )
     }
     const [path] = await pickPaths.mutateAsync({
       mode: 'file',

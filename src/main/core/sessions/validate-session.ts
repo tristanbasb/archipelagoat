@@ -15,6 +15,7 @@ import {
   validateSessionNames,
   type ValidationContext,
 } from '@main/core/yaml/validate'
+import { downloadPageOf, isInstallable } from '@shared/catalog'
 import { ROM_TABLE } from '@shared/data/rom-table'
 import type {
   CatalogEntry,
@@ -156,8 +157,17 @@ export interface SessionValidator {
   validateSession(id: string): Promise<SessionValidation>
 }
 
-/** The catalog id to install a world from, when the catalog has something to download for it. */
-const installableId = (entry: CatalogEntry | null): string | null => (entry?.latest ? entry.id : null)
+/**
+ * How a missing world is installed: from the catalog when it has something to download for it,
+ * else from a file the user gets on the page the catalog knows for it, if any.
+ */
+function missingWorld(game: string, entry: CatalogEntry | null): SessionValidation['missingWorlds'][number] {
+  return {
+    game,
+    catalogId: entry && isInstallable(entry) ? entry.id : null,
+    downloadPage: entry && downloadPageOf(entry),
+  }
+}
 
 export function createSessionValidator(
   store: Pick<SessionStore, 'loadPlayers'>,
@@ -178,7 +188,7 @@ export function createSessionValidator(
       const unconfirmed = (context.unknownWorlds ?? []).length > 0
       const missingWorlds = games
         .filter((game) => !context.installedGames.has(game) && !unconfirmed)
-        .map((game) => ({ game, catalogId: installableId(deps.catalog.lookupByGame(game)) }))
+        .map((game) => missingWorld(game, deps.catalog.lookupByGame(game)))
       const romNeeds = await resolveRomNeeds(games, deps)
       const issues = [...allDocs.flatMap((doc) => doc.issues), ...sessionIssues]
       const blocking =

@@ -1,0 +1,40 @@
+{
+  "url": "https://api.github.com/repos/Rooby-Roo/FrogmonsterAPWorld/releases/303935628",
+  "html_url": "https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/tag/v0.2.5",
+  "id": 303935628,
+  "tag_name": "v0.2.5",
+  "target_commitish": "main",
+  "name": "Frogmonster v0.2.5",
+  "draft": false,
+  "prerelease": false,
+  "created_at": "2026-03-31T22:31:49Z",
+  "published_at": "2026-03-31T22:41:58Z",
+  "assets": [
+    {
+      "url": "https://api.github.com/repos/Rooby-Roo/FrogmonsterAPWorld/releases/assets/385837504",
+      "id": 385837504,
+      "name": "frogmonster.apworld",
+      "label": null,
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 28021,
+      "digest": "sha256:9fce6b13e43cdeda0246aef394f26d9299b9c86a3df1c8694357813c7b8a90c2",
+      "created_at": "2026-03-31T22:41:48Z",
+      "updated_at": "2026-03-31T22:41:49Z",
+      "browser_download_url": "https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/download/v0.2.5/frogmonster.apworld"
+    },
+    {
+      "url": "https://api.github.com/repos/Rooby-Roo/FrogmonsterAPWorld/releases/assets/385837508",
+      "id": 385837508,
+      "name": "Frogmonster.yaml",
+      "label": null,
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 6383,
+      "digest": "sha256:4c68402af44acbdd2f87702cabbbf3dca7ec9e49aa24d0635479a6669021cace",
+      "created_at": "2026-03-31T22:41:49Z",
+      "updated_at": "2026-03-31T22:41:49Z",
+      "browser_download_url": "https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/download/v0.2.5/Frogmonster.yaml"
+    }
+  ]
+}

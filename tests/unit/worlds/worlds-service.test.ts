@@ -37,6 +37,7 @@ beforeEach(() => {
   worlds = createWorlds(core.ctx, {
     locator: { detect: () => Promise.resolve(install) },
     lookupCatalog: () => null,
+    resolveWikiRelease: () => Promise.reject(new Error('no catalog')),
     listProcesses: () => Promise.resolve([]),
   })
 })
@@ -122,6 +123,7 @@ describe('worlds service: installedGames', () => {
         detect: () => (++detections === 2 ? Promise.reject(new Error('boom')) : Promise.resolve(install)),
       },
       lookupCatalog: () => null,
+      resolveWikiRelease: () => Promise.reject(new Error('no catalog')),
       listProcesses: () => Promise.resolve([]),
     })
     await expect(failing.installedGames()).rejects.toThrow('boom')

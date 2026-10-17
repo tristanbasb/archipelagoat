@@ -179,6 +179,7 @@
       "url": "Link",
       "catalog": "Catalog"
     },
+    "origin": "Downloaded from",
     "file": "Installed file",
     "authors": "Authors",
     "authorsUnknown": "Not given",
@@ -205,7 +206,10 @@
     "installing": "Installing…",
     "installed": "{{game}} is installed",
     "restartTitle": "Restart any open Archipelago programs",
-    "restartBody": "They only see {{game}} after a restart."
+    "restartBody": "They only see {{game}} after a restart.",
+    "openDownloadPage": "Open the download page",
+    "pickFile": "Choose the .apworld file",
+    "pickFileTitle": "Choose the world’s .apworld file"
   },
   "errors": {
     "NOT_IMPLEMENTED": "This feature is not available yet",
@@ -230,6 +234,10 @@
     "WORLD_INCOMPATIBLE": "This world is not compatible with your Archipelago version",
     "WORLD_CORRUPT_BLOCKING": "A broken world is blocking Archipelago",
     "WORLD_CORRUPT_BLOCKING_file": "The broken world {{file}} is blocking Archipelago",
+    "WORLD_RELEASE_UNAVAILABLE": "No release of this world to install",
+    "WORLD_RELEASE_UNAVAILABLE_no-release": "This world has no stable release on GitHub",
+    "WORLD_RELEASE_UNAVAILABLE_no-apworld": "The latest release of this world has no APWorld",
+    "WORLD_RELEASE_UNAVAILABLE_ambiguous": "Several APWorlds in the latest release of this world",
     "YAML_PARSE": "This YAML cannot be read",
     "GENERATION_PREFLIGHT": "The game is not ready to generate",
     "GENERATION_PREFLIGHT_hosting": "The game’s local server is running",
@@ -293,6 +301,10 @@
       "WORLD_INCOMPATIBLE": "Look for a version of the world made for your Archipelago version, or update Archipelago.",
       "WORLD_CORRUPT_BLOCKING": "A corrupted APWorld keeps Archipelago from starting. Set it aside from the Worlds screen or the health check.",
       "WORLD_CORRUPT_BLOCKING_file": "{{file}} is a corrupted APWorld and keeps Archipelago from starting. Set it aside from the Worlds screen or the health check.",
+      "WORLD_RELEASE_UNAVAILABLE": "ArchipelaGOAT cannot find its .apworld file. Download it from its page: {{url}}, then install the downloaded file.",
+      "WORLD_RELEASE_UNAVAILABLE_no-release": "Its GitHub repository has published no stable release (only prereleases, or nothing). Download it from its page: {{url}}, then install the downloaded .apworld file.",
+      "WORLD_RELEASE_UNAVAILABLE_no-apworld": "Its latest GitHub release holds no .apworld file. See on its page how to get it: {{url}}, then install the downloaded file.",
+      "WORLD_RELEASE_UNAVAILABLE_ambiguous": "Its latest GitHub release holds several .apworld files, and none of them alone bears the name of the game. Pick the right one on its page: {{url}}, then install it.",
       "YAML_PARSE": "A syntax error prevents reading it (often a tab or a missing colon). Fix it in the studio.",
       "GENERATION_PREFLIGHT": "Some checks failed before starting. Fix the reported points in the Check step.",
       "GENERATION_PREFLIGHT_hosting": "Stop the local server from the live game screen, then generate again: the new game replaces the one it runs.",

@@ -92,7 +92,9 @@
     "scanTitle": "Choose your ROM folder",
     "worldFileTitle": "Choose the game’s .apworld file",
     "worldFilter": "Archipelago worlds",
-    "worldNotInCatalog": "{{game}} is not in the catalog: choose its .apworld file."
+    "worldNotInCatalog": "{{game}} is not in the catalog: choose its .apworld file.",
+    "worldOnPage": "ArchipelaGOAT cannot install {{game}} by itself: download its .apworld file from its page, then choose it.",
+    "openWorldPage": "Open its page"
   },
   "warnings": {
     "label": "Heads up",

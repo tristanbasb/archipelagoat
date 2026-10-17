@@ -1,8 +1,9 @@
 // The APWorld catalog (spec §3.9): the worlds of the ionium index (ionium-ap/Archipelago-index) as the
 // installed Archipelago sees them, joined with the Archipelago wiki (status, maintainer, setup guide,
-// categories). A refresh costs one GitHub API call (the tree of the index); the files of the index come
-// from raw.githubusercontent.com, which is not rate limited, and only those whose blob changed. What
-// was fetched is kept on disk: offline or rate limited, the catalog answers from it, marked stale.
+// categories), then the worlds only the wiki lists. A refresh costs one GitHub API call (the tree of
+// the index); the files of the index come from raw.githubusercontent.com, which is not rate limited,
+// and only those whose blob changed. What was fetched is kept on disk: offline or rate limited, the
+// catalog answers from it, marked stale.
 import { createHash } from 'node:crypto'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
@@ -10,11 +11,12 @@ import pLimit from 'p-limit'
 import semver from 'semver'
 import { parse as parseToml } from 'smol-toml'
 import { z } from 'zod'
+import { isInstallable } from '@shared/catalog'
 import type { ErrorCode } from '@shared/codes'
 import { IONIUM_REPO, WIKI_API } from '@shared/data/ap-constants'
 import { coreWorldsFor } from '@shared/data/core-worlds'
 import { AppError, toAppErrorData } from '@shared/errors'
-import type { CatalogEntry, CatalogSnapshot, TrustTier, WorldInfo } from '@shared/types'
+import type { CatalogDownload, CatalogEntry, CatalogSnapshot, TrustTier, WorldInfo } from '@shared/types'
 import optOutList from '../../../../resources/catalog-optout.json'
 import type { Locator } from '../ap/locator'
 import type { CoreContext } from '../context'
@@ -48,7 +50,8 @@ const RETRY_MS = 5 * 60 * 1000
 const REQUEST_TIMEOUT_MS = 60_000
 /** A wiki listing that keeps asking for more after this many requests is not followed. */
 const MAX_WIKI_REQUESTS = 20
-const SAVED_VERSION = 1
+/** 2: wiki pages keep their repository link and download. */
+const SAVED_VERSION = 2
 
 // --- types ----------------------------------------------------------------------------------------
 
@@ -114,6 +117,10 @@ export interface WikiPage {
   status: string | null
   maintainer: string | null
   setupUrl: string | null
+  /** The first link of its repository field. */
+  homepage: string | null
+  /** What the first link of its download field leads to; null without one. */
+  download: CatalogDownload | null
   /** `owner/repo`, lowercase, of the GitHub links of its download and repository fields. */
   repos: string[]
 }
@@ -199,6 +206,26 @@ function githubRepo(link: string): string | null {
   return `${owner}/${name}`.toLowerCase()
 }
 
+/**
+ * What the download link of a wiki page leads to: the latest release of a GitHub repository
+ * (`/releases/latest`, or `/releases` without a search), else a page the user opens (a release
+ * search in a fork of many games, a tag, a file, another site).
+ */
+function wikiDownload(link: string | undefined): CatalogDownload | null {
+  if (link === undefined) return null
+  const url = parseUrl(link)
+  const repo = githubRepo(link)
+  const [, , releases, latest, ...rest] = url?.pathname.split('/').filter(Boolean) ?? []
+  const isLatest =
+    releases === 'releases' &&
+    (latest === undefined || latest === 'latest') &&
+    rest.length === 0 &&
+    url?.search === ''
+  return repo !== null && isLatest
+    ? { kind: 'github-latest', repo, pageUrl: link }
+    : { kind: 'page', url: link }
+}
+
 /** `owner/repo` of a GitHub release asset (`github.com/<owner>/<repo>/releases/download/…`). */
 function releaseRepo(link: string): string | null {
   const segments = parseUrl(link)?.pathname.split('/').filter(Boolean) ?? []
@@ -208,6 +235,12 @@ function releaseRepo(link: string): string | null {
 /** Accents and case set aside, so that "Pokémon Crystal" names the world "Pokemon Crystal". */
 const nameKey = (name: string): string =>
   name.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+/**
+ * Letters and digits only, accents and case set aside: "Factorio: Space Age Without Space" names the
+ * world "Factorio - Space Age Without Space", `burger_shop_2` the game "Burger Shop 2".
+ */
+export const compactKey = (name: string): string => nameKey(name).replace(/[^\p{L}\p{N}]/gu, '')
 
 const gitBlobSha = (bytes: Buffer): string =>
   createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
@@ -436,10 +469,10 @@ function decodeEntities(html: string): string {
   })
 }
 
-/** The text of an infobox value: tags dropped, entities decoded, line breaks as commas. */
+/** The text of an infobox value: tags dropped, entities decoded, line breaks and paragraphs as commas. */
 function htmlText(html: string): string | null {
   const parts = html
-    .split(/<br\s*\/?>/i)
+    .split(/<br\s*\/?>|<\/?p\b[^>]*>/i)
     .map((part) =>
       decodeEntities(part.replace(/<[^>]*>/g, ''))
         .replace(/\s+/g, ' ')
@@ -491,7 +524,9 @@ export function parseWikiPages(json: unknown): WikiPage[] {
     if (!isTable(page) || typeof page.title !== 'string' || page.title === '') continue
     const fields = infoboxFields(isTable(page.pageprops) ? page.pageprops.infoboxes : undefined)
     const field = (name: string): string => fields.get(name) ?? ''
-    const repos = [...htmlLinks(field('ap-repolink')), ...htmlLinks(field('ap-download'))]
+    const repoLinks = htmlLinks(field('ap-repolink'))
+    const downloadLinks = htmlLinks(field('ap-download'))
+    const repos = [...repoLinks, ...downloadLinks]
       .map(githubRepo)
       .filter((repo): repo is string => repo !== null)
     pages.push({
@@ -499,6 +534,8 @@ export function parseWikiPages(json: unknown): WikiPage[] {
       status: htmlText(field('ap-status')),
       maintainer: htmlText(field('ap-maintainer')),
       setupUrl: htmlLinks(field('ap-setuplink'))[0] ?? null,
+      homepage: repoLinks[0] ?? null,
+      download: wikiDownload(downloadLinks[0]),
       repos: [...new Set(repos)],
     })
   }
@@ -578,6 +615,15 @@ function wikiPagesOf(ionium: readonly IoniumWorld[], wiki: readonly WikiPage[]):
   return joined
 }
 
+/** The version of the custom world Archipelago loads among `matches` (else the first), or `unknown`. */
+function versionOf(matches: readonly WorldInfo[]): string | null {
+  const loaded = matches.find(
+    (candidate) => !candidate.states.some((state) => state === 'shadowed' || NOT_LOADED_STATES.has(state)),
+  )
+  const match = loaded ?? matches[0]
+  return match ? (match.manifest?.worldVersion ?? 'unknown') : null
+}
+
 /**
  * The version of `world` the user has: Archipelago's for a core world; else that of the custom world
  * of the same game (one without a manifest by its module), `unknown` when its manifest has none.
@@ -591,13 +637,9 @@ function installedVersionOf(
   if (isCore) return apVersion
   const custom = installed.filter((candidate) => candidate.location === 'custom')
   const sameGame = custom.filter((candidate) => candidate.game === world.name)
-  const matches =
-    sameGame.length > 0 ? sameGame : custom.filter((c) => c.game === null && c.module === world.id)
-  const loaded = matches.find(
-    (candidate) => !candidate.states.some((state) => state === 'shadowed' || NOT_LOADED_STATES.has(state)),
+  return versionOf(
+    sameGame.length > 0 ? sameGame : custom.filter((c) => c.game === null && c.module === world.id),
   )
-  const match = loaded ?? matches[0]
-  return match ? (match.manifest?.worldVersion ?? 'unknown') : null
 }
 
 function trustOf(isCore: boolean, latest: IoniumResolved | null, page: WikiPage | null): TrustTier {
@@ -608,12 +650,29 @@ function trustOf(isCore: boolean, latest: IoniumResolved | null, page: WikiPage 
   return repo !== null && page?.repos.includes(repo) ? 'wiki-release' : 'unknown'
 }
 
+const wikiInfo = (page: WikiPage): NonNullable<CatalogEntry['wiki']> => ({
+  title: page.title,
+  url: wikiPageUrl(page.title),
+  status: page.status,
+  maintainer: page.maintainer,
+  setupUrl: page.setupUrl,
+})
+
+const statusIs = (page: WikiPage, status: string): boolean =>
+  page.status !== null && nameKey(page.status) === nameKey(status)
+
 /**
  * The catalog entries (pure), by id. A world shipped with the installed Archipelago (its game in the
  * core table of that version, or found among the core worlds of `installed`) is `core`: nothing to
  * download, installed with Archipelago. Any other world disabled for that version is left out; one
  * with no release for that version stays, with `latest` null. Left out as well: the worlds of the
  * opt-out list, and After Dark worlds unless `showAfterDark`.
+ *
+ * Then the worlds only the wiki lists (`source: 'wiki'`): the pages no world of the index is joined
+ * to, whatever the index says of that world (a world it disables must not come back this way), nor
+ * named like one (punctuation set aside, or after its file), nor downloaded from one of its
+ * repositories. Core worlds are not among them: they come with Archipelago. Their release is not
+ * known here: it is asked when they are installed.
  */
 export function joinCatalog(
   ionium: readonly IoniumWorld[],
@@ -651,6 +710,7 @@ export function joinCatalog(
     const latest = isCore ? null : resolveIoniumRelease(world, opts.apVersion, opts.lock)
     entries.push({
       id: world.id,
+      source: 'index',
       game: world.name,
       displayName: world.displayName,
       homepage: world.home,
@@ -659,16 +719,54 @@ export function joinCatalog(
       afterDark,
       requiresRomAtGeneration: page !== null && (opts.romTitles?.has(page.title) ?? false),
       hasPopTracker: page !== null && (opts.popTrackerTitles?.has(page.title) ?? false),
-      wiki: page && {
-        title: page.title,
-        url: wikiPageUrl(page.title),
-        status: page.status,
-        maintainer: page.maintainer,
-        setupUrl: page.setupUrl,
-      },
+      wiki: page && wikiInfo(page),
       latest,
+      download: null,
       installedVersion: installedVersionOf(world, isCore, installed, opts.apVersion),
       trust: trustOf(isCore, latest, page),
+    })
+  }
+
+  // Without the index, no page can be told apart from the worlds it lists (or disables).
+  const wikiOnly = ionium.length > 0 ? wiki : []
+  const joined = new Set(pages.values())
+  // A title may differ from the world's name by its punctuation alone, or be its file stem ("APSudoku").
+  const ioniumNames = new Set(
+    ionium.flatMap((world) => [world.name, world.displayName, world.id].map(compactKey)),
+  )
+  const ioniumRepos = new Set(ionium.flatMap((world) => worldRepos(world)))
+  const coreKeys = new Set([...coreGames].map(compactKey))
+  const optOutKeys = new Set((opts.optOut?.games ?? []).map(compactKey))
+  // A custom world by its game, else (no game known) by its module.
+  const customByGame = new Map<string, WorldInfo[]>()
+  for (const world of installed)
+    if (world.location === 'custom') pushTo(customByGame, compactKey(world.game ?? world.module), world)
+  for (const page of wikiOnly) {
+    const key = compactKey(page.title)
+    const { download } = page
+    if (joined.has(page) || ioniumNames.has(key) || coreKeys.has(key) || statusIs(page, 'Core-verified'))
+      continue
+    if (download?.kind === 'github-latest' && ioniumRepos.has(download.repo)) continue
+    if (optOutKeys.has(key) || page.repos.some((repo) => optOutRepos.has(repo))) continue
+    const afterDark = opts.afterDarkTitles.has(page.title) || statusIs(page, 'After Dark')
+    if (afterDark && !opts.showAfterDark) continue
+    entries.push({
+      id: `wiki:${page.title}`,
+      source: 'wiki',
+      game: page.title,
+      displayName: page.title,
+      homepage: page.homepage,
+      tags: [],
+      // The index vouches for no such world.
+      supported: false,
+      afterDark,
+      requiresRomAtGeneration: opts.romTitles?.has(page.title) ?? false,
+      hasPopTracker: opts.popTrackerTitles?.has(page.title) ?? false,
+      wiki: wikiInfo(page),
+      latest: null,
+      download,
+      installedVersion: versionOf(customByGame.get(key) ?? []),
+      trust: download?.kind === 'github-latest' ? 'wiki-release' : 'unknown',
     })
   }
   return entries.sort((a, b) => byCodePoint(a.id, b.id))
@@ -724,6 +822,13 @@ const wikiPageSchema: z.ZodType<WikiPage> = z.object({
   status: nullableText,
   maintainer: nullableText,
   setupUrl: nullableText,
+  homepage: nullableText,
+  download: z
+    .discriminatedUnion('kind', [
+      z.object({ kind: z.literal('github-latest'), repo: z.string(), pageUrl: z.string() }),
+      z.object({ kind: z.literal('page'), url: z.string() }),
+    ])
+    .nullable(),
   repos: z.array(z.string()),
 })
 
@@ -1068,8 +1173,9 @@ export function createCatalog(ctx: CoreContext, deps: CatalogDeps): Catalog {
 
   const find = (match: (entry: CatalogEntry) => boolean): CatalogEntry | null => {
     const found = current().filter(match)
-    // Two files of the index may name the same game: the one with something to install first.
-    return found.find((entry) => entry.latest !== null) ?? found[0] ?? null
+    // Two files of the index may name the same game: the one with something to install first, a
+    // known release before one that is only resolved when it is installed.
+    return found.find((entry) => entry.latest !== null) ?? found.find(isInstallable) ?? found[0] ?? null
   }
 
   return {

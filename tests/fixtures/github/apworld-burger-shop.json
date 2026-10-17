@@ -1,0 +1,92 @@
+{
+  "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/367529653",
+  "html_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/tag/v0.3.2",
+  "id": 367529653,
+  "tag_name": "v0.3.2",
+  "target_commitish": "burger-shop",
+  "name": "Burger Shop v0.3.2",
+  "draft": false,
+  "prerelease": false,
+  "created_at": "2026-08-09T16:22:06Z",
+  "published_at": "2026-08-09T16:39:05Z",
+  "assets": [
+    {
+      "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/assets/507694950",
+      "id": 507694950,
+      "name": "Burger.Shop.2.yaml",
+      "label": null,
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 6963,
+      "digest": "sha256:f038e77dbea46157a3a19feaf869180ccc5c46ff09daec54cdccc902cca3e90e",
+      "created_at": "2026-08-09T16:38:52Z",
+      "updated_at": "2026-08-09T16:38:53Z",
+      "browser_download_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/download/v0.3.2/Burger.Shop.2.yaml"
+    },
+    {
+      "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/assets/507694869",
+      "id": 507694869,
+      "name": "Burger.Shop.yaml",
+      "label": null,
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 6699,
+      "digest": "sha256:215929c5ba37602a29e89e27c292de4f3500809ef2c146d4176acb9dc1cb485b",
+      "created_at": "2026-08-09T16:38:44Z",
+      "updated_at": "2026-08-09T16:38:44Z",
+      "browser_download_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/download/v0.3.2/Burger.Shop.yaml"
+    },
+    {
+      "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/assets/507694819",
+      "id": 507694819,
+      "name": "burger_shop.apworld",
+      "label": null,
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 134768,
+      "digest": "sha256:d0de39f2cd07158c39fa6232e575916e66c8278fa383c5bf3d23ab780fb01915",
+      "created_at": "2026-08-09T16:38:40Z",
+      "updated_at": "2026-08-09T16:38:41Z",
+      "browser_download_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/download/v0.3.2/burger_shop.apworld"
+    },
+    {
+      "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/assets/507694917",
+      "id": 507694917,
+      "name": "burger_shop_2.apworld",
+      "label": null,
+      "content_type": "application/octet-stream",
+      "state": "uploaded",
+      "size": 166736,
+      "digest": "sha256:d9b08ae512f33ed141afc00f5a90011824a0899a37020bace8d1c87793056023",
+      "created_at": "2026-08-09T16:38:49Z",
+      "updated_at": "2026-08-09T16:38:50Z",
+      "browser_download_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/download/v0.3.2/burger_shop_2.apworld"
+    },
+    {
+      "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/assets/507695003",
+      "id": 507695003,
+      "name": "Burger_Shop_2_Archipelago.zip",
+      "label": null,
+      "content_type": "application/x-zip-compressed",
+      "state": "uploaded",
+      "size": 696454,
+      "digest": "sha256:02049eefd13f69434a2dc5d37af21c28a2e3fd57a0ea36440ddbe4e091b98a8c",
+      "created_at": "2026-08-09T16:38:57Z",
+      "updated_at": "2026-08-09T16:38:59Z",
+      "browser_download_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/download/v0.3.2/Burger_Shop_2_Archipelago.zip"
+    },
+    {
+      "url": "https://api.github.com/repos/zsiegel701/Burger-Shop-Archipelago/releases/assets/507694900",
+      "id": 507694900,
+      "name": "Burger_Shop_Archipelago.zip",
+      "label": null,
+      "content_type": "application/x-zip-compressed",
+      "state": "uploaded",
+      "size": 55719,
+      "digest": "sha256:3eccb4595b7811377351d2dd9904dc7063dce0b743634658721a23a38c85126a",
+      "created_at": "2026-08-09T16:38:47Z",
+      "updated_at": "2026-08-09T16:38:47Z",
+      "browser_download_url": "https://github.com/zsiegel701/Burger-Shop-Archipelago/releases/download/v0.3.2/Burger_Shop_Archipelago.zip"
+    }
+  ]
+}

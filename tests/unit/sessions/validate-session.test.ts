@@ -77,9 +77,15 @@ function apPaths(base: string): ApPaths {
   }
 }
 
-function catalogEntry(id: string, game: string, latest: boolean): CatalogEntry {
+function catalogEntry(
+  id: string,
+  game: string,
+  latest: boolean,
+  download: CatalogEntry['download'] = null,
+): CatalogEntry {
   return {
     id,
+    source: download === null ? 'index' : 'wiki',
     game,
     displayName: game,
     homepage: null,
@@ -90,6 +96,7 @@ function catalogEntry(id: string, game: string, latest: boolean): CatalogEntry {
     hasPopTracker: false,
     wiki: null,
     latest: latest ? { version: '1.0.0', url: `https://example.org/${id}.apworld`, sha256: null } : null,
+    download,
     installedVersion: null,
     trust: 'indexed-verified',
   }
@@ -123,7 +130,37 @@ beforeEach(() => {
   schemas = [TUNIC]
   catalog = new Map([
     ['Hollow Knight', catalogEntry('hk', 'Hollow Knight', true)],
-    ['Wiki Only', catalogEntry('wiki-only', 'Wiki Only', false)],
+    [
+      'Wiki Only',
+      catalogEntry('wiki:Wiki Only', 'Wiki Only', false, {
+        kind: 'page',
+        url: 'https://github.com/owner/fork/releases?q=Wiki+Only',
+      }),
+    ],
+    [
+      'Itch Only',
+      {
+        ...catalogEntry('wiki:Itch Only', 'Itch Only', false, {
+          kind: 'page',
+          url: 'https://someone.itch.io/itch-only',
+        }),
+        wiki: {
+          title: 'Itch Only',
+          url: 'https://archipelago.miraheze.org/wiki/Itch_Only',
+          status: 'Custom',
+          maintainer: null,
+          setupUrl: null,
+        },
+      },
+    ],
+    [
+      'Wiki Release',
+      catalogEntry('wiki:Wiki Release', 'Wiki Release', false, {
+        kind: 'github-latest',
+        repo: 'owner/wiki-release',
+        pageUrl: 'https://github.com/owner/wiki-release/releases/latest',
+      }),
+    ],
   ])
   const locator = { detect: () => Promise.resolve(install) }
   vault = createVault(core.ctx, { settings, locator, table: TABLE })
@@ -177,13 +214,27 @@ describe('validateSession', () => {
         'Dave.yaml',
         `name: Dave\ngame: {Wiki Only: 1, Hollow Knight: 1, TUNIC: 0}\nWiki Only: {}\nHollow Knight: {}\n`,
       ],
+      ['Erin.yaml', player('Erin', 'Wiki Release')],
+      ['Frank.yaml', player('Frank', 'Itch Only')],
     )
     const result = await validator().validateSession(id)
     expect(result.missingWorlds).toEqual([
-      { game: 'Hollow Knight', catalogId: 'hk' },
-      { game: 'Zork', catalogId: null },
-      // In the catalog, but with nothing to download.
-      { game: 'Wiki Only', catalogId: null },
+      { game: 'Hollow Knight', catalogId: 'hk', downloadPage: null },
+      { game: 'Zork', catalogId: null, downloadPage: null },
+      // In the catalog, but with nothing to download: its page is opened in the browser.
+      {
+        game: 'Wiki Only',
+        catalogId: null,
+        downloadPage: 'https://github.com/owner/fork/releases?q=Wiki+Only',
+      },
+      // Only on the wiki: its latest GitHub release is resolved when it is installed.
+      { game: 'Wiki Release', catalogId: 'wiki:Wiki Release', downloadPage: null },
+      // A page on a site the app does not open: its wiki page, which links to it.
+      {
+        game: 'Itch Only',
+        catalogId: null,
+        downloadPage: 'https://archipelago.miraheze.org/wiki/Itch_Only',
+      },
     ])
     expect(result.blocking).toBe(true)
     const session = await store.get(id)

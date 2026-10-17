@@ -7,7 +7,7 @@ import { AppError } from '@shared/errors'
 import type { ApRelease, ReleaseAsset } from '@shared/types'
 import type { Http } from '../context'
 
-const API = 'https://api.github.com'
+export const GITHUB_API = 'https://api.github.com'
 
 /** How long `fetchLatestApRelease` answers from memory without asking GitHub again. */
 const FRESH_MS = 10 * 60 * 1000
@@ -20,7 +20,7 @@ const assetSchema = z.object({
   digest: z.string().nullish(),
 })
 
-const releaseSchema = z.object({
+export const releaseSchema = z.object({
   tag_name: z.string().min(1),
   published_at: z.string().nullish(),
   body: z.string().nullish(),
@@ -47,8 +47,12 @@ function parseAsset(raw: unknown): ReleaseAsset | null {
   return { name, url, size, sha256: DIGEST.exec(digest ?? '')?.[1]?.toLowerCase() ?? null }
 }
 
-const parseAssets = (raw: unknown[]): ReleaseAsset[] =>
+/** The assets that are well formed and served over https, `sha256` from their digest. */
+export const parseAssets = (raw: unknown[]): ReleaseAsset[] =>
   raw.map(parseAsset).filter((asset): asset is ReleaseAsset => asset !== null)
+
+/** The version a release tag names: the tag without a leading `v` (`v1.2.0` → `1.2.0`). */
+export const versionOfTag = (tag: string): string => tag.replace(/^v(?=\d)/i, '')
 
 /**
  * A GitHub release object as an `ApRelease`. Pure. The version is the tag without a leading `v`;
@@ -66,7 +70,7 @@ export function parseRelease(json: unknown): ApRelease {
     known.find((asset) => pattern.test(asset.name)) ?? null
   return {
     tag,
-    version: tag.replace(/^v(?=\d)/i, ''),
+    version: versionOfTag(tag),
     publishedAt: publishedAt ?? '',
     notes: body ?? '',
     windows: pick(ASSET_PATTERNS.windows),
@@ -76,7 +80,7 @@ export function parseRelease(json: unknown): ApRelease {
 }
 
 /** GitHub answered 200 with something that is not what its API documents. */
-function unexpectedAnswer<T>(url: string, parse: () => T): T {
+export function unexpectedAnswer<T>(url: string, parse: () => T): T {
   try {
     return parse()
   } catch (error) {
@@ -100,7 +104,7 @@ export async function fetchLatestApRelease(http: Http, opts: { force?: boolean }
   const kept = latest.get(http)
   if (!opts.force && kept && Date.now() - kept.at < FRESH_MS) return kept.release
 
-  const url = `${API}/repos/${AP_REPO}/releases/latest`
+  const url = `${GITHUB_API}/repos/${AP_REPO}/releases/latest`
   const { data, stale } = await http.getJson<unknown>(url)
   const release = unexpectedAnswer(url, () => parseRelease(data))
   if (!stale) latest.set(http, { at: Date.now(), release })
@@ -108,6 +112,10 @@ export async function fetchLatestApRelease(http: Http, opts: { force?: boolean }
 }
 
 const REPO = /^[\w.-]+\/[\w.-]+$/
+
+/** `owner/name`, safe in an API path: `.` and `..` would be resolved out of it by the URL parser. */
+export const isRepoName = (repo: string): boolean =>
+  REPO.test(repo) && !repo.split('/').some((part) => part === '.' || part === '..')
 
 /**
  * Every asset of the release of `tag` in `repo` (`owner/name`), for repositories whose releases the
@@ -118,11 +126,10 @@ export async function fetchReleaseByTag(
   repo: string,
   tag: string,
 ): Promise<{ assets: ReleaseAsset[] }> {
-  // `.` and `..` would be resolved out of the path by the URL parser.
-  if (!REPO.test(repo) || repo.split('/').some((part) => part === '.' || part === '..') || tag === '') {
+  if (!isRepoName(repo) || tag === '') {
     throw new AppError('INVALID_INPUT', undefined, { detail: 'repository or tag' })
   }
-  const url = `${API}/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`
+  const url = `${GITHUB_API}/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`
   const { data } = await http.getJson<unknown>(url)
   return unexpectedAnswer(url, () => {
     const parsed = releaseAssetsSchema.safeParse(data)
