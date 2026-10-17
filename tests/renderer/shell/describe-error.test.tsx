@@ -146,6 +146,18 @@ describe('describeError', () => {
       )
     })
 
+    it.each(['fr', 'en'] as const)('names the programs that lock the settings (%s)', async (lang) => {
+      await i18n.changeLanguage(lang)
+      const processes = 'ArchipelagoLauncher.exe, ArchipelagoBizHawkClient.exe'
+      const described = describeError({ code: 'SETTINGS_LOCKED', params: { processes } })
+      expect(described.title).toBe(i18n.t('errors.SETTINGS_LOCKED'))
+      expect(described.body).toContain(processes)
+      // Without the list, the generic text stays (never a raw placeholder).
+      const generic = describeError({ code: 'SETTINGS_LOCKED' })
+      expect(generic.body).toBe(i18n.t('errors.help.SETTINGS_LOCKED'))
+      expect(generic.body).not.toContain('{{')
+    })
+
     it('keeps the plain text for a reason or a phase with no text of its own', () => {
       for (const params of [{ reason: 'traversal' }, { phase: 'late' }, { reason: 'a.b:c' }]) {
         const described = describeError({ code: 'PATH_FORBIDDEN', params })

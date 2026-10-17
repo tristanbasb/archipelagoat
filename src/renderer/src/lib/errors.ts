@@ -62,14 +62,14 @@ const VARIANT_NAME = /^[A-Za-z0-9-]+$/
 /**
  * The variants of an error's texts that its params select, the most specific first: the value of a
  * `reason`, then of a `phase` (`errors.<CODE>_hosting`, `errors.<CODE>_running`), then `_message` for
- * a message from a site and `_file` for a file name. Each text takes the first of them it has, or
- * its plain version.
+ * a message from a site, `_file` for a file name and `_processes` for the programs to close. Each
+ * text takes the first of them it has, or its plain version.
  */
 function variantsOf(params: Record<string, string | number>): string[] {
   const named = [params.reason, params.phase].filter(
     (value): value is string => typeof value === 'string' && VARIANT_NAME.test(value),
   )
-  const given = (['message', 'file'] as const).filter((name) => {
+  const given = (['message', 'file', 'processes'] as const).filter((name) => {
     const value = params[name]
     return typeof value === 'string' && value !== ''
   })

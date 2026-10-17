@@ -1,7 +1,8 @@
 // Archipelago's settings file (spec §3.6). AP loads exactly one file, options.yaml or host.yaml
 // (settings.py:885-907, research brief C3): that file is the one read and edited, as YAML 1.1 (PyYAML's
 // dialect) with its comments, only while no Archipelago program runs (AP saves its own copy at exit),
-// backed up first and replaced atomically. A session gets its own complete copy in its folder, which
+// backed up first and replaced atomically. The app's own session programs do not count: they run in
+// their session folder and only ever load and save that folder's host.yaml. A session gets its own complete copy in its folder, which
 // its programs load because they run there (cwd = session folder, research brief §1.7).
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -11,7 +12,7 @@ import { AppError } from '@shared/errors'
 import type { CoreContext } from '../context'
 import { backupFile, writeFileAtomic } from '../system/fsx'
 import { resolveSettingsFile, type Locator } from './locator'
-import { listApProcesses } from './processes'
+import { listApProcesses, sessionScopedPids } from './processes'
 
 /** Keys from the top of the file: `['bizhawkclient_options', 'emuhawk_path']`. */
 export type SettingsPath = readonly string[]
@@ -28,8 +29,9 @@ export interface ApSettings {
   get(path: SettingsPath): Promise<unknown>
   /**
    * Writes every entry in one go, one call after the other. SETTINGS_LOCKED{processes} while an
-   * Archipelago program runs; YAML_PARSE (file untouched) when the file cannot be read. Creates
-   * `host.yaml` when there is no settings file, never `options.yaml`.
+   * Archipelago program runs, the app's own session programs excepted; YAML_PARSE (file untouched)
+   * when the file cannot be read. Creates `host.yaml` when there is no settings file, never
+   * `options.yaml`.
    */
   set(entries: readonly SettingsEntry[]): Promise<void>
   /**
@@ -106,7 +108,20 @@ function applyEntries(text: string | null, entries: readonly SettingsEntry[], fi
   return text?.includes('\r\n') ? out.replaceAll('\n', '\r\n') : out
 }
 
-export function createApSettings(ctx: CoreContext, locator: Locator): ApSettings {
+export interface ApSettingsOptions {
+  /**
+   * The pids of the app's own session programs (a generation, a local server): they run in their
+   * session folder and never save over the file this service writes. Default: sessionScopedPids.
+   */
+  sessionPids?: () => ReadonlySet<number>
+}
+
+export function createApSettings(
+  ctx: CoreContext,
+  locator: Locator,
+  opts: ApSettingsOptions = {},
+): ApSettings {
+  const sessionPids = opts.sessionPids ?? sessionScopedPids
   const backupsRoot = join(ctx.platform.paths.dataRoot, 'backups')
   let writes: Promise<unknown> = Promise.resolve()
 
@@ -120,8 +135,10 @@ export function createApSettings(ctx: CoreContext, locator: Locator): ApSettings
 
   async function write(entries: readonly SettingsEntry[]): Promise<void> {
     if (entries.length === 0) return
-    // A running program would save its own copy over ours when it exits.
-    const running = await listApProcesses(ctx.exec, ctx.platform.os)
+    // A running program would save its own copy over ours when it exits. A session's program loads the
+    // host.yaml of its session folder (its cwd), so it cannot.
+    const own = sessionPids()
+    const running = (await listApProcesses(ctx.exec, ctx.platform.os)).filter((p) => !own.has(p.pid))
     if (running.length > 0) {
       const processes = [...new Set(running.map((p) => p.name))].join(', ')
       throw new AppError('SETTINGS_LOCKED', { processes })

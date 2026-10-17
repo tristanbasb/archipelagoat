@@ -175,8 +175,32 @@ describe('ap settings', () => {
     )
     expect(readFileSync(hostYaml, 'utf8')).toBe(HOST_YAML)
     expect(existsSync(backups)).toBe(false)
+  })
 
-    // A listing that fails does not mean that nothing runs.
+  it("ignores the app's own session programs, which only load their session's host.yaml", async () => {
+    writeFileSync(hostYaml, HOST_YAML)
+    // pid 100 is the session's local server (ArchipelagoServer), 101 a generation of another session.
+    const settings = createApSettings(core.ctx, locatorOf(folderInstall(ap)), {
+      sessionPids: () => new Set([100, 101]),
+    })
+    const entries = [{ path: SETTINGS_KEYS.romStart, value: false }]
+    core.ctx.exec = apProcesses(['ArchipelagoServer', 'ArchipelagoGenerate'])
+    await settings.set(entries)
+    expect(yaml11(readFileSync(hostYaml, 'utf8')).bizhawkclient_options?.rom_start).toBe(false)
+
+    // Any other Archipelago program still locks the file: here a client the user opened (pid 102).
+    core.ctx.exec = apProcesses(['ArchipelagoServer', 'ArchipelagoGenerate', 'ArchipelagoBizHawkClient'])
+    const error = await settings.set([{ path: SETTINGS_KEYS.romStart, value: true }]).catch((e: unknown) => e)
+    expect(error).toMatchObject({ code: 'SETTINGS_LOCKED' })
+    expect((error as AppError).params?.processes).toBe(
+      hostOs === 'win32' ? 'ArchipelagoBizHawkClient.exe' : 'ArchipelagoBizH',
+    )
+  })
+
+  it('a listing that fails refuses the write: it does not mean that nothing runs', async () => {
+    writeFileSync(hostYaml, HOST_YAML)
+    const settings = settingsFor(folderInstall(ap))
+    const entries = [{ path: SETTINGS_KEYS.romStart, value: false }]
     core.ctx.exec = () => Promise.resolve({ code: 1, stdout: '', stderr: 'denied' })
     await expect(settings.set(entries)).rejects.toThrow('exited with code 1')
     expect(readFileSync(hostYaml, 'utf8')).toBe(HOST_YAML)

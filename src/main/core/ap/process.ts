@@ -212,6 +212,14 @@ export function listChildren(): { pid: number; command: string }[] {
   return [...children.values()].map((child) => ({ pid: child.entry.pid, command: child.entry.exe }))
 }
 
+/**
+ * The pids of the registered children that belong to a session (its generation, its local server).
+ * They run in the session folder and load only that folder's host.yaml (spec §3.6).
+ */
+export function sessionChildPids(): number[] {
+  return [...children.values()].filter((child) => child.entry.sessionId !== null).map((c) => c.entry.pid)
+}
+
 /** Kills the children still running, except the selfManaged ones, and waits up to `timeoutMs` for them. */
 export async function disposeChildren(timeoutMs: number): Promise<void> {
   const targets = [...children.values()].filter((child) => !child.selfManaged)

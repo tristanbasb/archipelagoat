@@ -261,6 +261,7 @@
       "AP_RUNNING": "Close the open Archipelago programs (Launcher, clients, server), then try again.",
       "AP_RUNNING_local-server": "Stop the local server first, from the live game screen: a game is hosted in one place at a time. Then host it on archipelago.gg.",
       "SETTINGS_LOCKED": "Another program is using the settings file. Close Archipelago and try again.",
+      "SETTINGS_LOCKED_processes": "These Archipelago programs are open and would save their own copy of the settings when they close: {{processes}}. Close them, then try again.",
       "NETWORK_OFFLINE": "Check your connection. Anything already cached is still available.",
       "GITHUB_RATE_LIMITED": "Too many anonymous requests. Wait a little, or add a GitHub token in the settings to raise the limit.",
       "HTTP_ERROR": "Try again in a moment. If it keeps failing, the site may be down.",

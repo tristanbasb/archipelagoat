@@ -757,7 +757,8 @@ describe('play', () => {
 
   it('SETTINGS_LOCKED while applying the ROM stops the launch', async () => {
     vault.resolveRomForEntry.mockResolvedValue({ status: 'ok', path: 'v.gba', vaultPath: 'v.gba' })
-    settings.set.mockRejectedValue(new AppError('SETTINGS_LOCKED', { processes: 'ArchipelagoServer' }))
+    // A client the user left open (the app's own session server does not lock the file).
+    settings.set.mockRejectedValue(new AppError('SETTINGS_LOCKED', { processes: 'ArchipelagoBizHawkClient' }))
     const spawn = fakeSpawn()
     const join_ = makeJoin({ spawn: spawn.spawn })
     const plan = await join_.prepare({ kind: 'patch', path: await localPatch() }, null, fakeTask())

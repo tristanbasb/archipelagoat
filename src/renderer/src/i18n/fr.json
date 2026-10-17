@@ -261,6 +261,7 @@
       "AP_RUNNING": "Ferme les programmes Archipelago ouverts (Launcher, clients, serveur), puis réessaie.",
       "AP_RUNNING_local-server": "Arrête d’abord le serveur local, depuis l’écran de la partie en cours\u00a0: une partie n’est hébergée qu’à un seul endroit. Puis héberge-la sur archipelago.gg.",
       "SETTINGS_LOCKED": "Un autre programme utilise le fichier de réglages. Ferme Archipelago et réessaie.",
+      "SETTINGS_LOCKED_processes": "Ces programmes d’Archipelago sont ouverts et réenregistreraient leur propre copie des réglages en se fermant : {{processes}}. Ferme-les, puis réessaie.",
       "NETWORK_OFFLINE": "Vérifie ta connexion. Ce qui est déjà en cache reste disponible.",
       "GITHUB_RATE_LIMITED": "Trop de requêtes sans compte. Attends un peu, ou ajoute un jeton GitHub dans les réglages pour relever la limite.",
       "HTTP_ERROR": "Réessaie dans quelques instants. Si ça continue, le site est peut-être en panne.",
