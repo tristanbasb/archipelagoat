@@ -57,6 +57,7 @@ export const TEST_INFO: AppInfo = {
   isPackaged: false,
   userData: 'C:\\Users\\Joueur\\AppData\\Roaming\\ArchipelaGOAT',
   dataRoot: 'C:\\Users\\Joueur\\AppData\\Local\\ArchipelaGOAT',
+  updater: 'development',
 }
 
 type BridgedError = AppErrorData & { name: 'GoatError'; message: string }

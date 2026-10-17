@@ -73,7 +73,10 @@ export function AboutPanel({ info, licenses = BUNDLED_LICENSES }: AboutPanelProp
           <div>
             <dt>{k('updates')}</dt>
             <dd>
-              <StatusPill status="idle" label={k('updatesState')} />
+              <StatusPill
+                status={info.updater === 'active' ? 'ok' : 'idle'}
+                label={k(`updaterStates.${info.updater}`)}
+              />
             </dd>
           </div>
         </dl>

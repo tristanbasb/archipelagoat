@@ -152,7 +152,12 @@
       "dev": "Development"
     },
     "updates": "Automatic updates",
-    "updatesState": "Not configured",
+    "updaterStates": {
+      "active": "On: installed when you quit the app",
+      "not-configured": "Not configured",
+      "unsupported": "Not for this build (portable, deb, tar.gz)",
+      "development": "Development build"
+    },
     "attributions": "Attributions",
     "credits": {
       "archipelago": {

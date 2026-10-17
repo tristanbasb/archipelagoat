@@ -1,7 +1,7 @@
 // The `updater` service (Task 35): electron-updater against the GitHub releases (spec §8), eager so that
 // it checks once at startup. electron-builder writes resources/app-update.yml only when it knows the
 // repository to publish to, which a release built by .github/workflows/release.yml does; a local build
-// has none, and initUpdater then does nothing at all (About says "not configured").
+// has none, and initUpdater then does nothing at all. About shows the state (app:getInfo).
 //
 // When active, an update downloads in the background and installs when the app quits: no dialog and no
 // notification, since the main process shows no text of its own. Only the builds that can replace
@@ -11,9 +11,10 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { CoreContext } from '@main/core/context'
+import type { UpdaterState } from '@shared/types'
 import { defineService } from './registry'
 
-export type UpdaterState = 'development' | 'not-configured' | 'unsupported' | 'active'
+export type { UpdaterState }
 
 /** What the service sets and calls on electron-updater's `autoUpdater`. */
 export interface AutoUpdaterLike {

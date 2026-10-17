@@ -5,6 +5,13 @@ import type { AppErrorData } from './errors'
 export type OS = 'win32' | 'linux'
 export type Lang = 'fr' | 'en'
 
+/**
+ * What electron-updater does for this build: `active` downloads updates and installs them on quit
+ * (the NSIS install, the AppImage), `unsupported` builds cannot replace themselves (portable, deb,
+ * tar.gz), `not-configured` has no publishing repository, `development` is not packaged.
+ */
+export type UpdaterState = 'development' | 'not-configured' | 'unsupported' | 'active'
+
 export interface AppInfo {
   version: string
   os: OS
@@ -12,6 +19,7 @@ export interface AppInfo {
   isPackaged: boolean
   userData: string
   dataRoot: string
+  updater: UpdaterState
 }
 
 export interface AppConfig {

@@ -41,6 +41,8 @@ describe('app handlers', () => {
         isPackaged: false,
         userData: paths.userData,
         dataRoot: paths.dataRoot,
+        // Not packaged: electron-updater does nothing.
+        updater: 'development',
       },
     })
   })

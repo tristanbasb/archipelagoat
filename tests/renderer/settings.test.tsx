@@ -343,7 +343,8 @@ describe('settings screen', () => {
     const about = screen.getByRole('region', { name: 'À propos' })
     expect(within(about).getByText('Compagnon non officiel pour Archipelago')).toBeInTheDocument()
     expect(within(about).getByText('v0.1.0')).toBeInTheDocument()
-    expect(within(about).getByText('Non configuré')).toBeInTheDocument()
+    // A development build: electron-updater does nothing.
+    expect(within(about).getByText('Version de développement')).toBeInTheDocument()
     expect(within(about).getByText(/CC BY-NC-SA 4\.0/)).toBeInTheDocument()
     expect(within(about).getByRole('link', { name: /Index ionium/ })).toBeInTheDocument()
     expect(within(about).getByText('Licences des dépendances')).toBeInTheDocument()
@@ -361,6 +362,19 @@ describe('settings screen', () => {
 })
 
 describe('about panel', () => {
+  it.each([
+    ['active', 'Actives : installées en quittant l’app'],
+    ['unsupported', 'Pas pour cette version (portable, deb, tar.gz)'],
+    ['not-configured', 'Non configurées'],
+  ] as const)('says what the updater does for this build (%s)', async (updater, label) => {
+    installGoatMock()
+    await renderWithProviders(
+      <AboutPanel info={{ ...TEST_INFO, isPackaged: true, updater }} licenses={null} />,
+    )
+    // (The text matcher sees the no-break space of the French text as a space.)
+    expect(screen.getByText(label)).toBeInTheDocument()
+  })
+
   it('says the license list only exists in packaged builds', async () => {
     installGoatMock()
     await renderWithProviders(<AboutPanel info={TEST_INFO} licenses={null} />)

@@ -3,6 +3,7 @@ import { readdir, rm, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { assertUserPath } from '@main/core/system/user-path'
 import type { ServiceContainer } from '@main/services/registry'
+import type {} from '@main/services/updater.service'
 import { AppError } from '@shared/errors'
 import type { RegisterHandler } from './registry'
 
@@ -44,7 +45,8 @@ async function emptyDir(dir: string): Promise<void> {
   await Promise.all(names.map((name) => rm(join(dir, name), { recursive: true, force: true, maxRetries: 3 })))
 }
 
-export default function registerAppHandlers(register: RegisterHandler, { ctx }: ServiceContainer): void {
+export default function registerAppHandlers(register: RegisterHandler, services: ServiceContainer): void {
+  const { ctx } = services
   const { platform, config, secrets, paths, lifecycle } = ctx
 
   register('app:getInfo', () =>
@@ -55,6 +57,8 @@ export default function registerAppHandlers(register: RegisterHandler, { ctx }: 
       isPackaged: platform.isPackaged,
       userData: platform.paths.userData,
       dataRoot: platform.paths.dataRoot,
+      // What About says of the automatic updates (spec §8).
+      updater: services.get('updater').state,
     }),
   )
 
