@@ -1,0 +1,336 @@
+﻿# Q. What is this file?
+# A. This file contains options which allow you to configure your multiworld experience while allowing
+#    others to play how they want as well.
+#
+# Q. How do I use it?
+# A. The options in this file are weighted. This means the higher number you assign to a value, the
+#    more chances you have for that option to be chosen. For example, an option like this:
+#
+#    map_shuffle:
+#      on: 5
+#      off: 15
+#
+#    Means you have 5 chances for map shuffle to occur, and 15 chances for map shuffle to be turned
+#    off.
+#
+# Q. I've never seen a file like this before. What characters am I allowed to use?
+# A. This is a .yaml file. You are allowed to use most characters.
+#    To test if your yaml is valid or not, you can use this website:
+#        http://www.yamllint.com/
+#    You can also verify that your Archipelago options are valid at this site:
+#        https://archipelago.gg/check
+
+# Your name in-game, limited to 16 characters.
+#     {player} will be replaced with the player's slot number.
+#     {PLAYER} will be replaced with the player's slot number, if that slot number is greater than 1.
+#     {number} will be replaced with the counter value of the name.
+#     {NUMBER} will be replaced with the counter value of the name, if the counter value is greater than 1.
+name: Player{number}
+
+# Used to describe your yaml. Useful if you have multiple files.
+description: 'Default Jak and Daxter: The Precursor Legacy Template'
+
+game: 'Jak and Daxter: The Precursor Legacy'
+requires:
+  version: 0.6.8 # Version of Archipelago required for this yaml to work as expected.
+  game:
+    'Jak and Daxter: The Precursor Legacy': 1.1.6 # Version of the world required for this yaml to work as expected.
+
+'Jak and Daxter: The Precursor Legacy':
+  ################
+  # Game Options #
+  ################
+  progression_balancing:
+    # A system that can move progression earlier, to try and prevent the player from getting stuck and bored early.
+    # 
+    # A lower setting means more getting stuck. A higher setting means less getting stuck.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 99
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-99: 0 # random value between 0 and 99
+    disabled: 0 # equivalent to 0
+    normal: 50 # equivalent to 50
+    extreme: 0 # equivalent to 99
+
+  accessibility:
+    # Set rules for reachability of your items/locations.
+    # 
+    # **Full:** ensure everything can be reached and acquired.
+    # 
+    # **Minimal:** ensure what is needed to reach your goal can be acquired.
+    full: 50
+    minimal: 0
+
+  enable_move_randomizer:
+    # Include movement options as items in the randomizer. Until you find his other moves, Jak is limited to
+    # running, swimming, single-jumping, and shooting yellow eco through his goggles.
+    # 
+    # This adds 11 items to the pool.
+    'false': 50
+    'true': 0
+
+  require_punch_for_klaww:
+    # Force the Punch move to come before Klaww. Disabling this setting may require Jak to fight Klaww
+    # and Gol and Maia by shooting yellow eco through his goggles. This only applies if "Enable Move Randomizer" is ON.
+    'false': 0
+    'true': 50
+
+  jak_completion_condition:
+    # Set the goal for completing the game.
+    cross_fire_canyon: 0
+    cross_mountain_pass: 0
+    cross_lava_tube: 0
+    defeat_klaww: 0
+    defeat_gol_and_maia: 50
+    open_100_cell_door: 0
+
+  #############
+  # Orbsanity #
+  #############
+  enable_orbsanity:
+    # Include bundles of Precursor Orbs as checks. Every time you collect the chosen number of orbs, you will trigger
+    # another check.
+    # 
+    # Per Level: bundles are for each level in the game.
+    # Global: bundles carry over level to level.
+    # 
+    # This adds a number of Items and Locations to the pool inversely proportional to the size of the bundle.
+    # For example, if your bundle size is 20 orbs, you will add 100 items to the pool. If your bundle size is 250 orbs,
+    # you will add 8 items to the pool.
+    'off': 50
+    per_level: 0
+    global: 0
+
+  global_orbsanity_bundle_size:
+    # The orb bundle size for Global Orbsanity. This only applies if "Enable Orbsanity" is set to "Global."
+    # There are 2000 orbs in the game, so your bundle size must be a factor of 2000.
+    # 
+    # This value is restricted to safe minimum and maximum values to ensure valid singleplayer games and
+    # non-disruptive multiplayer games, but the host can remove this restriction by turning off enforce_friendly_options
+    # in host.yaml.
+    10_orbs: 0
+    16_orbs: 0
+    20_orbs: 50
+    25_orbs: 0
+    40_orbs: 0
+    50_orbs: 0
+    80_orbs: 0
+    100_orbs: 0
+    125_orbs: 0
+    200_orbs: 0
+
+  level_orbsanity_bundle_size:
+    # The orb bundle size for Per Level Orbsanity. This only applies if "Enable Orbsanity" is set to "Per Level."
+    # There are 50, 150, or 200 orbs per level, so your bundle size must be a factor of 50.
+    # 
+    # This value is restricted to safe minimum and maximum values to ensure valid singleplayer games and
+    # non-disruptive multiplayer games, but the host can remove this restriction by turning off enforce_friendly_options
+    # in host.yaml.
+    10_orbs: 0
+    25_orbs: 50
+    50_orbs: 0
+
+  #####################
+  # Power Cell Counts #
+  #####################
+  enable_ordered_cell_counts:
+    # Reorder the Cell Count requirements for vehicle sections to be in ascending order.
+    # 
+    # For example, if Fire Canyon Cell Count, Mountain Pass Cell Count, and Lava Tube Cell Count are 60, 30, and 40
+    # respectively, they will be reordered to 30, 40, and 60.
+    'false': 0
+    'true': 50
+
+  fire_canyon_cell_count:
+    # The number of power cells you need to cross Fire Canyon. This value is restricted to a safe maximum value to
+    # ensure valid singleplayer games and non-disruptive multiplayer games, but the host can remove this restriction by
+    # turning off enforce_friendly_options in host.yaml.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 30
+    20: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-30: 0 # random value between 0 and 30
+
+  mountain_pass_cell_count:
+    # The number of power cells you need to reach Klaww and cross Mountain Pass. This value is restricted to a safe
+    # maximum value to ensure valid singleplayer games and non-disruptive multiplayer games, but the host can
+    # remove this restriction by turning off enforce_friendly_options in host.yaml.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 60
+    45: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-60: 0 # random value between 0 and 60
+
+  lava_tube_cell_count:
+    # The number of power cells you need to cross Lava Tube. This value is restricted to a safe maximum value to
+    # ensure valid singleplayer games and non-disruptive multiplayer games, but the host can remove this restriction by
+    # turning off enforce_friendly_options in host.yaml.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 90
+    72: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-90: 0 # random value between 0 and 90
+
+  ####################
+  # Orb Trade Counts #
+  ####################
+  citizen_orb_trade_amount:
+    # The number of orbs you need to trade to citizens for a power cell (Mayor, Uncle, etc.).
+    # 
+    # Along with Oracle Orb Trade Amount, this setting cannot exceed the total number of orbs in the game (2000).
+    # The equation to determine the total number of trade orbs is (9 * Citizen Trades) + (6 * Oracle Trades).
+    # 
+    # This value is restricted to a safe maximum value to ensure valid singleplayer games and non-disruptive
+    # multiplayer games, but the host can remove this restriction by turning off enforce_friendly_options in host.yaml.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 120
+    90: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-120: 0 # random value between 0 and 120
+
+  oracle_orb_trade_amount:
+    # The number of orbs you need to trade to the Oracles for a power cell.
+    # 
+    # Along with Citizen Orb Trade Amount, this setting cannot exceed the total number of orbs in the game (2000).
+    # The equation to determine the total number of trade orbs is (9 * Citizen Trades) + (6 * Oracle Trades).
+    # 
+    # This value is restricted to a safe maximum value to ensure valid singleplayer games and non-disruptive
+    # multiplayer games, but the host can remove this restriction by turning off enforce_friendly_options in host.yaml.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 150
+    120: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-150: 0 # random value between 0 and 150
+
+  #########
+  # Traps #
+  #########
+  filler_power_cells_replaced_with_traps:
+    # The number of filler power cells that will be replaced with traps. This does not affect the number of progression
+    # power cells.
+    # 
+    # If this value is greater than the number of filler power cells, then they will all be replaced with traps.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 100
+    0: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-100: 0 # random value between 0 and 100
+
+  filler_orb_bundles_replaced_with_traps:
+    # The number of filler orb bundles that will be replaced with traps. This does not affect the number of progression
+    # orb bundles. This only applies if "Enable Orbsanity" is set to "Per Level" or "Global."
+    # 
+    # If this value is greater than the number of filler orb bundles, then they will all be replaced with traps.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 0
+    # Maximum value is 2000
+    0: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-0-2000: 0 # random value between 0 and 2000
+
+  trap_effect_duration:
+    # The length of time, in seconds, that a trap effect lasts.
+    #
+    # You can define additional values between the minimum and maximum values.
+    # Minimum value is 5
+    # Maximum value is 60
+    30: 50
+    random: 0
+    random-low: 0 # random value weighted towards lower values
+    random-high: 0 # random value weighted towards higher values
+    random-range-5-60: 0 # random value between 5 and 60
+
+  trap_weights:
+    # The list of traps and corresponding weights that will be randomly added to the item pool. A trap with weight 10 is
+    # twice as likely to appear as a trap with weight 5. Set a weight to 0 to prevent that trap from appearing altogether.
+    # If all weights are 0, no traps are created, overriding the values of "Filler * Replaced With Traps."
+    Camera Trap: 1
+    Darkness Trap: 1
+    Despair Trap: 1
+    Earthquake Trap: 1
+    Ecoless Trap: 1
+    Gravity Trap: 1
+    Health Trap: 1
+    Ledge Trap: 1
+    Mirror Trap: 1
+    Pacifism Trap: 1
+    Slippery Trap: 1
+    Teleport Trap: 1
+    Trip Trap: 1
+    Zoomer Trap: 1
+
+  ###########################
+  # Item & Location Options #
+  ###########################
+  local_items:
+    # Forces these items to be in their native world.
+    []
+
+  non_local_items:
+    # Forces these items to be outside their native world.
+    []
+
+  start_inventory:
+    # Start with the specified amount of these items. Example: {Bomb: 1, Arrow: 3}
+    {}
+
+  start_inventory_from_pool:
+    # Start with the specified amount of these items and don't place them in the world. Example: {Bomb: 1, Arrow: 3}
+    # 
+    # The game decides what the replacement items will be.
+    {}
+
+  start_hints:
+    # Start with these item's locations prefilled into the ``!hint`` command.
+    []
+
+  start_location_hints:
+    # Start with these locations and their item prefilled into the ``!hint`` command.
+    []
+
+  exclude_locations:
+    # Prevent these locations from having an important item.
+    []
+
+  priority_locations:
+    # Prevent these locations from having an unimportant item.
+    []
+
+  item_links:
+    # Share part of your item pool with other players.
+    []
+
+  plando_items:
+    # Generic items plando.
+    []
