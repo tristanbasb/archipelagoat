@@ -1,0 +1,162 @@
+.slot-picker__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.slot-picker__subtitle {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.slot-picker__search {
+  width: min(320px, 100%);
+}
+
+.slot-picker__search svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.slot-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One player of the room: a cartridge that lights up when hovered. */
+.slot-card {
+  --pb-color: var(--line-strong);
+  --pb-fill: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-1) 100%);
+  --pb-step: var(--corner-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--sp-3);
+  border: 0;
+  background: none;
+  text-align: left;
+  transition:
+    filter var(--dur) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.slot-card:hover:not(:disabled),
+.slot-card[data-pending] {
+  --pb-color: var(--tone);
+  --pb-fill: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tone) 18%, var(--bg-2)) 0%,
+    color-mix(in srgb, var(--tone) 6%, var(--bg-1)) 100%
+  );
+  filter: var(--drop-glow);
+}
+
+.slot-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.slot-card:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.slot-card[data-last]:not([data-pending]) {
+  --pb-color: color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+}
+
+.slot-card:disabled {
+  cursor: progress;
+}
+
+.slot-card:disabled:not([data-pending]) {
+  opacity: 0.45;
+}
+
+/* The slot picked last time: a sticker on the top edge of the card. */
+.slot-card__last {
+  position: absolute;
+  top: -9px;
+  right: var(--sp-3);
+}
+
+.slot-card__number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 2px var(--tone-line);
+  color: var(--tone-ink);
+  clip-path: var(--clip-corner);
+}
+
+.slot-card:hover:not(:disabled) .slot-card__number,
+.slot-card[data-pending] .slot-card__number {
+  background: color-mix(in srgb, var(--tone) 30%, var(--bg-2));
+  color: #ffffff;
+}
+
+.slot-card__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.slot-card__name,
+.slot-card__game {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-card__name {
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.slot-card__game {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.slot-card__go {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-mute);
+  transition:
+    color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.slot-card__go svg {
+  width: 18px;
+  height: 18px;
+}
+
+.slot-card:hover:not(:disabled) .slot-card__go,
+.slot-card:focus-visible .slot-card__go,
+.slot-card[data-pending] .slot-card__go {
+  color: var(--tone);
+}
+
+.slot-card:hover:not(:disabled) .slot-card__go {
+  transform: translateX(3px);
+}
+
+.slot-picker__none {
+  padding: var(--sp-6);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  text-align: center;
+}

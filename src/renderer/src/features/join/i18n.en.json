@@ -1,1 +1,162 @@
-{}
+{
+  "eyebrow": "PLAYER 2",
+  "subtitle": "Paste the room link or drop your patch: we check everything, then you play.",
+  "progress": {
+    "label": "Progress",
+    "link": "Link",
+    "slot": "Slot",
+    "check": "Check",
+    "play": "Play"
+  },
+  "entry": {
+    "eyebrow": "INSERT COIN",
+    "title": "Room link",
+    "label": "Room link, archipelago:// address or host:port",
+    "placeholder": "https://archipelago.gg/room/…",
+    "submit": "Join",
+    "resolving": "Looking it up…",
+    "hint": "The archipelago.gg/room/… link the host sent you, or an address like archipelago://Slot@archipelago.gg:38281."
+  },
+  "patch": {
+    "title": "Or drop your patch file",
+    "hint": "The .ap… file the host sent you, or your slot’s .zip.",
+    "browse": "Choose a file",
+    "pickTitle": "Choose a patch file",
+    "filter": "Archipelago patches",
+    "filterAll": "All files",
+    "notPatch": "Not a patch file: {{names}}"
+  },
+  "history": {
+    "eyebrow": "CONTINUE",
+    "title": "Recently joined",
+    "emptyTitle": "No recent games",
+    "emptyBody": "The rooms you join show up here, so you can come back in one click.",
+    "room": "Room {{id}}",
+    "forget": "Remove {{label}} from the history"
+  },
+  "target": {
+    "room": "Room",
+    "address": "Server",
+    "patch": "Patch",
+    "change": "Change link",
+    "changeSlot": "Change slot"
+  },
+  "preparing": {
+    "eyebrow": "NOW LOADING",
+    "title": "Getting the game ready…",
+    "body": "Asking the room, fetching your patch and checking what you need to play."
+  },
+  "slots": {
+    "eyebrow": "SELECT PLAYER",
+    "title": "Pick your slot",
+    "subtitle_one": "{{count}} player in this room. Is it you?",
+    "subtitle_other": "{{count}} players in this room. Which one is yours?",
+    "filter": "Search a player or a game",
+    "noMatch": "No slot matches your search.",
+    "emptyTitle": "This room is empty",
+    "emptyBody": "It has no slots. Check the link with the host.",
+    "last": "Last time",
+    "loading": "Getting {{name}} ready…"
+  },
+  "checklist": {
+    "eyebrow": "READY?",
+    "title": "Ready to play?",
+    "count": "{{ok}}/{{total}} ready",
+    "refresh": "Check again",
+    "items": {
+      "ap": "Archipelago",
+      "world": "Game world",
+      "rom": "Game ROM",
+      "emulator": "Emulator"
+    },
+    "status": {
+      "ok": "OK",
+      "missing": "Missing",
+      "warning": "Check this",
+      "na": "Not needed",
+      "vault": "In the vault"
+    },
+    "actions": {
+      "installAp": "Install Archipelago",
+      "installWorld": "Install the world",
+      "scanRoms": "Scan for ROMs",
+      "installBizhawk": "Install BizHawk",
+      "configureBizhawk": "Set up BizHawk"
+    },
+    "busy": {
+      "installWorld": "Installing…",
+      "scanRoms": "Scanning…",
+      "installBizhawk": "Installing…",
+      "configureBizhawk": "Setting up…"
+    },
+    "scanTitle": "Choose your ROM folder",
+    "worldFileTitle": "Choose the game’s .apworld file",
+    "worldFilter": "Archipelago worlds",
+    "worldNotInCatalog": "{{game}} is not in the catalog: choose its .apworld file."
+  },
+  "warnings": {
+    "label": "Heads up",
+    "useAddress": "Connect to the current address:"
+  },
+  "tier": {
+    "full": "One-click launch",
+    "assisted": "Assisted launch",
+    "guided": "Guided launch"
+  },
+  "guide": {
+    "eyebrow": "HOW TO PLAY",
+    "title": "The steps",
+    "tutorial": "Open the official tutorial",
+    "assisted": {
+      "1": "Press PLAY: {{client}} opens and builds your ROM next to the patch.",
+      "2": "Start your emulator and load that ROM.",
+      "3": "Link the emulator to the client as the official tutorial explains (Lua script, SNI…).",
+      "4": "If the client asks for the server, enter {{address}} and the slot {{slot}}."
+    },
+    "guided": {
+      "1": "Install and set up the game with the official tutorial.",
+      "2": "In the game or its client, connect to {{address}}.",
+      "3": "Use the slot name {{slot}}.",
+      "4": "The Text Client lets you follow the game and ask for hints."
+    },
+    "password": "This room needs a password: the host gave it to you."
+  },
+  "start": {
+    "eyebrow": "PRESS START",
+    "play": "PLAY",
+    "credit": "CREDIT {{n}}",
+    "ready": "Starts {{client}} with your patch.",
+    "notReady": "Sort out the checklist to unlock PLAY.",
+    "launching": "Starting…",
+    "launched": "{{client}} is running. Have fun!",
+    "toast": "Here we go!",
+    "toastBody": "The client opens in its own window."
+  },
+  "connection": {
+    "eyebrow": "SERVER",
+    "title": "Connection",
+    "pcGame": "This game starts on its own: connect it with these details.",
+    "address": "Server address",
+    "slot": "Slot name",
+    "password": "Password needed",
+    "passwordField": "Password",
+    "reveal": "Show the password",
+    "hide": "Hide the password",
+    "asleep": "The room is asleep: it wakes up as soon as a player connects.",
+    "textClient": "Text Client",
+    "textClientHint": "Follow the game, chat and ask for hints.",
+    "textClientStarted": "Text Client started"
+  },
+  "clients": {
+    "bizhawk": "BizHawk Client",
+    "sni": "SNI Client",
+    "oot": "OoT Client",
+    "mmbn3": "MMBN3 Client",
+    "tloz": "Zelda 1 Client",
+    "adventure": "Adventure Client",
+    "zillion": "Zillion Client",
+    "launcher": "the Archipelago Launcher",
+    "text": "Text Client",
+    "none": "the game’s client"
+  }
+}
