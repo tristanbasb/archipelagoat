@@ -14,10 +14,12 @@ interface Recorded {
   data?: unknown
 }
 
+type CheckForUpdates = AutoUpdaterLike['checkForUpdates']
+
 /** electron-updater's autoUpdater as the service sees it; `check` is its checkForUpdates. */
-function fakeAutoUpdater(answer: () => Promise<unknown> = () => Promise.resolve(null)): {
+function fakeAutoUpdater(answer: CheckForUpdates = () => Promise.resolve(null)): {
   updater: AutoUpdaterLike
-  check: ReturnType<typeof vi.fn<() => Promise<unknown>>>
+  check: ReturnType<typeof vi.fn<CheckForUpdates>>
 } {
   const check = vi.fn(answer)
   return {
@@ -129,6 +131,26 @@ describe('updater service', () => {
       message: 'updater: check failed',
       data: expect.objectContaining({ message: 'net::ERR_INTERNET_DISCONNECTED' }) as unknown,
     })
+  })
+
+  it('logs a failed background download and carries on, without waiting for it at startup', async () => {
+    configure()
+    // electron-updater starts the download inside checkForUpdates and hands back its promise, which
+    // rejects on any failure (network drop, 404, sha512 mismatch): unhandled, it would reach the
+    // app's unhandledRejection handler and its "unexpected error" dialog.
+    let failDownload: (error: Error) => void = () => undefined
+    const downloadPromise = new Promise<string[]>((_resolve, reject) => (failDownload = reject))
+    const fake = fakeAutoUpdater(() => Promise.resolve({ downloadPromise }))
+    const { service } = start(context('win32'), { fake })
+    await expect(service.ready).resolves.toBeUndefined()
+    failDownload(new Error('sha512 checksum mismatch'))
+    await vi.waitFor(() =>
+      expect(logged).toContainEqual({
+        level: 'warn',
+        message: 'updater: download failed',
+        data: expect.objectContaining({ message: 'sha512 checksum mismatch' }) as unknown,
+      }),
+    )
   })
 
   it('is the `updater` service, inactive in an unpackaged app', async () => {

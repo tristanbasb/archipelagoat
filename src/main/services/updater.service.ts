@@ -20,7 +20,11 @@ export interface AutoUpdaterLike {
   logger: unknown
   autoDownload: boolean
   autoInstallOnAppQuit: boolean
-  checkForUpdates(): Promise<unknown>
+  /**
+   * With autoDownload, an available update starts downloading at once and the result carries that
+   * download, which rejects on any failure (UpdateCheckResult in electron-updater).
+   */
+  checkForUpdates(): Promise<{ downloadPromise?: Promise<unknown> | null } | null>
 }
 
 export interface UpdaterOptions {
@@ -77,7 +81,11 @@ export function initUpdater(ctx: CoreContext, opts: UpdaterOptions = {}): Update
     updater.logger = log
     updater.autoDownload = true
     updater.autoInstallOnAppQuit = true
-    await updater.checkForUpdates()
+    const result = await updater.checkForUpdates()
+    // The download goes on in the background, past `ready`. electron-updater re-throws its failures
+    // (network drop, sleep, 404, sha512 mismatch) from this promise: unhandled, one would reach the
+    // app's unhandledRejection handler and its "unexpected error" dialog.
+    void result?.downloadPromise?.catch((error: unknown) => log.warn('updater: download failed', error))
   }
   const ready = check().catch((error: unknown) => log.warn('updater: check failed', error))
   return { state, ready }
