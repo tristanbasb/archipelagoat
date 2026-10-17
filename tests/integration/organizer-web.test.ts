@@ -39,6 +39,7 @@ it('organizer web: generate → host on mock → room port → command → log t
     roomUrl: `${site.url}/room/${roomId}`,
     host: '127.0.0.1',
     port: 50123,
+    // The mock does not read what it receives: these are its own players, not the seed's.
     players: [
       { name: 'Alice', game: 'A Link to the Past' },
       { name: 'Bob', game: 'TUNIC' },
