@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createLocator, type Locator } from '@main/core/ap/locator'
 import type { ApExit, ApProcess, SpawnApOptions } from '@main/core/ap/process'
-import type { Orphan } from '@main/core/ap/processes'
+import type { Orphan, OrphanStop } from '@main/core/ap/processes'
 import {
   buildServerArgs,
   createServerManager,
@@ -90,7 +90,7 @@ function makeManager(overrides: Partial<ServerManagerDeps> = {}): ServerManager 
     settings,
     locator,
     // The Node fakes run as node.exe: the real orphan check would never match them on Windows.
-    orphans: { find: () => Promise.resolve([]), kill: () => Promise.resolve(true) },
+    orphans: { find: () => Promise.resolve([]), stop: () => Promise.resolve('stopped') },
     publicIp: () => Promise.resolve(null),
     // Only the ready line makes a server ready, unless a test asks for the TCP probe.
     timeouts: { probeMs: 60_000, stopMs: 5000 },
@@ -875,6 +875,67 @@ describe('local server (driven process)', () => {
     expect((await failure(noInstall.start(generated.id))).code).toBe('AP_NOT_INSTALLED')
   })
 
+  it('refuses to start while the session generates: the new seed would replace the one it serves', async () => {
+    const { spawn, procs } = fakeSpawn()
+    const generating = new Set<string>()
+    const manager = makeManager({ spawn, isGenerating: (id) => generating.has(id) })
+    const session = await generatedSession()
+    const other = await generatedSession('Autre')
+    generating.add(session.id)
+
+    const refused = await failure(manager.start(session.id))
+    expect(refused).toMatchObject({ code: 'AP_RUNNING', params: { reason: 'generating' } })
+    expect(procs).toHaveLength(0)
+    expect(manager.isBusy(session.id)).toBe(false)
+    // Another session starts; this one too once its generation is over.
+    await startFake(manager, procs, other.id)
+    generating.delete(session.id)
+    expect((await startFake(manager, procs, session.id)).state.status).toBe('ready')
+  })
+
+  it('refuses to start over an archipelago.gg room unless asked to replace it', async () => {
+    const { spawn, procs } = fakeSpawn()
+    const manager = makeManager({ spawn })
+    const session = await generatedSession()
+    const room = {
+      mode: 'web',
+      seedId: 'seed1',
+      roomId: 'room1',
+      roomUrl: 'https://archipelago.gg/room/room1',
+      port: 38281,
+    } as const
+    await store.setHosting(session.id, room)
+
+    const refused = await failure(manager.start(session.id))
+    expect(refused).toMatchObject({ code: 'AP_RUNNING', params: { reason: 'web-room' } })
+    expect(procs).toHaveLength(0)
+    expect((await store.get(session.id)).hosting).toEqual(room)
+
+    // Confirmed: the local server becomes the hosting (the room stays on the site).
+    const starting = manager.start(session.id, { replaceWeb: true })
+    await vi.waitFor(() => expect(procs).toHaveLength(1))
+    procs[0]?.line(`server listening on 0.0.0.0:${portOf(procs[0])}`)
+    const state = await starting
+    expect((await store.get(session.id)).hosting).toEqual({
+      mode: 'local',
+      port: state.port,
+      savefile: savefileOf(session),
+    })
+  })
+
+  it('refuses with WORLD_CORRUPT_BLOCKING when a world would stop the server', async () => {
+    const { spawn, procs } = fakeSpawn()
+    const corruptWorld = vi.fn(() => Promise.resolve<string | null>('broken.apworld'))
+    const manager = makeManager({ spawn, corruptWorld })
+    const session = await generatedSession()
+    expect(await failure(manager.start(session.id))).toMatchObject({
+      code: 'WORLD_CORRUPT_BLOCKING',
+      params: { file: 'broken.apworld' },
+    })
+    expect(corruptWorld).toHaveBeenCalledWith(expect.objectContaining({ root: join(root, 'AP') }))
+    expect(procs).toHaveLength(0)
+  })
+
   it('writes the ROMs the vault resolved into the session host.yaml', async () => {
     const { spawn, procs } = fakeSpawn()
     const rom = join(root, 'roms', 'zelda.sfc')
@@ -943,8 +1004,8 @@ describe('orphan servers of a previous run', () => {
       { pid: 9003, exe: 'ArchipelagoServer', sessionId: 's_gone' },
       { pid: 9004, exe: 'ArchipelagoGenerate', sessionId: hosted.id },
     ]
-    const kill = vi.fn<(pid: number) => Promise<boolean>>(() => Promise.resolve(true))
-    const manager = makeManager({ orphans: { find: () => Promise.resolve(orphans), kill } })
+    const stop = vi.fn<(pid: number) => Promise<OrphanStop>>(() => Promise.resolve('stopped'))
+    const manager = makeManager({ orphans: { find: () => Promise.resolve(orphans), stop } })
     const bus = recordBus()
 
     await manager.reconcile()
@@ -953,7 +1014,14 @@ describe('orphan servers of a previous run', () => {
       sessionId: hosted.id,
       status: 'crashed',
       port: 38283,
-      error: { code: 'SERVER_START_FAILED', params: { orphanPid: 9001 } },
+      // Its own text: it still runs from an earlier run of the app, it did not fail to start.
+      error: { code: 'SERVER_START_FAILED', params: { orphanPid: 9001, phase: 'orphan' } },
+    })
+    // It still serves its players: its addresses stay on the screen.
+    expect(manager.get(hosted.id)?.addresses).toContainEqual({
+      kind: 'localhost',
+      host: 'localhost',
+      port: 38283,
     })
     expect(manager.get(web.id)).toBeNull()
     expect(bus.states.map((state) => state.sessionId)).toEqual([hosted.id])
@@ -963,10 +1031,29 @@ describe('orphan servers of a previous run', () => {
 
     await manager.stop(hosted.id)
 
-    expect(kill).toHaveBeenCalledWith(9001)
-    expect(kill).toHaveBeenCalledTimes(1)
+    expect(stop).toHaveBeenCalledWith(9001)
+    expect(stop).toHaveBeenCalledTimes(1)
     expect(manager.get(hosted.id)).toMatchObject({ status: 'stopped', error: null })
     expect(manager.isBusy(hosted.id)).toBe(false)
+    expect(bus.states.map((state) => state.status)).toEqual(['crashed', 'stopping', 'stopped'])
+  })
+
+  it('an orphan killed without its save stops with PROCESS_TIMEOUT, as a server that ignores /exit', async () => {
+    const hosted = await generatedSession()
+    await store.setHosting(hosted.id, { mode: 'local', port: 38281, savefile: savefileOf(hosted) })
+    const manager = makeManager({
+      orphans: {
+        find: () => Promise.resolve([{ pid: 9001, exe: 'ArchipelagoServer', sessionId: hosted.id }]),
+        stop: () => Promise.resolve('forced'),
+      },
+    })
+    await manager.reconcile()
+    await manager.stop(hosted.id)
+    expect(manager.get(hosted.id)).toMatchObject({
+      status: 'stopped',
+      error: { code: 'PROCESS_TIMEOUT', params: { command: 'ArchipelagoServer' } },
+    })
+    expect((await store.get(hosted.id)).status).toBe('finished')
   })
 
   it('keeps the orphan when it cannot be stopped', async () => {
@@ -975,20 +1062,23 @@ describe('orphan servers of a previous run', () => {
     const manager = makeManager({
       orphans: {
         find: () => Promise.resolve([{ pid: 9001, exe: 'ArchipelagoServer', sessionId: hosted.id }]),
-        kill: () => Promise.resolve(false),
+        stop: () => Promise.resolve('failed'),
       },
     })
     await manager.reconcile()
 
     expect((await failure(manager.stop(hosted.id))).code).toBe('AP_RUNNING')
-    expect(manager.get(hosted.id)?.status).toBe('crashed')
+    expect(manager.get(hosted.id)).toMatchObject({
+      status: 'crashed',
+      error: { code: 'SERVER_START_FAILED', params: { orphanPid: 9001 } },
+    })
   })
 
   it('a failed orphan check is logged, not thrown', async () => {
     const manager = makeManager({
       orphans: {
         find: () => Promise.reject(new Error('tasklist failed')),
-        kill: () => Promise.resolve(true),
+        stop: () => Promise.resolve('stopped'),
       },
     })
     await expect(manager.reconcile()).resolves.toBeUndefined()

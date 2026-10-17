@@ -167,16 +167,74 @@ export function sessionScopedPids(): Set<number> {
   return pids
 }
 
-function killTree(pid: number): void {
+function signalTree(pid: number, signal: NodeJS.Signals): void {
   if (process.platform === 'win32') {
-    process.kill(pid, 'SIGKILL')
+    process.kill(pid, signal)
     return
   }
   try {
-    process.kill(-pid, 'SIGKILL') // a detached server leads its own group
+    process.kill(-pid, signal) // a detached server leads its own group
   } catch {
-    process.kill(pid, 'SIGKILL')
+    process.kill(pid, signal)
   }
+}
+
+/** True once the orphan is gone, checked every `pollMs` for up to `ms`. */
+async function goneWithin(
+  ctx: CoreContext,
+  entry: Pick<ChildEntry, 'pid' | 'exe'>,
+  procRoot: string,
+  ms: number,
+  pollMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + ms
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
+    if ((await probe(ctx, entry, procRoot)) === 'gone') return true
+  }
+  return false
+}
+
+/**
+ * How an orphan ended: by itself (or it was already gone), killed, or not at all (a pid findOrphans
+ * did not report, or that cannot be checked or signalled).
+ */
+export type OrphanStop = 'stopped' | 'forced' | 'failed'
+
+const STOP_GRACE_MS = 15_000
+const STOP_POLL_MS = 250
+
+async function endOrphan(pid: number, graceMs: number | null, pollMs: number): Promise<OrphanStop> {
+  const known = verified.get(pid)
+  if (known === undefined) return 'failed'
+  const { ctx, exe, procRoot } = known
+  const entry = { pid, exe }
+  const state = await probe(ctx, entry, procRoot)
+  if (state === 'unknown') return 'failed'
+  verified.delete(pid)
+  let result: OrphanStop = 'stopped'
+  if (state === 'match') {
+    try {
+      // MultiServer saves on SIGTERM under Linux (atexit, brief §1.7); Windows has no such signal.
+      const graceful = graceMs !== null && process.platform !== 'win32'
+      if (graceful) signalTree(pid, 'SIGTERM')
+      if (!graceful || !(await goneWithin(ctx, entry, procRoot, graceMs, pollMs))) {
+        signalTree(pid, 'SIGKILL')
+        result = 'forced'
+      }
+    } catch (error) {
+      ctx.log.warn('cannot stop an orphan ap process', { pid, exe, error: String(error) })
+      return 'failed'
+    }
+    ctx.log.info(result === 'forced' ? 'killed an orphan ap process' : 'stopped an orphan ap process', {
+      pid,
+      exe,
+    })
+  }
+  updateChildren(childrenFile(ctx.platform.paths.dataRoot), ctx.log, (entries) =>
+    entries.filter((e) => e.pid !== pid),
+  )
+  return result
 }
 
 /**
@@ -185,25 +243,19 @@ function killTree(pid: number): void {
  * did not report, or that cannot be checked or killed.
  */
 export async function killOrphan(pid: number): Promise<boolean> {
-  const known = verified.get(pid)
-  if (known === undefined) return false
-  const { ctx, exe, procRoot } = known
-  const state = await probe(ctx, { pid, exe }, procRoot)
-  if (state === 'unknown') return false
-  verified.delete(pid)
-  if (state === 'match') {
-    try {
-      killTree(pid)
-    } catch (error) {
-      ctx.log.warn('cannot kill an orphan ap process', { pid, exe, error: String(error) })
-      return false
-    }
-    ctx.log.info('killed an orphan ap process', { pid, exe })
-  }
-  updateChildren(childrenFile(ctx.platform.paths.dataRoot), ctx.log, (entries) =>
-    entries.filter((e) => e.pid !== pid),
-  )
-  return true
+  return (await endOrphan(pid, null, STOP_POLL_MS)) !== 'failed'
+}
+
+/**
+ * Stops an orphan server that findOrphans reported the way its own stop would (spec §3.11): under
+ * Linux its process group gets SIGTERM, on which MultiServer saves the game, and SIGKILL only after
+ * `graceMs` (15 s) without an exit; on Windows it is killed at once ('forced').
+ */
+export function stopOrphan(
+  pid: number,
+  opts: { graceMs?: number; pollMs?: number } = {},
+): Promise<OrphanStop> {
+  return endOrphan(pid, opts.graceMs ?? STOP_GRACE_MS, opts.pollMs ?? STOP_POLL_MS)
 }
 
 /** Kills the orphans other than servers: an interrupted generation, a template run… */

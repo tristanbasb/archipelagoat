@@ -548,30 +548,77 @@ describe('runGeneration', () => {
       },
     ],
     ['a local server that stopped', { mode: 'local', port: 38281, savefile: 'AP_old.apsave' }],
-  ] as const)('generates a session hosted by %s again: the session loses its hosting', async (_, hosting) => {
+  ] as const)(
+    'generates a session hosted by %s again only once replacing it is confirmed',
+    async (_, hosting) => {
+      const id = await aliceAndBob()
+      await store.setHosting(id, hosting)
+      expect((await store.get(id)).status).toBe('hosting')
+
+      // Not confirmed: nothing runs, the session keeps its game.
+      await expect(runGeneration(core.ctx, deps, id, taskSpy().handle)).rejects.toMatchObject({
+        code: 'GENERATION_PREFLIGHT',
+        params: { reason: 'game-in-progress' },
+      })
+      expect(existsSync(recordFile)).toBe(false)
+      expect(await store.get(id)).toMatchObject({ status: 'hosting', hosting })
+
+      const generation = await within(
+        runGeneration(core.ctx, deps, id, taskSpy().handle, { replace: true }),
+        15_000,
+      )
+
+      // A new seed: the old room stays on the site, the session no longer points to it.
+      expect(generation.seedName).toBe(SEED)
+      expect(await store.get(id)).toMatchObject({ status: 'generated', generation, hosting: null })
+    },
+  )
+
+  it('counts the save of the current seed as a game in progress', async () => {
     const id = await aliceAndBob()
-    await store.setHosting(id, hosting)
-    expect((await store.get(id)).status).toBe('hosting')
+    const first = await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
+    // A generation with nothing hosted yet is replaced without asking.
+    await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
+    writeFileSync(join(wsOf(id).output, `${first.seedName}.apsave`), 'save')
 
-    const generation = await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
-
-    // A new seed: the old room stays on the site, the session no longer points to it.
-    expect(generation.seedName).toBe(SEED)
-    expect(await store.get(id)).toMatchObject({ status: 'generated', generation, hosting: null })
+    await expect(runGeneration(core.ctx, deps, id, taskSpy().handle)).rejects.toMatchObject({
+      code: 'GENERATION_PREFLIGHT',
+      params: { reason: 'game-in-progress' },
+    })
+    await expect(
+      within(runGeneration(core.ctx, deps, id, taskSpy().handle, { replace: true }), 15_000),
+    ).resolves.toMatchObject({ seedName: SEED })
   })
 
-  it('keeps the hosting of a local server started while Archipelago generated', async () => {
+  it('fails without touching the session when a local server came up while Archipelago generated', async () => {
     const id = await aliceAndBob()
-    const hosting = { mode: 'local', port: 38281, savefile: join(wsOf(id).output, 'AP_old.apsave') } as const
-    await store.setHosting(id, hosting)
-    // No server at the start; one runs once the generation is over.
+    const previous = await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
+    const patch = previous.slots[0]?.patchFile ?? ''
+    expect(existsSync(patch)).toBe(true)
+    // No server at the start; one serves the previous seed once Archipelago is done.
     let checks = 0
     const serving: GenerateDeps = { ...deps, isServing: () => checks++ > 0 }
 
-    const generation = await within(runGeneration(core.ctx, serving, id, taskSpy().handle), 15_000)
+    const error = await runGeneration(core.ctx, serving, id, taskSpy().handle).catch((e: unknown) => e)
 
-    expect(checks).toBe(2)
-    expect(await store.get(id)).toMatchObject({ status: 'hosting', generation, hosting })
+    expect(error).toMatchObject({ code: 'GENERATION_PREFLIGHT', params: { reason: 'hosting' } })
+    expect((error as AppError).logPath).toBeDefined()
+    // The served seed keeps its patches, and the session its generation.
+    expect(existsSync(patch)).toBe(true)
+    expect((await store.get(id)).generation).toEqual(previous)
+  })
+
+  it('refuses with WORLD_CORRUPT_BLOCKING when a world would stop Archipelago, whatever the players use', async () => {
+    const id = await aliceAndBob()
+    const custom = join(apDir, 'custom_worlds')
+    mkdirSync(custom, { recursive: true })
+    writeFileSync(join(custom, 'broken.apworld'), 'not a zip')
+
+    await expect(runGeneration(core.ctx, deps, id, taskSpy().handle)).rejects.toMatchObject({
+      code: 'WORLD_CORRUPT_BLOCKING',
+      params: { file: 'broken.apworld' },
+    })
+    expect(existsSync(recordFile)).toBe(false)
   })
 
   it('refuses without Archipelago', async () => {
@@ -633,7 +680,7 @@ describe('runGeneration', () => {
       locator,
       orphans: {
         find: () => Promise.resolve([{ pid: 9001, exe: 'ArchipelagoServer', sessionId: id }]),
-        kill: () => Promise.resolve(true),
+        stop: () => Promise.resolve('stopped'),
       },
     })
     await servers.reconcile()
@@ -810,5 +857,37 @@ describe('session:generate', () => {
     })
     expect(isBusy).toHaveBeenCalledWith(id)
     expect(await sessions.get(id)).toMatchObject({ status: 'hosting', generation: null, hosting })
+  })
+
+  it('keeps a generation and a local server of the same session apart, and the session undeletable', async () => {
+    const { services, ipc, sessions, id, ended } = await generatorService()
+    const generator = services.get('generator')
+    expect(generator.isGenerating(id)).toBe(false)
+
+    const answer = await ipc.dispatch('session:generate', { id }, { senderId: 1 })
+    expect(answer).toMatchObject({ ok: true })
+    // From the answer on, until the task is over.
+    expect(generator.isGenerating(id)).toBe(true)
+    expect(await ipc.dispatch('server:start', { sessionId: id }, { senderId: 1 })).toMatchObject({
+      ok: false,
+      error: { code: 'AP_RUNNING', params: { reason: 'generating' } },
+    })
+    expect(await ipc.dispatch('session:delete', { id }, { senderId: 1 })).toMatchObject({
+      ok: false,
+      error: { code: 'AP_RUNNING' },
+    })
+
+    expect(await within(ended, 15_000)).toMatchObject({ kind: 'generate', result: { seedName: SEED } })
+    await vi.waitFor(() => expect(generator.isGenerating(id)).toBe(false))
+    expect(await sessions.get(id)).toMatchObject({ status: 'generated' })
+  })
+
+  it('a generation cancelled before it starts is not counted as running', async () => {
+    const { services, id } = await generatorService()
+    const generator = services.get('generator')
+    const { taskId } = generator.generate(id)
+    expect(generator.isGenerating(id)).toBe(true)
+    core.ctx.tasks.cancel(taskId)
+    expect(generator.isGenerating(id)).toBe(false)
   })
 })

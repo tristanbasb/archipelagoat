@@ -50,6 +50,9 @@ export const sessionChannels = {
     }),
   )<void>(),
   'session:validate': channel(z.strictObject({ id }))<SessionValidation>(),
-  /** Task result: `Generation`. */
-  'session:generate': channel(z.strictObject({ id }))<TaskRef>(),
+  /**
+   * Task result: `Generation`. `replace` confirms that the new seed replaces the game the session
+   * hosts (its room, or its local game and save): without it, such a session is refused.
+   */
+  'session:generate': channel(z.strictObject({ id, replace: z.boolean().optional() }))<TaskRef>(),
 }

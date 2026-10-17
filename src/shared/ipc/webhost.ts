@@ -5,8 +5,13 @@ import { channel, nonEmpty, voidInput } from './contract'
 const roomId = nonEmpty
 
 export const webhostChannels = {
-  /** Needs the explicit consent given for this hosting (spec §6.2). Task result: `WebRoom`. */
-  'webhost:host': channel(z.strictObject({ sessionId: nonEmpty, consent: z.literal(true) }))<TaskRef>(),
+  /**
+   * Needs the explicit consent given for this hosting (spec §6.2). Task result: `WebRoom`. The room the
+   * session already has for its generation is woken up and reused, unless `newRoom` asks for another.
+   */
+  'webhost:host': channel(
+    z.strictObject({ sessionId: nonEmpty, consent: z.literal(true), newRoom: z.boolean().optional() }),
+  )<TaskRef>(),
   'webhost:room': channel(z.strictObject({ roomId }))<WebRoom>(),
   'webhost:wake': channel(z.strictObject({ roomId }))<WebRoom>(),
   'webhost:command': channel(z.strictObject({ roomId, command: nonEmpty }))<void>(),

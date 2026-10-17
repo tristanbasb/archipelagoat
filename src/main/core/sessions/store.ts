@@ -7,7 +7,7 @@ import { readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import type { CoreContext } from '@main/core/context'
-import { safeJoin, writeFileAtomic } from '@main/core/system/fsx'
+import { moveFileToBackups, safeJoin, writeFileAtomic } from '@main/core/system/fsx'
 import { assertUserPath } from '@main/core/system/user-path'
 import type { ValidationContext } from '@main/core/yaml/validate'
 import { ISSUE_CODES } from '@shared/codes'
@@ -72,6 +72,10 @@ export interface SessionStore {
   addFiles(id: string, paths: readonly string[]): Promise<{ session: Session; ignored: string[] }>
   /** Adds a player file from its text; `fileName` gives its name. */
   addText(id: string, fileName: string, text: string): Promise<Session>
+  /**
+   * Takes the file out of the session: it leaves `players/` (Generate no longer sees it) for
+   * `dataRoot/backups/<stamp>-player/<id>/`, never deleted for good (spec §5).
+   */
   removeFile(id: string, fileId: string): Promise<Session>
   readFile(id: string, fileId: string): Promise<{ text: string }>
   /** Writes `text` over the file (same stored name) and validates it again. */
@@ -140,6 +144,7 @@ const HostingSchema = z.discriminatedUnion('mode', [
     roomId: z.string(),
     roomUrl: z.string(),
     port: z.number().int().nullable(),
+    seedName: z.string().optional(),
   }),
 ])
 const StoredSessionSchema = z.object({
@@ -435,7 +440,13 @@ export function createSessionStore(ctx: CoreContext, deps: SessionStoreDeps): Se
     removeFile(id, fileId) {
       return modify(id, async (stored, ws) => {
         const file = findFile(stored, fileId)
-        await rm(playerPath(ws, file), { force: true })
+        const source = playerPath(ws, file)
+        try {
+          await moveFileToBackups(source, backupsRoot, 'player', id)
+        } catch (error) {
+          // Already gone from players/: there is nothing left to keep.
+          if (!isMissing(error)) throw error
+        }
         return { ...stored, players: stored.players.filter((f) => f.id !== fileId) }
       })
     },

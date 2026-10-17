@@ -285,9 +285,20 @@ export interface Generation {
   logPath: string
 }
 
+/**
+ * A web hosting's `seedName` is the generation its room hosts (absent in sessions hosted before it was
+ * recorded: a new generation always resets the hosting, so such a room hosts the current one).
+ */
 export type Hosting =
   | { mode: 'local'; port: number; savefile: string }
-  | { mode: 'web'; seedId: string; roomId: string; roomUrl: string; port: number | null }
+  | {
+      mode: 'web'
+      seedId: string
+      roomId: string
+      roomUrl: string
+      port: number | null
+      seedName?: string
+    }
 
 export type SessionStatus = 'draft' | 'generated' | 'hosting' | 'finished'
 

@@ -5,7 +5,8 @@
 // `/exit`, which saves the game, and killed only when that gets no answer within 15 s (a kill loses
 // up to a minute of play). What it prints reaches the renderer masked (server:log), its joins, items
 // and goals as events (server:event), both kept in rings of 500 for a screen that opens later
-// (server:history). Servers that a crash of the app left running are found again at startup.
+// (server:history). Servers that a crash of the app left running are found again at startup. A server
+// never starts while its session generates, nor over its archipelago.gg room unless asked to.
 import { access } from 'node:fs/promises'
 import { networkInterfaces, type NetworkInterfaceInfo } from 'node:os'
 import path from 'node:path'
@@ -19,10 +20,19 @@ import { AP_EXES, DEFAULT_PORT } from '@shared/data/ap-constants'
 import { matchApError } from '@shared/data/error-catalog'
 import { SERVER_EVENT_PATTERNS, SERVER_HOSTING_RE, SERVER_READY_RE } from '@shared/data/log-patterns'
 import { AppError, type AppErrorData } from '@shared/errors'
-import type { Generation, RomNeed, Rules, ServerEvent, ServerHistory, ServerState } from '@shared/types'
+import type {
+  ApInstall,
+  Generation,
+  RomNeed,
+  Rules,
+  ServerEvent,
+  ServerHistory,
+  ServerState,
+} from '@shared/types'
+import { disabledWorldsDir, findCorruptWorld } from '../worlds/inventory'
 import type { Locator } from './locator'
 import { spawnAp, type ApExit, type ApProcess, type SpawnApOptions } from './process'
-import { findOrphans, killOrphan, type Orphan } from './processes'
+import { findOrphans, stopOrphan, type Orphan, type OrphanStop } from './processes'
 import type { ApSettings } from './settings'
 
 /** The events and the lines the history keeps. */
@@ -43,10 +53,17 @@ export interface ServerManagerDeps {
   settings: Pick<ApSettings, 'makeSessionSettings'>
   locator: Pick<Locator, 'detect' | 'exe'>
   /**
-   * The servers a previous run left behind. Default: findOrphans / killOrphan, which check the pid
+   * The servers a previous run left behind. Default: findOrphans / stopOrphan, which check the pid
    * still runs ArchipelagoServer; the tests inject theirs (their fakes run as node).
    */
-  orphans?: { find(): Promise<Orphan[]>; kill(pid: number): Promise<boolean> }
+  orphans?: { find(): Promise<Orphan[]>; stop(pid: number): Promise<OrphanStop> }
+  /** True while a generation of the session runs (the generator service): a start is refused then. */
+  isGenerating?: (sessionId: string) => boolean
+  /**
+   * The file name of a corrupt world of the install, on which the server would stop; null when there
+   * is none. Default: a scan of its world folders (findCorruptWorld).
+   */
+  corruptWorld?: (install: ApInstall) => Promise<string | null>
   /** Default: spawnAp. */
   spawn?: (ctx: CoreContext, opts: SpawnApOptions) => ApProcess
   /** Default: the network interfaces of the machine. */
@@ -60,14 +77,21 @@ export interface ServerManagerDeps {
   now?: () => Date
 }
 
+export interface StartOptions {
+  /** Replaces the session's archipelago.gg room as its hosting (the room stays on the site). */
+  replaceWeb?: boolean
+}
+
 export interface ServerManager {
   /**
    * Rewrites the session's host.yaml, then starts its server on a free port and resolves once it is
    * ready (the running server's state when there is one). INVALID_INPUT without a generation,
-   * AP_NOT_INSTALLED, NOT_FOUND for a missing zip, PORT_IN_USE, SERVER_START_FAILED (or the Archipelago
-   * error its output names), AP_RUNNING while it stops or while an orphan of it runs.
+   * AP_NOT_INSTALLED, NOT_FOUND for a missing zip, WORLD_CORRUPT_BLOCKING for a world the server would
+   * stop on, PORT_IN_USE, SERVER_START_FAILED (or the Archipelago error its output names), AP_RUNNING
+   * while it stops or while an orphan of it runs, `{ reason: 'generating' }` while the session
+   * generates, `{ reason: 'web-room' }` for a session hosted on archipelago.gg without `replaceWeb`.
    */
-  start(sessionId: string): Promise<ServerState>
+  start(sessionId: string, opts?: StartOptions): Promise<ServerState>
   /**
    * `/exit`, then a kill after 15 s (`error` PROCESS_TIMEOUT); `force` kills at once. Kills the orphan
    * of a previous run (AP_RUNNING when it cannot). Nothing to do for a server that does not run.
@@ -194,7 +218,11 @@ const toAppError = (data: AppErrorData): AppError =>
 
 export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): ServerManager {
   const spawn = deps.spawn ?? spawnAp
-  const orphans = deps.orphans ?? { find: () => findOrphans(ctx), kill: killOrphan }
+  const orphans = deps.orphans ?? { find: () => findOrphans(ctx), stop: (pid) => stopOrphan(pid) }
+  const corruptWorld =
+    deps.corruptWorld ??
+    ((install: ApInstall) =>
+      findCorruptWorld(install.paths, disabledWorldsDir(ctx.platform.paths.dataRoot), install.version))
   const interfaces = deps.networkInterfaces ?? networkInterfaces
   const publicIp = deps.publicIp ?? ((): Promise<string | null> => fetchPublicIp(ctx.http))
   const { start: firstPort, max: lastPort } = deps.ports ?? { start: DEFAULT_PORT, max: MAX_PORT }
@@ -398,21 +426,28 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     await run.done
   }
 
-  async function stopOrphan(run: Run): Promise<void> {
+  async function endOrphan(run: Run): Promise<void> {
     const pid = run.orphanPid
     if (pid === null) return
-    if (!(await orphans.kill(pid))) {
+    const before = run.state
+    setState(run, { status: 'stopping' })
+    const result = await orphans.stop(pid)
+    if (result === 'failed') {
+      setState(run, { status: before.status, error: before.error })
       throw new AppError('AP_RUNNING', undefined, { detail: `the orphan server ${pid} could not be stopped` })
     }
     run.orphanPid = null
-    await ended(run, { status: 'stopped', error: null })
+    // Killed without its save: the last minute of play may be lost, as for a server that ignores /exit.
+    const error: AppErrorData | null =
+      result === 'forced' ? { code: 'PROCESS_TIMEOUT', params: { command: SERVER } } : null
+    await ended(run, { status: 'stopped', error })
   }
 
   function stop(id: string, opts: { force?: boolean } = {}): Promise<void> {
     const run = runs.get(id)
     if (!run) return Promise.resolve()
     if (run.orphanPid !== null) {
-      run.stopping ??= stopOrphan(run).finally(() => {
+      run.stopping ??= endOrphan(run).finally(() => {
         run.stopping = null
       })
       return run.stopping
@@ -445,7 +480,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     }
   }
 
-  async function launch(id: string): Promise<ServerState> {
+  async function launch(id: string, opts: StartOptions): Promise<ServerState> {
     await reconciling
     const orphanPid = runs.get(id)?.orphanPid ?? null
     if (orphanPid !== null) {
@@ -457,10 +492,17 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     const { generation, workspace, rules } = session
     if (!generation)
       throw new AppError('INVALID_INPUT', undefined, { detail: `session ${id} has no generation` })
+    // The session would forget its room (the app could no longer wake it, read its log or open it).
+    if (session.hosting?.mode === 'web' && opts.replaceWeb !== true) {
+      throw new AppError('AP_RUNNING', { reason: 'web-room' }, { detail: session.hosting.roomUrl })
+    }
     const install = await deps.locator.detect()
     if (!install) throw new AppError('AP_NOT_INSTALLED')
     if (!(await exists(generation.zipPath)))
       throw new AppError('NOT_FOUND', undefined, { detail: generation.zipPath })
+    // MultiServer loads every world with the multidata: a corrupt one stops it.
+    const corrupt = await corruptWorld(install)
+    if (corrupt !== null) throw new AppError('WORLD_CORRUPT_BLOCKING', { file: corrupt })
 
     // The current rules and passwords, in the file the server loads (it runs in the session folder).
     const secrets = await deps.sessions.getSecrets(id)
@@ -538,7 +580,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
   }
 
   return {
-    start(id) {
+    start(id, opts = {}) {
       const pending = starts.get(id)
       if (pending) return pending
       const run = runs.get(id)
@@ -548,7 +590,11 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
           new AppError('AP_RUNNING', undefined, { detail: `the server of ${id} is stopping` }),
         )
       }
-      const started = launch(id).finally(() => starts.delete(id))
+      // The generation would replace the seed (and its patches) under the server's feet.
+      if (deps.isGenerating?.(id) === true) {
+        return Promise.reject(new AppError('AP_RUNNING', { reason: 'generating' }))
+      }
+      const started = launch(id, opts).finally(() => starts.delete(id))
       starts.set(id, started)
       return started
     },
@@ -605,14 +651,15 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
             continue
           }
           ctx.log.warn('servers: an orphan server still runs', orphan)
+          // It still serves its players: its addresses stay valid. `phase: 'orphan'` picks its text.
           const state: ServerState = {
             sessionId,
             status: 'crashed',
             port: hosting.port,
-            addresses: [],
+            addresses: listAddresses(interfaces(), hosting.port),
             startedAt: now().toISOString(),
             resumedFromSave: false,
-            error: { code: 'SERVER_START_FAILED', params: { orphanPid: pid } },
+            error: { code: 'SERVER_START_FAILED', params: { orphanPid: pid, phase: 'orphan' } },
           }
           const run = newRun(sessionId, state, [], pid)
           runs.set(sessionId, run)

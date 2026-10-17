@@ -380,6 +380,32 @@ describe('session store: player files', () => {
     expect(readdirSync(join(added.workspace, 'players'))).toEqual(['Sans nom.yaml'])
   })
 
+  it('removeFile moves the file to backups/ instead of deleting it (spec §5)', async () => {
+    const { id } = await store.create('Goat')
+    const added = await store.addText(id, 'Zoe.yaml', player('Zoe'))
+    const twin = await store.addText(id, 'Zoe.yaml', player('Zoe 2'))
+    const [first, second] = twin.players
+    await store.removeFile(id, first!.id)
+    await store.removeFile(id, second!.id)
+
+    expect(readdirSync(join(added.workspace, 'players'))).toEqual([])
+    const backups = join(dataRoot(), 'backups')
+    const [folder, ...others] = readdirSync(backups)
+    expect(others).toEqual([])
+    expect(folder).toMatch(/^\d{8}-\d{6}-player$/)
+    // Both copies are kept, under the session's id, the second one beside the first.
+    const kept = readdirSync(join(backups, folder!, id)).sort()
+    expect(kept).toHaveLength(2)
+    const texts = kept.map((name) => readFileSync(join(backups, folder!, id, name), 'utf8')).sort()
+    expect(texts).toEqual([player('Zoe'), player('Zoe 2')].sort())
+
+    // A file already gone from players/ is simply forgotten.
+    const again = await store.addText(id, 'Lost.yaml', player('Lost'))
+    const lost = again.players[0]!
+    rmSync(join(again.workspace, 'players', lost.storedName))
+    expect((await store.removeFile(id, lost.id)).players).toEqual([])
+  })
+
   it('replaceFile keeps storedName and revalidates', async () => {
     const { id } = await store.create('Goat')
     const zip = await makeZip(join(root, 'Téléchargements', 'latin.zip'), {

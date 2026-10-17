@@ -1,5 +1,5 @@
 import { createEventBus } from '@main/core/events'
-import { createTaskManager } from '@main/core/tasks'
+import { createTaskManager, startTracked } from '@main/core/tasks'
 import { AppError } from '@shared/errors'
 import type { TaskDone, TaskFailed } from '@shared/types'
 import { silentLogger } from '../../helpers/core'
@@ -146,5 +146,68 @@ describe('task manager', () => {
     tasks.cancel(ref.taskId)
     tasks.cancel('unknown')
     expect(events).toHaveLength(count)
+  })
+})
+
+describe('startTracked', () => {
+  function tracked() {
+    const bus = createEventBus(silentLogger)
+    const tasks = createTaskManager(bus, silentLogger)
+    const ends: string[] = []
+    return { bus, tasks, ends }
+  }
+
+  it('calls onEnd once the run settles, success or failure, and not before', async () => {
+    const { bus, tasks, ends } = tracked()
+    let finish: (() => void) | undefined
+    startTracked(
+      tasks,
+      bus,
+      'generate',
+      () => new Promise<void>((resolve) => (finish = resolve)),
+      () => ends.push('ok'),
+    )
+    startTracked(
+      tasks,
+      bus,
+      'generate',
+      () => Promise.reject(new Error('boom')),
+      () => ends.push('failed'),
+    )
+    await nextTick()
+    await nextTick()
+    expect(ends).toEqual(['failed'])
+    finish?.()
+    await nextTick()
+    expect(ends).toEqual(['failed', 'ok'])
+  })
+
+  it('calls onEnd when the task is cancelled before its run starts, which then never runs', async () => {
+    const { bus, tasks, ends } = tracked()
+    const run = vi.fn(() => Promise.resolve(null))
+    const ref = startTracked(tasks, bus, 'webhost-host', run, () => ends.push('end'))
+    tasks.cancel(ref.taskId)
+    expect(ends).toEqual(['end'])
+    await nextTick()
+    expect(run).not.toHaveBeenCalled()
+    expect(ends).toEqual(['end'])
+  })
+
+  it('a cancel after the start waits for the run to settle (its cleanup)', async () => {
+    const { bus, tasks, ends } = tracked()
+    let finish: (() => void) | undefined
+    const ref = startTracked(
+      tasks,
+      bus,
+      'generate',
+      () => new Promise<void>((resolve) => (finish = resolve)),
+      () => ends.push('end'),
+    )
+    await nextTick()
+    tasks.cancel(ref.taskId)
+    expect(ends).toEqual([])
+    finish?.()
+    await nextTick()
+    expect(ends).toEqual(['end'])
   })
 })

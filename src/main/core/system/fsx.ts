@@ -160,6 +160,20 @@ export async function backupFile(src: string, backupsRoot: string, label: string
   }
 }
 
+/**
+ * Moves `src` into `backupsRoot/<YYYYMMDD-HHmmss>-<label>/<sub…>/` (spec §5: nothing is deleted for
+ * good) and returns its new path. A name taken there gets `-2`, `-3`… (moveFile).
+ */
+export async function moveFileToBackups(
+  src: string,
+  backupsRoot: string,
+  label: string,
+  ...sub: string[]
+): Promise<string> {
+  const stamp = [timestamp(new Date()), folderLabel(label)].filter(Boolean).join('-')
+  return moveFile(src, join(backupsRoot, stamp, ...sub.map(folderLabel)))
+}
+
 /** `ap.tar.gz` → `ap` + `.tar.gz`, `w.apworld` → `w` + `.apworld`, `README` → `README` + ``. */
 function splitName(file: string): { stem: string; ext: string } {
   const match = /^(.+?)((?:\.tar)?\.[^.]+)$/i.exec(file)

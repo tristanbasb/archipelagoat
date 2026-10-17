@@ -10,6 +10,7 @@ import {
   findOrphans,
   killOrphan,
   listApProcesses,
+  stopOrphan,
   parsePsOutput,
   parseTasklistCsv,
 } from '@main/core/ap/processes'
@@ -303,6 +304,47 @@ describe('orphans of a previous run', () => {
     await exitWithin(orphan, 5000)
     expect(pidsIn(file)).toEqual([])
   })
+
+  it('stopOrphan lets an orphan server save first under Linux (SIGTERM); Windows can only kill it', async () => {
+    const core = createTestContext(root, { os: 'win32' })
+    const file = childrenFile(core.platform.paths.dataRoot)
+    const orphan = track(blockingProcess())
+    const names = new Map([[orphan.pid, 'ArchipelagoServer.exe']])
+    orphan.once('exit', () => names.delete(orphan.pid))
+    core.ctx.exec = tasklistExec(names)
+    writeEntries(file, [entry(orphan.pid, 'ArchipelagoServer', 's1')])
+
+    // Unknown to findOrphans: left alone.
+    expect(await stopOrphan(orphan.pid)).toBe('failed')
+    expect(await findOrphans(core.ctx)).toHaveLength(1)
+
+    // Node ends on SIGTERM, as MultiServer does after saving; Windows has no such signal.
+    const result = await stopOrphan(orphan.pid, { graceMs: 5000, pollMs: 50 })
+    expect(result).toBe(process.platform === 'win32' ? 'forced' : 'stopped')
+    await exitWithin(orphan, 5000)
+    if (process.platform !== 'win32') expect(orphan.signalCode).toBe('SIGTERM')
+    expect(pidsIn(file)).toEqual([])
+  })
+
+  it.runIf(process.platform !== 'win32')(
+    'stopOrphan kills an orphan that ignores SIGTERM once the grace period is over',
+    async () => {
+      const core = createTestContext(root, { os: 'win32' })
+      const script = "process.on('SIGTERM', () => {}); console.log('ready'); setInterval(() => {}, 1000)"
+      const stubborn = track(spawn(process.execPath, ['-e', script], { stdio: ['ignore', 'pipe', 'ignore'] }))
+      const pid = stubborn.pid ?? 0
+      await once(stubborn.stdout, 'data')
+      const names = new Map([[pid, 'ArchipelagoServer.exe']])
+      stubborn.once('exit', () => names.delete(pid))
+      core.ctx.exec = tasklistExec(names)
+      writeEntries(childrenFile(core.platform.paths.dataRoot), [entry(pid, 'ArchipelagoServer', 's1')])
+      await findOrphans(core.ctx)
+
+      expect(await stopOrphan(pid, { graceMs: 300, pollMs: 50 })).toBe('forced')
+      await exitWithin(stubborn, 5000)
+      expect(stubborn.signalCode).toBe('SIGKILL')
+    },
+  )
 
   it('kills the non-server orphans at startup and leaves the servers to their owner', async () => {
     const core = createTestContext(root, { os: 'win32' })

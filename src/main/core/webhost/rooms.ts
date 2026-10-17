@@ -1,14 +1,17 @@
 // Hosting a session on archipelago.gg and following its room (spec §3.14): upload the generation's
 // zip, open ONE room (/new_room is not idempotent), wake it, wait for its port; then read it, wake
 // it again (its port can change), send console commands, read its log, and open it as its owner in
-// the browser. The session keeps its room (`session.hosting`) from the moment the room exists.
+// the browser. The session keeps its room (`session.hosting`) from the moment the room exists, and
+// hosting it again reuses that room for the same generation: only an explicit `newRoom` (or a new
+// generation) uploads the seed and opens another one. One hosting task per session at a time.
 import { setTimeout as delay } from 'node:timers/promises'
 import { AppError } from '@shared/errors'
 import type { Hosting, TaskRef, WebRoom, WebRoomRef } from '@shared/types'
 import type { ServerManager } from '../ap/server'
 import type { CoreContext } from '../context'
 import type { SessionStore } from '../sessions/store'
-import type { TaskHandle } from '../tasks'
+import { redact } from '../system/redact'
+import { startTracked, type TaskHandle } from '../tasks'
 import {
   createWebhostClient,
   normalizeWebUrl,
@@ -28,6 +31,8 @@ const PORT_POLL_MAX_MS = 5000
 const PORT_WAIT_MS = 60_000
 /** Between the identity page and the room in the browser, which must keep the cookie first. */
 const OWNER_DELAY_MS = 2000
+/** A log line without its end for that long is shown as it is. */
+const MAX_PARTIAL_LOG = 64 * 1024
 
 const realSleep: Sleep = async (ms, signal) => {
   try {
@@ -109,39 +114,61 @@ export interface HostOnWebDeps {
   now?: () => number
 }
 
+export interface HostOnWebOptions {
+  /** Uploads the seed again and opens another room, even when the session has one for its seed. */
+  newRoom?: boolean
+}
+
 /**
  * The `webhost-host` task (after the consent of the dialog): stages upload, room, wake, port.
  * AP_RUNNING `{ reason: 'local-server' }` before anything while a local server of the session runs.
+ * A session that already has a room for its generation gets that room woken up and read again
+ * (stages wake, port): /new_room is not idempotent, and a second room would orphan the first one,
+ * its players included. `opts.newRoom` asks for a new room anyway.
  */
 export async function hostOnWeb(
   ctx: Pick<CoreContext, 'log'>,
   deps: HostOnWebDeps,
   sessionId: string,
   task: TaskHandle,
+  opts: HostOnWebOptions = {},
 ): Promise<WebRoom> {
   const { sessions, client } = deps
   if (deps.servers.isBusy(sessionId)) throw new AppError('AP_RUNNING', { reason: 'local-server' })
-  task.progress('upload', 5)
   const session = await sessions.get(sessionId)
-  const zipPath = session.generation?.zipPath
-  if (!zipPath) throw new AppError('NOT_FOUND', undefined, { detail: 'no generation' })
-  const seedId = await client.uploadSeed(zipPath, task.signal)
-  ctx.log.info('webhost: seed uploaded', { sessionId, seedId })
+  const { generation } = session
+  if (!generation) throw new AppError('NOT_FOUND', undefined, { detail: 'no generation' })
+  const existing = session.hosting
+  const reuse =
+    opts.newRoom !== true &&
+    existing?.mode === 'web' &&
+    (existing.seedName ?? generation.seedName) === generation.seedName
+  let hosting: WebHosting
+  if (reuse) {
+    hosting = existing
+    ctx.log.info('webhost: reusing the room of the session', { sessionId, roomId: hosting.roomId })
+  } else {
+    task.progress('upload', 5)
+    const seedId = await client.uploadSeed(generation.zipPath, task.signal)
+    ctx.log.info('webhost: seed uploaded', { sessionId, seedId })
 
-  task.progress('room', 40)
-  // Called once and never retried, nor cancelled halfway (the site could create a room nobody keeps).
-  // The session keeps the room at once, so a later failure never loses it.
-  if (task.signal.aborted) throw new AppError('TASK_CANCELLED')
-  const roomId = await client.createRoom(seedId)
-  const hosting: WebHosting = {
-    mode: 'web',
-    seedId,
-    roomId,
-    roomUrl: normalizeWebUrl(client.baseUrl, `/room/${roomId}`),
-    port: null,
+    task.progress('room', 40)
+    // Called once and never retried, nor cancelled halfway (the site could create a room nobody keeps).
+    // The session keeps the room at once, so a later failure never loses it.
+    if (task.signal.aborted) throw new AppError('TASK_CANCELLED')
+    const roomId = await client.createRoom(seedId)
+    hosting = {
+      mode: 'web',
+      seedId,
+      roomId,
+      roomUrl: normalizeWebUrl(client.baseUrl, `/room/${roomId}`),
+      port: null,
+      seedName: generation.seedName,
+    }
+    await sessions.setHosting(sessionId, hosting)
+    ctx.log.info('webhost: room created', { sessionId, roomId })
   }
-  await sessions.setHosting(sessionId, hosting)
-  ctx.log.info('webhost: room created', { sessionId, roomId })
+  const { roomId, seedId } = hosting
 
   task.progress('wake', 55)
   await client.wake(roomId, task.signal)
@@ -162,8 +189,11 @@ export async function hostOnWeb(
 // --- the webhost service ----------------------------------------------------------------------------
 
 export interface WebhostService {
-  /** Starts the `webhost-host` task; its result is the WebRoom. */
-  host(sessionId: string): TaskRef
+  /**
+   * Starts the `webhost-host` task; its result is the WebRoom. While one runs for the session, its
+   * ref is answered again: a second call never uploads a second time.
+   */
+  host(sessionId: string, opts?: HostOnWebOptions): TaskRef
   room(roomId: string): Promise<WebRoom>
   /** Wakes the room, then reads its port again (it can change). */
   wake(roomId: string): Promise<WebRoom>
@@ -176,7 +206,7 @@ export interface WebhostService {
 
 export interface WebhostServiceDeps {
   /** Resolved on use. */
-  sessions: () => Pick<SessionStore, 'list' | 'get' | 'setHosting'>
+  sessions: () => Pick<SessionStore, 'list' | 'get' | 'setHosting' | 'getSecrets'>
   /** Resolved on use. */
   servers: () => Pick<ServerManager, 'isBusy'>
   sleep?: Sleep
@@ -193,6 +223,8 @@ export function createWebhostService(ctx: CoreContext, deps: WebhostServiceDeps)
       jar: (jar ??= createCookieJar(ctx.secrets, ctx.log)),
     })
   const sleep = deps.sleep ?? realSleep
+  /** The hosting task running for each session. */
+  const hostings = new Map<string, TaskRef>()
 
   /** The session whose hosting is this room, if any. */
   async function hostOf(roomId: string): Promise<{ id: string; hosting: WebHosting } | null> {
@@ -218,22 +250,63 @@ export function createWebhostService(ctx: CoreContext, deps: WebhostServiceDeps)
     return room
   }
 
+  /**
+   * The complete lines of a log chunk, masked: the passwords of the room's session, and what
+   * Archipelago prints that holds one (a refused connection, `/options`). A line still being written
+   * is read again next time, so that the per-line rules see it whole; one that never ends (more than
+   * MAX_PARTIAL_LOG bytes) goes through as it is.
+   */
+  async function maskedLog(
+    roomId: string,
+    fromByte: number,
+    chunk: { text: string; nextByte: number },
+  ): Promise<{ text: string; nextByte: number }> {
+    const lineEnd = chunk.text.lastIndexOf('\n') + 1
+    const tooLong = lineEnd === 0 && chunk.nextByte - fromByte > MAX_PARTIAL_LOG
+    const cut = tooLong ? chunk.text.length : lineEnd
+    const text = chunk.text.slice(0, cut)
+    const nextByte = cut === chunk.text.length ? chunk.nextByte : fromByte + Buffer.byteLength(text, 'utf8')
+    if (text === '') return { text, nextByte }
+    const owner = await hostOf(roomId).catch(() => null)
+    const secrets = owner
+      ? await deps
+          .sessions()
+          .getSecrets(owner.id)
+          .catch(() => null)
+      : null
+    const known = [secrets?.password, secrets?.serverPassword].filter((s): s is string => !!s)
+    return { text: redact(text, known), nextByte }
+  }
+
   return {
-    host: (sessionId) =>
-      ctx.tasks.start('webhost-host', (task) =>
-        hostOnWeb(
-          ctx,
-          {
-            sessions: deps.sessions(),
-            servers: deps.servers(),
-            client: client(),
-            sleep: deps.sleep,
-            now: deps.now,
-          },
-          sessionId,
-          task,
-        ),
-      ),
+    host(sessionId, opts = {}) {
+      const running = hostings.get(sessionId)
+      if (running) return running
+      const ref = startTracked(
+        ctx.tasks,
+        ctx.bus,
+        'webhost-host',
+        (task) =>
+          hostOnWeb(
+            ctx,
+            {
+              sessions: deps.sessions(),
+              servers: deps.servers(),
+              client: client(),
+              sleep: deps.sleep,
+              now: deps.now,
+            },
+            sessionId,
+            task,
+            opts,
+          ),
+        () => {
+          if (hostings.get(sessionId) === ref) hostings.delete(sessionId)
+        },
+      )
+      hostings.set(sessionId, ref)
+      return ref
+    },
 
     async room(roomId) {
       const web = client()
@@ -248,7 +321,8 @@ export function createWebhostService(ctx: CoreContext, deps: WebhostServiceDeps)
 
     command: (roomId, command) => client().sendCommand(roomId, command),
 
-    readLog: (roomId, fromByte) => client().readLog(roomId, fromByte),
+    readLog: async (roomId, fromByte) =>
+      maskedLog(roomId, fromByte, await client().readLog(roomId, fromByte)),
 
     myRooms: () => client().myRooms(),
 

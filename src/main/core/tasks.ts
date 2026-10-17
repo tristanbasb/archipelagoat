@@ -90,3 +90,37 @@ export function createTaskManager(bus: EventBus, log?: Logger): TaskManager {
     },
   }
 }
+
+/**
+ * Starts a task like `tasks.start` and calls `onEnd` once it is over: when its run settles, or when it
+ * is cancelled before its run started (the run then never starts). Lets a service know what runs,
+ * from the moment the task is asked for (`tasks.start` only runs it on the next turn).
+ */
+export function startTracked<T>(
+  tasks: TaskManager,
+  bus: EventBus,
+  kind: TaskKind,
+  run: (t: TaskHandle) => Promise<T>,
+  onEnd: () => void,
+): TaskRef {
+  let started = false
+  let ended = false
+  let off = (): void => undefined
+  const end = (): void => {
+    if (ended) return
+    ended = true
+    off()
+    onEnd()
+  }
+  const ref = tasks.start(kind, (task) => {
+    started = true
+    off()
+    return Promise.resolve()
+      .then(() => run(task))
+      .finally(end)
+  })
+  off = bus.on('task:failed', ({ taskId }) => {
+    if (taskId === ref.taskId && !started) end()
+  })
+  return ref
+}

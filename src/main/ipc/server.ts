@@ -8,7 +8,9 @@ import type { RegisterHandler } from './registry'
 export default function registerServerHandlers(register: RegisterHandler, services: ServiceContainer): void {
   const servers = (): ReturnType<typeof services.get<'servers'>> => services.get('servers')
 
-  register('server:start', ({ sessionId }) => servers().start(sessionId))
+  register('server:start', ({ sessionId, replaceWeb }) =>
+    servers().start(sessionId, { replaceWeb: replaceWeb === true }),
+  )
 
   register('server:stop', ({ sessionId, force }) => servers().stop(sessionId, { force }))
 

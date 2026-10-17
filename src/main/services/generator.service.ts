@@ -15,14 +15,19 @@ declare module '@main/services/registry' {
 
 defineService(
   'generator',
-  (ctx, get) =>
-    createGenerator(ctx, {
-      sessions: get('sessions'),
+  (ctx, get) => {
+    const sessions = get('sessions')
+    const generator = createGenerator(ctx, {
+      sessions,
       settings: get('settings'),
       locator: get('locator'),
       // The servers service also sees the orphan server a previous run of the app left running, as
       // the web hosting's check does (Task 17). Looked up at each check.
       isServing: (id) => get('servers').isBusy(id),
-    }),
+    })
+    // A session that generates cannot be deleted.
+    sessions.addBusyCheck((id) => generator.isGenerating(id))
+    return generator
+  },
   { eager: false },
 )

@@ -4,8 +4,9 @@
 // Enter. Its lines drive the progress (GENERATE_STAGE_IDS) and go to the session's logs, masked. A
 // success is an exit 0 with a final archive: the AP_<seed>.zip is read into slots, each slot's files
 // extracted under output/slots/, and the session leaves the hosting of its previous seed. A failure
-// is the last exception Archipelago printed, as an error code.
-import { mkdir, open, readdir, rm, type FileHandle } from 'node:fs/promises'
+// is the last exception Archipelago printed, as an error code. A generation and a local server of the
+// same session never run together: each refuses while the other runs.
+import { access, mkdir, open, readdir, rm, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { finished } from 'node:stream/promises'
 import type { CoreContext } from '@main/core/context'
@@ -16,14 +17,24 @@ import { workspacePaths, writeSessionHostYaml } from '@main/core/sessions/worksp
 import { extractZipSafe, listZip, readZipText, type ZipLimits } from '@main/core/system/archive'
 import { safeJoin } from '@main/core/system/fsx'
 import { redact } from '@main/core/system/redact'
-import type { TaskHandle } from '@main/core/tasks'
+import { startTracked, type TaskHandle } from '@main/core/tasks'
+import { disabledWorldsDir, findCorruptWorld } from '@main/core/worlds/inventory'
 import type { GenerateStageId } from '@shared/codes'
 import { AP_EXES } from '@shared/data/ap-constants'
 import { matchApError } from '@shared/data/error-catalog'
 import { FILL_STEP_RE, FINAL_ARCHIVE_RE, GENERATE_STAGES } from '@shared/data/log-patterns'
 import { routeForFile } from '@shared/data/patch-routes'
 import { AppError, type AppErrorData } from '@shared/errors'
-import type { ExeRef, Generation, RomNeed, Rules, SessionValidation, Slot, TaskRef } from '@shared/types'
+import type {
+  ApInstall,
+  ExeRef,
+  Generation,
+  RomNeed,
+  Rules,
+  SessionValidation,
+  Slot,
+  TaskRef,
+} from '@shared/types'
 import { throwIfCancelled } from './install-steps'
 import type { Locator } from './locator'
 import { childrenFile, listChildren, readChildren, spawnAp, type ApExit, type ApStream } from './process'
@@ -47,11 +58,26 @@ export interface GenerateDeps {
   isServing?: (sessionId: string) => boolean
   /** The silence after which the task reports a stall. Default: 10 minutes. */
   stallMs?: number
+  /**
+   * The file name of a corrupt world of the install, on which Archipelago would stop; null when
+   * there is none. Default: a scan of its world folders (findCorruptWorld).
+   */
+  corruptWorld?: (install: ApInstall) => Promise<string | null>
+}
+
+export interface GenerateOptions {
+  /**
+   * Replaces the game the session hosts (its archipelago.gg room, or its local game and save), which
+   * the new seed leaves behind: given once the user confirmed it.
+   */
+  replace?: boolean
 }
 
 export interface Generator {
   /** Runs the generation of the session as a `generate` task; one at a time per session. */
-  generate(sessionId: string): TaskRef
+  generate(sessionId: string, opts?: GenerateOptions): TaskRef
+  /** True from the moment a generation of the session is asked for until it is over. */
+  isGenerating(sessionId: string): boolean
 }
 
 const STALL_MS = 10 * 60 * 1000
@@ -495,32 +521,61 @@ async function removeNewEntries(dir: string, before: ReadonlySet<string>): Promi
   )
 }
 
+const exists = (file: string): Promise<boolean> =>
+  access(file).then(
+    () => true,
+    () => false,
+  )
+
+/** The session hosts a game: a room or a local game (a stopped one too), or the save of its seed. */
+async function hostsAGame(
+  session: { hosting: unknown; generation: Generation | null },
+  output: string,
+): Promise<boolean> {
+  if (session.hosting !== null) return true
+  const seed = session.generation?.seedName
+  return seed !== undefined && (await exists(path.join(output, `${seed}.apsave`)))
+}
+
 /**
  * Generates session `sessionId` (spec §3.8) and stores the result as its generation. Throws
- * GENERATION_PREFLIGHT `{ reason: 'hosting' }` while a local server of the session runs,
- * AP_NOT_INSTALLED, then GENERATION_PREFLIGHT `{ errors }` when the validation blocks: nothing runs
- * then. A failed run throws the error Archipelago printed (with the log's `logPath`), a cancelled one
- * TASK_CANCELLED once its partial output is gone. A room on archipelago.gg blocks nothing: the new
- * seed replaces the hosting of the old one, which stays on the site.
+ * GENERATION_PREFLIGHT `{ reason: 'hosting' }` while a local server of the session runs, then
+ * `{ reason: 'game-in-progress' }` for a session that hosts a game (an archipelago.gg room, a local
+ * game or its save) unless `opts.replace`, AP_NOT_INSTALLED, GENERATION_PREFLIGHT `{ errors }` when
+ * the validation blocks, and WORLD_CORRUPT_BLOCKING `{ file }` for a world Archipelago would stop on:
+ * nothing runs then. A failed run throws the error Archipelago printed (with the log's `logPath`), a
+ * cancelled one TASK_CANCELLED once its partial output is gone. A replaced game stays where it is
+ * (the room on the site, the save on disk); the session no longer points to it.
  */
 export async function runGeneration(
   ctx: CoreContext,
   deps: GenerateDeps,
   sessionId: string,
   task: TaskHandle,
+  opts: GenerateOptions = {},
 ): Promise<Generation> {
   const { signal } = task
   throwIfCancelled(signal)
   const session = await deps.sessions.get(sessionId)
   const isServing = deps.isServing ?? ((id: string) => serverRunsFor(ctx.platform.paths.dataRoot, id))
   if (isServing(sessionId)) throw new AppError('GENERATION_PREFLIGHT', { reason: 'hosting' })
+  const ws = workspacePaths(ctx.platform.paths.dataRoot, sessionId)
+  if (opts.replace !== true && (await hostsAGame(session, ws.output))) {
+    throw new AppError('GENERATION_PREFLIGHT', { reason: 'game-in-progress' })
+  }
   const install = await deps.locator.detect()
   if (!install) throw new AppError('AP_NOT_INSTALLED')
   const validation = await deps.sessions.validateSession(sessionId)
   if (validation.blocking) throw new AppError('GENERATION_PREFLIGHT', { errors: blockingCount(validation) })
+  const corruptWorld =
+    deps.corruptWorld ??
+    ((at: ApInstall) =>
+      findCorruptWorld(at.paths, disabledWorldsDir(ctx.platform.paths.dataRoot), at.version))
+  const corrupt = await corruptWorld(install)
+  // Archipelago would stop while it loads its worlds, whichever games the players picked.
+  if (corrupt !== null) throw new AppError('WORLD_CORRUPT_BLOCKING', { file: corrupt })
   throwIfCancelled(signal)
 
-  const ws = workspacePaths(ctx.platform.paths.dataRoot, sessionId)
   const secrets = await deps.sessions.getSecrets(sessionId)
   const entries = buildSessionSettingsEntries(session.rules, secrets, romPathsOf(validation.romNeeds))
   await writeSessionHostYaml(deps.settings, ws.dir, entries, ctx.platform.os)
@@ -555,6 +610,11 @@ export async function runGeneration(
     throw new AppError(code, params, { ...(detail === undefined ? {} : { detail }), logPath: log.path })
   }
 
+  // A server serving the previous seed keeps its patches and its generation. (It cannot start through
+  // the app while the session generates; this covers any other way.)
+  if (isServing(sessionId)) {
+    throw new AppError('GENERATION_PREFLIGHT', { reason: 'hosting' }, { logPath: log.path })
+  }
   const zipPath = path.resolve(ws.dir, run.zipPath)
   let generation: Generation
   try {
@@ -572,13 +632,25 @@ export async function runGeneration(
     throw new AppError('GENERATION_FAILED', undefined, { detail, logPath: log.path, cause: error })
   }
   const stored = await deps.sessions.setGeneration(sessionId, generation)
-  // The hosting was the old seed's, unless a server started meanwhile: it runs, and the session says so.
-  if (stored.hosting !== null && !isServing(sessionId)) await deps.sessions.setHosting(sessionId, null)
+  // The hosting was the old seed's.
+  if (stored.hosting !== null) await deps.sessions.setHosting(sessionId, null)
   return generation
 }
 
 export function createGenerator(ctx: CoreContext, deps: GenerateDeps): Generator {
   const queues = new Map<string, Promise<unknown>>()
+  /** The generations asked for and not over yet, by session. */
+  const active = new Map<string, number>()
+
+  /** Counts a generation of session `id` until the returned function is called. */
+  function hold(id: string): () => void {
+    active.set(id, (active.get(id) ?? 0) + 1)
+    return () => {
+      const left = (active.get(id) ?? 1) - 1
+      if (left > 0) active.set(id, left)
+      else active.delete(id)
+    }
+  }
 
   /** Runs `fn` once the previous generation of the session has settled (its cleanup included). */
   function exclusive<T>(id: string, fn: () => Promise<T>): Promise<T> {
@@ -592,10 +664,16 @@ export function createGenerator(ctx: CoreContext, deps: GenerateDeps): Generator
   }
 
   return {
-    generate(sessionId) {
-      return ctx.tasks.start('generate', (task) =>
-        exclusive(sessionId, () => runGeneration(ctx, deps, sessionId, task)),
+    generate(sessionId, opts = {}) {
+      return startTracked(
+        ctx.tasks,
+        ctx.bus,
+        'generate',
+        (task) => exclusive(sessionId, () => runGeneration(ctx, deps, sessionId, task, opts)),
+        hold(sessionId),
       )
     },
+
+    isGenerating: (id) => active.has(id),
   }
 }

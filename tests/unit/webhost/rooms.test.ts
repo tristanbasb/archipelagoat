@@ -151,7 +151,56 @@ describe('hostOnWeb', () => {
       roomId: created.id,
       roomUrl: room.roomUrl,
       port: 50123,
+      seedName: '12345678901234567890',
     })
+  })
+
+  it('hosting again reuses the room of the generation: no second upload, no second room', async () => {
+    const first = await hostOnWeb(core.ctx, deps(), sessionId, fakeTask())
+    const created = onlyRoom()
+    const visits = created.visits
+    const task = fakeTask()
+
+    const again = await hostOnWeb(core.ctx, deps(), sessionId, task)
+
+    expect(again).toMatchObject({ roomId: first.roomId, seedId: first.seedId, port: 50123 })
+    expect(mock.state.newRoomCalls).toBe(1)
+    expect(mock.state.seeds.size).toBe(1)
+    expect(task.stages).toEqual(['wake', 'port'])
+    // Woken up again: its port may have changed.
+    expect(created.visits).toBe(visits + 1)
+    expect((await sessions.get(sessionId)).hosting).toMatchObject({ roomId: first.roomId })
+  })
+
+  it('a retry after a room that got no port wakes that room instead of opening another', async () => {
+    mock.state.assignPort = 0
+    expect((await failure(hostOnWeb(core.ctx, deps(), sessionId, fakeTask()))).code).toBe(
+      'WEBHOST_ROOM_FAILED',
+    )
+    const created = onlyRoom()
+    // The session keeps the room it got: the retry finds it.
+    expect((await sessions.get(sessionId)).hosting).toMatchObject({ roomId: created.id, port: null })
+    mock.state.assignPort = 50123
+    created.port = 50123
+    const room = await hostOnWeb(core.ctx, deps(), sessionId, fakeTask())
+    expect(room.roomId).toBe(created.id)
+    expect(mock.state.newRoomCalls).toBe(1)
+  })
+
+  it('opens a new room only when asked, or for a room of another seed', async () => {
+    const first = await hostOnWeb(core.ctx, deps(), sessionId, fakeTask())
+    const renewed = await hostOnWeb(core.ctx, deps(), sessionId, fakeTask(), { newRoom: true })
+    expect(renewed.roomId).not.toBe(first.roomId)
+    expect(mock.state.newRoomCalls).toBe(2)
+    expect((await sessions.get(sessionId)).hosting).toMatchObject({ roomId: renewed.roomId })
+
+    // A room recorded for another generation is never reused.
+    const hosting = (await sessions.get(sessionId)).hosting
+    if (hosting?.mode !== 'web') throw new Error('expected a web hosting')
+    await sessions.setHosting(sessionId, { ...hosting, seedName: '99999999999999999999' })
+    const third = await hostOnWeb(core.ctx, deps(), sessionId, fakeTask())
+    expect(third.roomId).not.toBe(renewed.roomId)
+    expect(mock.state.newRoomCalls).toBe(3)
   })
 
   it('calls /new_room exactly once even when port takes 3 polls', async () => {
@@ -177,6 +226,7 @@ describe('hostOnWeb', () => {
       roomId: created.id,
       roomUrl: `${mock.url}/room/${created.id}`,
       port: null,
+      seedName: '12345678901234567890',
     })
   })
 
@@ -362,6 +412,58 @@ describe('createWebhostService', () => {
     const room = await service.wake(roomId)
     expect(onlyRoom().visits).toBe(visits + 1)
     expect(room.port).toBe(50123)
+  })
+
+  it('answers the running task to a second hosting of the same session: one upload, one room', async () => {
+    const service = makeService()
+    const first = service.host(sessionId)
+    const second = service.host(sessionId)
+    expect(second).toEqual(first)
+    expect(await waitForTask(first.taskId)).toMatchObject({ kind: 'webhost-host' })
+    expect(mock.state.newRoomCalls).toBe(1)
+    expect(mock.state.seeds.size).toBe(1)
+    // Once over, a new hosting runs as a new task (and reuses the room).
+    const third = service.host(sessionId)
+    expect(third.taskId).not.toBe(first.taskId)
+    await waitForTask(third.taskId)
+    expect(mock.state.newRoomCalls).toBe(1)
+  })
+
+  it('masks the passwords in the room log and only gives whole lines', async () => {
+    const service = makeService()
+    const roomId = await hosted(service)
+    await sessions.setSecrets(sessionId, { password: 'hunter2 secret', serverPassword: 'admin-pw' })
+    const room = onlyRoom()
+    const refused =
+      "A client connection was refused due to: {'InvalidPassword'}, the sent connect information was " +
+      "{'cmd': 'Connect', 'password': 'typo-guess', 'name': 'Alice'}\n"
+    room.log =
+      'Hosting game at 127.0.0.1:50123 (Password: hunter2 secret)\n' +
+      refused +
+      'Option server_password is set to admin-pw\n' +
+      'Option password is set to hunter2 secret\n' +
+      'Alice (Team #1) sent the password hunter2 secret in chat\n' +
+      'half a li'
+
+    const log = await service.readLog(roomId, 0)
+
+    for (const secret of ['hunter2', 'admin-pw', 'typo-guess']) expect(log.text).not.toContain(secret)
+    expect(log.text).toContain("'password': '•••'")
+    expect(log.text).toContain('Option server_password is set to •••')
+    expect(log.text.endsWith('in chat\n')).toBe(true)
+    // The line still being written is read again next time, whole.
+    const whole = Buffer.byteLength(room.log, 'utf8') - Buffer.byteLength('half a li', 'utf8')
+    expect(log.nextByte).toBe(whole)
+    room.log += 'ne\n'
+    expect(await service.readLog(roomId, log.nextByte)).toEqual({
+      text: 'half a line\n',
+      nextByte: Buffer.byteLength(room.log, 'utf8'),
+    })
+    // Nothing new: nothing given, nothing skipped.
+    expect(await service.readLog(roomId, Buffer.byteLength(room.log, 'utf8'))).toEqual({
+      text: '',
+      nextByte: Buffer.byteLength(room.log, 'utf8'),
+    })
   })
 
   it('passes commands, log reads and the room list through the client', async () => {

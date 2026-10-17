@@ -73,13 +73,17 @@ describe('webhost handlers', () => {
       ok: true,
       value: { taskId: 'task-1' },
     })
-    expect(service.host).toHaveBeenCalledWith('s1')
+    expect(service.host).toHaveBeenCalledWith('s1', { newRoom: false })
+    // A new room only when the user asks for one.
+    await call('webhost:host', { sessionId: 's1', consent: true, newRoom: true })
+    expect(service.host).toHaveBeenLastCalledWith('s1', { newRoom: true })
+    service.host.mockClear()
     // No hosting without the explicit consent of the dialog.
     expect(await call('webhost:host', { sessionId: 's1', consent: false })).toMatchObject({
       ok: false,
       error: { code: 'INVALID_INPUT' },
     })
-    expect(service.host).toHaveBeenCalledOnce()
+    expect(service.host).not.toHaveBeenCalled()
 
     expect(await call('webhost:room', { roomId })).toEqual({ ok: true, value: ROOM })
     expect(await call('webhost:wake', { roomId })).toEqual({ ok: true, value: { ...ROOM, port: 40000 } })

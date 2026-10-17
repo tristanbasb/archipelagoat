@@ -8,5 +8,7 @@ export default function registerSessionGenerateHandler(
   register: RegisterHandler,
   services: ServiceContainer,
 ): void {
-  register('session:generate', ({ id }) => Promise.resolve(services.get('generator').generate(id)))
+  register('session:generate', ({ id, replace }) =>
+    Promise.resolve(services.get('generator').generate(id, { replace: replace === true })),
+  )
 }

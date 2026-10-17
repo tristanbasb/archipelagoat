@@ -7,7 +7,9 @@ import type { RegisterHandler } from './registry'
 export default function registerWebhostHandlers(register: RegisterHandler, services: ServiceContainer): void {
   const webhost = (): ReturnType<typeof services.get<'webhost'>> => services.get('webhost')
 
-  register('webhost:host', ({ sessionId }) => Promise.resolve(webhost().host(sessionId)))
+  register('webhost:host', ({ sessionId, newRoom }) =>
+    Promise.resolve(webhost().host(sessionId, { newRoom: newRoom === true })),
+  )
 
   register('webhost:room', ({ roomId }) => webhost().room(roomId))
 

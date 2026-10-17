@@ -246,3 +246,16 @@ export async function scanWorlds(
   }
   return computeStates(worlds, apVersion)
 }
+
+/**
+ * The file name of the first corrupt world of these folders (disabled ones excepted): every program
+ * of Archipelago 0.6.x stops on it while it loads its worlds (brief §1.10). Null when there is none.
+ */
+export async function findCorruptWorld(
+  paths: ApPaths,
+  disabledDir: string,
+  apVersion: string | null,
+): Promise<string | null> {
+  const worlds = await scanWorlds(paths, disabledDir, apVersion)
+  return worlds.find((world) => world.states.includes('corrupt'))?.fileName ?? null
+}
