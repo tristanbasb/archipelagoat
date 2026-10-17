@@ -54,6 +54,8 @@ let core: TestCore
 let install: ApInstall | null
 let installed: Map<string, { worldVersion: string | null }>
 let settingsValues: Record<string, unknown>
+/** The loaded custom worlds whose game nothing tells. */
+let unknownWorlds: string[]
 let schemas: GameSchema[]
 let catalog: Map<string, CatalogEntry>
 let vault: Vault
@@ -117,6 +119,7 @@ beforeEach(() => {
     [LTTP, { worldVersion: null }],
   ])
   settingsValues = {}
+  unknownWorlds = []
   schemas = [TUNIC]
   catalog = new Map([
     ['Hollow Knight', catalogEntry('hk', 'Hollow Knight', true)],
@@ -126,7 +129,10 @@ beforeEach(() => {
   vault = createVault(core.ctx, { settings, locator, table: TABLE })
   const context: ValidationContextDeps = {
     locator,
-    worlds: { installedGames: () => Promise.resolve(new Map(installed)) },
+    worlds: {
+      installedGames: () => Promise.resolve(new Map(installed)),
+      unknownWorlds: () => Promise.resolve([...unknownWorlds]),
+    },
     templates: {
       getSchema: (game) => {
         const found = schemas.find((schema) => schema.game === game)
@@ -184,6 +190,25 @@ describe('validateSession', () => {
     expect(result.files.map((f) => f.fileId)).toEqual(session.players.map((p) => p.id))
     expect(result.files[1]?.docs[0]?.issues.map((i) => i.code)).toEqual(['game-not-installed'])
     expect(result.romNeeds).toEqual([])
+  })
+
+  it('does not block on a game that a world without a readable game may provide', async () => {
+    unknownWorlds = ['rhythm_doctor']
+    const id = await sessionWith(
+      ['Alice.yaml', player('Alice', 'TUNIC')],
+      ['Bob.yaml', player('Bob', 'Rhythm Doctor')],
+    )
+    const result = await validator().validateSession(id)
+    expect(result.missingWorlds).toEqual([])
+    expect(result.blocking).toBe(false)
+    expect(result.files[1]?.docs[0]?.issues).toEqual([
+      {
+        severity: 'warning',
+        code: 'game-unconfirmed',
+        path: 'game',
+        params: { game: 'Rhythm Doctor', worlds: 'rhythm_doctor' },
+      },
+    ])
   })
 
   it('is not blocking when every world is installed and only warnings remain', async () => {

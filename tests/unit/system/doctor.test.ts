@@ -171,6 +171,21 @@ describe('runDoctor', () => {
     })
   })
 
+  it('flags a world whose file is not named after its module: Archipelago never loads it', async () => {
+    await makeApworld(join(install.paths.customWorlds, 'rhythm_doctor-v0.0.11.apworld'), {
+      module: 'rhythm_doctor',
+      game: 'Rhythm Doctor',
+    })
+    expect(problems(await runDoctor(deps()))).toEqual({
+      'worlds-bad-name': {
+        id: 'worlds-bad-name',
+        severity: 'warning',
+        params: { count: 1, files: 'rhythm_doctor-v0.0.11.apworld' },
+        fix: { kind: 'navigate', to: '/worlds' },
+      },
+    })
+  })
+
   it('a corrupt core world sends to the install screen: it cannot be set aside', async () => {
     writeFileSync(join(install.paths.coreWorlds, 'alttp.apworld'), 'garbage')
     expect(byId(await runDoctor(deps()), 'worlds-corrupt')).toEqual({

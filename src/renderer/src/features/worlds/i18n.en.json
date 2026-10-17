@@ -44,6 +44,10 @@
     "disabled": {
       "label": "Disabled",
       "help": "Set aside by ArchipelaGOAT: Archipelago does not load it. Enable it again whenever you like."
+    },
+    "bad-name": {
+      "label": "Wrong name",
+      "help": "Its file name is not the name of its inner folder: Archipelago cannot load it. Rename it in one click."
     }
   },
   "installed": {
@@ -67,6 +71,9 @@
     "openFolder": "Open the folder",
     "openFolderOf": "Open the folder of {{game}}",
     "disable": "Disable",
+    "rename": "Rename to {{name}}",
+    "renameGame": "Rename the file of {{game}} to {{name}}",
+    "renamed": "{{game}} is renamed to {{name}}",
     "disableGame": "Disable {{game}}",
     "enable": "Enable",
     "enableGame": "Enable {{game}}",

@@ -29,8 +29,14 @@ import type { SessionStore } from './store'
 
 export interface ValidationContextDeps {
   locator: Pick<Locator, 'detect'>
-  /** Game → version of the world Archipelago loads for it (the worlds service caches it). */
-  worlds: { installedGames(): Promise<ValidationContext['installedGames']> }
+  /**
+   * Game → version of the world Archipelago loads for it, and the loaded custom worlds whose game
+   * nothing tells (the worlds service caches both).
+   */
+  worlds: {
+    installedGames(): Promise<ValidationContext['installedGames']>
+    unknownWorlds?(): Promise<string[]>
+  }
   templates: Pick<Templates, 'getSchema'>
   settings: Pick<ApSettings, 'get'>
   log: Pick<Logger, 'debug'>
@@ -57,6 +63,7 @@ export async function buildValidationContext(
 ): Promise<ValidationContext> {
   const install = await deps.locator.detect()
   const installed = await deps.worlds.installedGames()
+  const unknownWorlds = install ? ((await deps.worlds.unknownWorlds?.()) ?? []) : []
   const schemas = new Map<string, GameSchema>()
   await Promise.all(
     games
@@ -81,6 +88,7 @@ export async function buildValidationContext(
     plandoEnabled: plandoEnabled
       ? plandoEnabled.map((module) => module.toLowerCase())
       : plandoModules(typeof plando === 'string' ? plando : DEFAULT_PLANDO),
+    unknownWorlds,
   }
 }
 
@@ -166,8 +174,10 @@ export function createSessionValidator(
       const sessionIssues = validateSessionNames(checked)
       const allDocs = checked.flatMap((file) => file.docs)
       const games = [...new Set(allDocs.flatMap((doc) => doc.games.map((g) => g.game)))]
+      // A world whose game nothing tells may provide it: Archipelago decides (game-unconfirmed).
+      const unconfirmed = (context.unknownWorlds ?? []).length > 0
       const missingWorlds = games
-        .filter((game) => !context.installedGames.has(game))
+        .filter((game) => !context.installedGames.has(game) && !unconfirmed)
         .map((game) => ({ game, catalogId: installableId(deps.catalog.lookupByGame(game)) }))
       const romNeeds = await resolveRomNeeds(games, deps)
       const issues = [...allDocs.flatMap((doc) => doc.issues), ...sessionIssues]

@@ -21,7 +21,7 @@ import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
 import { writeFileAtomic } from '../system/fsx'
 import { httpStatusError, toNetworkError } from '../system/http'
-import { disabledWorldsDir, scanWorlds } from './inventory'
+import { disabledWorldsDir, NOT_LOADED_STATES, scanWorlds } from './inventory'
 
 /** The version the app targets: the one the index is read for when Archipelago is not installed. */
 const TARGET_AP_VERSION = '0.6.8'
@@ -594,7 +594,7 @@ function installedVersionOf(
   const matches =
     sameGame.length > 0 ? sameGame : custom.filter((c) => c.game === null && c.module === world.id)
   const loaded = matches.find(
-    (candidate) => !candidate.states.some((state) => ['shadowed', 'incompatible', 'corrupt'].includes(state)),
+    (candidate) => !candidate.states.some((state) => state === 'shadowed' || NOT_LOADED_STATES.has(state)),
   )
   const match = loaded ?? matches[0]
   return match ? (match.manifest?.worldVersion ?? 'unknown') : null

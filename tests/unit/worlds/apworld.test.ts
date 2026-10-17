@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { inspectApworld, parseWorldManifest, readApworld } from '@main/core/worlds/apworld'
+import { gameFromSource, inspectApworld, parseWorldManifest, readApworld } from '@main/core/worlds/apworld'
 import { AppError } from '@shared/errors'
 import { apworldManifest, makeApworld, patchZipNames } from '../../helpers/make-apworld'
 
@@ -154,7 +154,53 @@ describe('readApworld', () => {
       initRoots: [],
       manifest: expect.objectContaining({ game: 'foo' }) as unknown,
       manifestError: null,
+      sourceGame: null,
     })
+  })
+
+  it('reads the game a world without a manifest declares in its code, without running it', async () => {
+    const world = [
+      'from worlds.AutoWorld import World, WebWorld',
+      '',
+      'class RhythmWeb(WebWorld):',
+      '    game = "Not this one"',
+      '',
+      'class RhythmDoctorWorld(World):',
+      "    '''The world.'''",
+      '    game: ClassVar[str] = "Rhythm Doctor"',
+      '    topology_present = False',
+      '',
+    ].join('\r\n')
+    const file = await makeApworld(join(root, 'rhythm_doctor.apworld'), {
+      manifest: null,
+      files: { 'rhythm_doctor/world.py': world, 'rhythm_doctor/items.py': 'game = "Items"\n' },
+    })
+    expect(await readApworld(file)).toMatchObject({
+      manifest: null,
+      manifestError: 'missing',
+      sourceGame: 'Rhythm Doctor',
+    })
+    // A manifest game wins: the code is not read.
+    const declared = await makeApworld(join(root, 'declared.apworld'), {
+      game: 'Declared',
+      files: { 'declared/world.py': world },
+    })
+    expect(await readApworld(declared)).toMatchObject({ sourceGame: null })
+  })
+})
+
+describe('gameFromSource', () => {
+  it('takes the game of the first World class, in any spelling Archipelago worlds use', () => {
+    expect(gameFromSource("class A(World):\n    game = 'Alpha'\n")).toBe('Alpha')
+    expect(gameFromSource('class B(AutoWorld.World):\n    game: str = "Beta"\n')).toBe('Beta')
+    expect(gameFromSource('class C(SomeBaseWorld, Mixin):\n    # doc\n\n    game = "Gamma"\n')).toBe('Gamma')
+  })
+
+  it('reads nothing outside a World class body, and nothing from WebWorld', () => {
+    expect(gameFromSource('game = "Top level"\nclass A(World):\n    pass\n')).toBeNull()
+    expect(gameFromSource('class W(WebWorld):\n    game = "Web"\n')).toBeNull()
+    expect(gameFromSource('class A(World):\n    pass\ngame_name = 1\nclass B:\n    game = "x"\n')).toBeNull()
+    expect(gameFromSource('class A(World):\n    game = some_constant\n')).toBeNull()
   })
 })
 

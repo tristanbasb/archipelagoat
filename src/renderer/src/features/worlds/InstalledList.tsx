@@ -4,6 +4,7 @@ import {
   IconAlertOctagon,
   IconBan,
   IconCircleCheck,
+  IconCursorText,
   IconEyeOff,
   IconFileAlert,
   IconFolderOpen,
@@ -62,6 +63,7 @@ const STATE_TONE: Record<WorldState, Tone> = {
   shadowed: 'cyan',
   'core-loose': 'neutral',
   disabled: 'neutral',
+  'bad-name': 'pink',
 }
 
 const STATE_ICON: Record<WorldState, ReactNode> = {
@@ -72,6 +74,7 @@ const STATE_ICON: Record<WorldState, ReactNode> = {
   shadowed: <IconEyeOff />,
   'core-loose': <IconLock />,
   disabled: <IconPlayerPause />,
+  'bad-name': <IconCursorText />,
 }
 
 const SKELETON_ROWS = 5
@@ -103,7 +106,21 @@ export function InstalledList({ onBrowseCatalog }: InstalledListProps): React.JS
       const game = worldName(world)
       toast.push({
         tone: 'ok',
-        title: t(enabled ? 'screens.worlds.installed.enabled' : 'screens.worlds.installed.disabled', { game }),
+        title: t(enabled ? 'screens.worlds.installed.enabled' : 'screens.worlds.installed.disabled', {
+          game,
+        }),
+        body: t('screens.worlds.installed.restartHint'),
+      })
+    },
+    onError: showError,
+  })
+  // Enabling a misnamed world renames it after its module, which Archipelago imports.
+  const rename = useIpcMutation('worlds:setEnabled', {
+    invalidates: WORLD_QUERIES,
+    onSuccess: (world) => {
+      toast.push({
+        tone: 'ok',
+        title: t('screens.worlds.installed.renamed', { game: worldName(world), name: world.fileName }),
         body: t('screens.worlds.installed.restartHint'),
       })
     },
@@ -139,7 +156,12 @@ export function InstalledList({ onBrowseCatalog }: InstalledListProps): React.JS
                 {t(action.labelKey)}
               </NeonButton>
             )}
-            <NeonButton variant="secondary" size="sm" icon={<IconRefresh />} onClick={() => void worlds.refetch()}>
+            <NeonButton
+              variant="secondary"
+              size="sm"
+              icon={<IconRefresh />}
+              onClick={() => void worlds.refetch()}
+            >
               {t('common.retry')}
             </NeonButton>
           </>
@@ -156,7 +178,12 @@ export function InstalledList({ onBrowseCatalog }: InstalledListProps): React.JS
     .filter(
       (world) =>
         (stateFilter === 'all' || world.states.includes(stateFilter)) &&
-        matchesQuery(query, [worldName(world), world.module, world.fileName, ...(world.manifest?.authors ?? [])]),
+        matchesQuery(query, [
+          worldName(world),
+          world.module,
+          world.fileName,
+          ...(world.manifest?.authors ?? []),
+        ]),
     )
     .sort(byName)
   const added = origin === 'core' ? [] : shown.filter((world) => world.location !== 'core')
@@ -182,10 +209,15 @@ export function InstalledList({ onBrowseCatalog }: InstalledListProps): React.JS
   }
 
   const rowProps = {
-    busyId: setEnabled.isPending ? setEnabled.variables.worldId : null,
+    busyId: setEnabled.isPending
+      ? setEnabled.variables.worldId
+      : rename.isPending
+        ? rename.variables.worldId
+        : null,
     onOpen: (world: WorldInfo) => openFolder.mutate({ path: parentDir(world.path) }),
     onToggle: (world: WorldInfo) =>
       setEnabled.mutate({ worldId: world.id, enabled: world.location === 'disabled' }),
+    onRename: (world: WorldInfo) => rename.mutate({ worldId: world.id, enabled: true }),
     onRemove: setRemoving,
   }
 
@@ -325,6 +357,7 @@ interface RowActions {
   busyId: string | null
   onOpen: (world: WorldInfo) => void
   onToggle: (world: WorldInfo) => void
+  onRename: (world: WorldInfo) => void
   onRemove: (world: WorldInfo) => void
 }
 
@@ -349,6 +382,7 @@ function WorldRow({
   busyId,
   onOpen,
   onToggle,
+  onRename,
   onRemove,
 }: { world: WorldInfo } & RowActions): React.JSX.Element {
   const { t, i18n } = useTranslation()
@@ -400,6 +434,15 @@ function WorldRow({
             label={t('screens.worlds.installed.openFolderOf', { game })}
             icon={<IconFolderOpen />}
             onClick={() => onOpen(world)}
+          />
+        )}
+        {editable && !disabled && world.states.includes('bad-name') && (
+          <RowButton
+            tip={t('screens.worlds.installed.rename', { name: `${world.module}.apworld` })}
+            label={t('screens.worlds.installed.renameGame', { game, name: `${world.module}.apworld` })}
+            icon={<IconCursorText />}
+            busy={busy}
+            onClick={() => onRename(world)}
           />
         )}
         {editable && (
@@ -475,13 +518,20 @@ function RowButton({ tip, label, icon, onClick, busy, disabled, danger }: RowBut
   )
 }
 
-function RemoveDialog({ world, onClose }: { world: WorldInfo | null; onClose: () => void }): React.JSX.Element {
+function RemoveDialog({
+  world,
+  onClose,
+}: {
+  world: WorldInfo | null
+  onClose: () => void
+}): React.JSX.Element {
   const { t } = useTranslation()
   const toast = useToast()
   const remove = useIpcMutation('worlds:remove', {
     invalidates: WORLD_QUERIES,
     onSuccess: () => {
-      if (world) toast.push({ tone: 'ok', title: t('screens.worlds.remove.done', { game: worldName(world) }) })
+      if (world)
+        toast.push({ tone: 'ok', title: t('screens.worlds.remove.done', { game: worldName(world) }) })
       close()
     },
   })
@@ -522,7 +572,9 @@ function RemoveDialog({ world, onClose }: { world: WorldInfo | null; onClose: ()
       }
     >
       <div className="worlds-remove">
-        <p className="worlds-remove__body">{t('screens.worlds.remove.body', { file: world?.fileName ?? '' })}</p>
+        <p className="worlds-remove__body">
+          {t('screens.worlds.remove.body', { file: world?.fileName ?? '' })}
+        </p>
         {failure && (
           <ErrorPanel
             title={failure.title}

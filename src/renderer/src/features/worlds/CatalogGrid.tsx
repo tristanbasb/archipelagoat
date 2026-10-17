@@ -89,7 +89,13 @@ function isFiltering(filters: Filters): boolean {
 
 function keep(entry: CatalogEntry, filters: Filters): boolean {
   return (
-    matchesQuery(filters.query, [entry.displayName, entry.game, entry.id, entry.wiki?.maintainer, ...entry.tags]) &&
+    matchesQuery(filters.query, [
+      entry.displayName,
+      entry.game,
+      entry.id,
+      entry.wiki?.maintainer,
+      ...entry.tags,
+    ]) &&
     (filters.status === ANY || entry.wiki?.status === filters.status) &&
     (filters.tag === ANY || entry.tags.includes(filters.tag)) &&
     (filters.rom === 'any' || entry.requiresRomAtGeneration === (filters.rom === 'needed')) &&
@@ -175,7 +181,12 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
                 {t(action.labelKey)}
               </NeonButton>
             )}
-            <NeonButton variant="secondary" size="sm" icon={<IconRefresh />} onClick={() => void catalog.refetch()}>
+            <NeonButton
+              variant="secondary"
+              size="sm"
+              icon={<IconRefresh />}
+              onClick={() => void catalog.refetch()}
+            >
               {t('common.retry')}
             </NeonButton>
           </>
@@ -210,7 +221,11 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
   return (
     <div className="worlds-catalog">
       {snapshot.stale && (
-        <StaleNotice snapshot={snapshot} fetchedAt={fetchedAt} action={refreshButton(t('common.retry'), 'secondary')} />
+        <StaleNotice
+          snapshot={snapshot}
+          fetchedAt={fetchedAt}
+          action={refreshButton(t('common.retry'), 'secondary')}
+        />
       )}
 
       <div className="worlds-toolbar">
@@ -242,7 +257,10 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
             hideLabel
             value={filters.tag}
             onChange={(tag) => filter({ tag })}
-            options={[anyOption(t('screens.worlds.catalog.allTags')), ...tags.map((tag) => ({ value: tag, label: tag }))]}
+            options={[
+              anyOption(t('screens.worlds.catalog.allTags')),
+              ...tags.map((tag) => ({ value: tag, label: tag })),
+            ]}
           />
         )}
         <Select<RomFilter>
@@ -302,7 +320,9 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
             </NeonButton>
           )}
           {fetchedAt && !snapshot.stale && (
-            <span className="worlds-catalog__fetched">{t('screens.worlds.catalog.fetchedAt', { date: fetchedAt })}</span>
+            <span className="worlds-catalog__fetched">
+              {t('screens.worlds.catalog.fetchedAt', { date: fetchedAt })}
+            </span>
           )}
           {!snapshot.stale && refreshButton(t('screens.worlds.catalog.refresh'))}
         </div>
@@ -498,7 +518,11 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
                 {t('screens.worlds.catalog.version', { version: entry.latest.version })}
               </span>
             ))}
-          {maintainer && <span className="catalog-card__maintainer">{t('screens.worlds.catalog.by', { name: maintainer })}</span>}
+          {maintainer && (
+            <span className="catalog-card__maintainer">
+              {t('screens.worlds.catalog.by', { name: maintainer })}
+            </span>
+          )}
         </p>
         <div className="catalog-card__badges">
           {status && <Badge tone={statusTone(status)}>{status}</Badge>}
@@ -649,7 +673,14 @@ function LinkButton({
 }): React.JSX.Element {
   return (
     <Tooltip content={tip}>
-      <NeonButton variant="ghost" size="sm" className="catalog-card__link" aria-label={label} icon={icon} onClick={onClick} />
+      <NeonButton
+        variant="ghost"
+        size="sm"
+        className="catalog-card__link"
+        aria-label={label}
+        icon={icon}
+        onClick={onClick}
+      />
     </Tooltip>
   )
 }

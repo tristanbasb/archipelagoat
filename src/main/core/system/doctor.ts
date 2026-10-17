@@ -211,6 +211,8 @@ function runners(deps: DoctorDeps): Record<DoctorCheckId, Runner> {
     'worlds-no-manifest': worldsCheck('worlds-no-manifest', 'no-manifest', 'warning'),
     'worlds-incompatible': worldsCheck('worlds-incompatible', 'incompatible', 'warning'),
     'worlds-shadowed': worldsCheck('worlds-shadowed', 'shadowed', 'warning'),
+    // Archipelago imports `worlds.<file stem>`: a file not named after its module never loads.
+    'worlds-bad-name': worldsCheck('worlds-bad-name', 'bad-name', 'warning'),
 
     'ap-processes': async () => {
       const running = await deps.listProcesses()

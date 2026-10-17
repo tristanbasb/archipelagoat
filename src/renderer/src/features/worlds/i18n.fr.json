@@ -44,6 +44,10 @@
     "disabled": {
       "label": "Désactivé",
       "help": "Mis de côté par ArchipelaGOAT\u00a0: Archipelago ne le charge pas. Réactive-le quand tu veux."
+    },
+    "bad-name": {
+      "label": "Mauvais nom",
+      "help": "Son nom de fichier n’est pas celui de son dossier interne\u00a0: Archipelago ne peut pas le charger. Renomme-le d’un clic."
     }
   },
   "installed": {
@@ -67,6 +71,9 @@
     "openFolder": "Ouvrir le dossier",
     "openFolderOf": "Ouvrir le dossier de {{game}}",
     "disable": "Désactiver",
+    "rename": "Renommer en {{name}}",
+    "renameGame": "Renommer le fichier de {{game}} en {{name}}",
+    "renamed": "{{game}} est renommé en {{name}}",
     "disableGame": "Désactiver {{game}}",
     "enable": "Réactiver",
     "enableGame": "Réactiver {{game}}",

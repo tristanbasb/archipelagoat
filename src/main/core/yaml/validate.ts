@@ -17,6 +17,12 @@ export interface ValidationContext {
   allowQuantity: boolean
   /** The plando modules of the generation, lower case: `bosses`, `items`, `texts`, `connections`. */
   plandoEnabled: string[]
+  /**
+   * The modules of loaded custom worlds whose game cannot be read (no manifest game, none in their
+   * code). Archipelago 0.6 loads them, so a game no other world provides may be theirs: it is then a
+   * warning (`game-unconfirmed`), not an error.
+   */
+  unknownWorlds?: readonly string[]
 }
 
 const NAME_MAX = 16
@@ -329,9 +335,17 @@ function checkGames(doc: Record<string, unknown>, ctx: ValidationContext, push: 
       push({ severity: 'error', code: 'game-not-installed', path: 'game', params: { game: display(value) } })
   }
   if (none) push({ severity: 'error', code: 'no-game', path: 'game' })
+  const unknownWorlds = ctx.unknownWorlds ?? []
   for (const game of games.keys()) {
     const installed = ctx.installedGames.has(game)
-    if (!installed) {
+    if (!installed && unknownWorlds.length > 0) {
+      push({
+        severity: 'warning',
+        code: 'game-unconfirmed',
+        path: 'game',
+        params: { game, worlds: unknownWorlds.join(', ') },
+      })
+    } else if (!installed) {
       const close = suggestion(game, ctx.installedGames.keys())
       push({
         severity: 'error',

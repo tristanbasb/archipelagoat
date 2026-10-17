@@ -334,6 +334,7 @@
     "encoding-fallback": "The file was not UTF-8: it was read as Windows-1252. Check the accented letters.",
     "no-game": "No game is chosen (the game key is missing).",
     "game-not-installed": "No installed world handles this game.",
+    "game-unconfirmed": "No installed world declares this game, but a world without a manifest ({{worlds}}) may provide it: Archipelago will tell at generation.",
     "game-section-missing": "The game’s options section is missing.",
     "game-section-null": "The game’s options section is empty (null): write {} instead.",
     "name-too-long": "The name is longer than 16 characters.",
@@ -361,6 +362,7 @@
     "ap-missing": "Archipelago is not installed",
     "world-ok": "The game’s world is installed",
     "world-missing": "The game’s world is not installed",
+    "world-unconfirmed": "No world declares this game, but a world without a manifest may provide it",
     "rom-ok": "ROM found",
     "rom-missing": "ROM missing",
     "rom-bad-hash": "The ROM is not the right version",
@@ -412,6 +414,11 @@
       "title": "Duplicate worlds",
       "ok": "No duplicate world.",
       "problem": "Some worlds exist twice: only one copy is used."
+    },
+    "worlds-bad-name": {
+      "title": "Misnamed worlds",
+      "ok": "Every world is named after its inner folder.",
+      "problem": "Some worlds are not named after their inner folder: Archipelago does not load them. Rename them from the Worlds screen."
     },
     "ap-processes": {
       "title": "Open Archipelago programs",

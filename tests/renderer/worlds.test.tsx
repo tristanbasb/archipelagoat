@@ -122,7 +122,11 @@ const ENTRIES: CatalogEntry[] = [
     game: 'Hollow Knight',
     tags: ['metroidvania'],
     installedVersion: '0.4.0',
-    latest: { version: '0.5.0', url: 'https://github.com/example/hk/releases/download/v0.5.0/hk.apworld', sha256: null },
+    latest: {
+      version: '0.5.0',
+      url: 'https://github.com/example/hk/releases/download/v0.5.0/hk.apworld',
+      sha256: null,
+    },
     wiki: wiki('Hollow Knight', 'Unstable'),
     trust: 'wiki-release',
   }),
@@ -176,16 +180,24 @@ describe('WorldsScreen', () => {
 
     // The badges are reachable from the keyboard too.
     expect(shadowed.closest('[tabindex="0"]')).not.toBeNull()
-    expect(within(screen.getByRole('article', { name: 'Celeste' })).getByText('Désactivé')).toBeInTheDocument()
-    expect(within(screen.getByRole('article', { name: 'A Link to the Past' })).getByText('Intégré')).toBeInTheDocument()
-    expect(within(screen.getByRole('article', { name: 'Pokemon Crystal' })).getByText('3.1.0')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('article', { name: 'Celeste' })).getByText('Désactivé'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('article', { name: 'A Link to the Past' })).getByText('Intégré'),
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('article', { name: 'Pokemon Crystal' })).getByText('3.1.0'),
+    ).toBeInTheDocument()
 
     // A corrupt world blocks Archipelago: the screen says so, and filters on it.
     const alert = screen.getByRole('alert')
     expect(alert).toHaveTextContent('Un monde cassé bloque Archipelago')
     await user.click(within(alert).getByRole('button', { name: 'Voir les mondes corrompus' }))
     await waitFor(() =>
-      expect(within(screen.getByRole('list', { name: 'Ajoutés par toi' })).getAllByRole('article')).toHaveLength(1),
+      expect(
+        within(screen.getByRole('list', { name: 'Ajoutés par toi' })).getAllByRole('article'),
+      ).toHaveLength(1),
     )
     expect(screen.getByRole('article', { name: 'broken_world' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Filtrer par état' })).toHaveValue('corrupt')
@@ -211,6 +223,34 @@ describe('WorldsScreen', () => {
     await user.click(screen.getByRole('radio', { name: 'Officiels' }))
     expect(screen.queryByRole('list', { name: 'Ajoutés par toi' })).toBeNull()
     expect(screen.getByRole('article', { name: 'A Link to the Past' })).toBeInTheDocument()
+  })
+
+  it('renames a world whose file is not named after its module, which Archipelago cannot load', async () => {
+    const misnamed = world({
+      id: 'w-rd',
+      module: 'rhythm_doctor',
+      fileName: 'rhythm_doctor-v0.0.11.apworld',
+      path: `${CUSTOM_DIR}\rhythm_doctor-v0.0.11.apworld`,
+      game: 'Rhythm Doctor',
+      states: ['bad-name'],
+    })
+    const goat = installGoatMock({
+      'worlds:list': () => [misnamed],
+      'worlds:setEnabled': () => ({ ...misnamed, fileName: 'rhythm_doctor.apworld', states: ['ok'] }),
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds' })
+
+    const row = await screen.findByRole('article', { name: 'Rhythm Doctor' })
+    expect(within(row).getByText('Mauvais nom')).toBeInTheDocument()
+    await user.click(
+      within(row).getByRole('button', {
+        name: 'Renommer le fichier de Rhythm Doctor en rhythm_doctor.apworld',
+      }),
+    )
+    await waitFor(() =>
+      expect(goat.inputsOf('worlds:setEnabled')).toEqual([{ worldId: 'w-rd', enabled: true }]),
+    )
+    expect(await screen.findByText('Rhythm Doctor est renommé en rhythm_doctor.apworld')).toBeInTheDocument()
   })
 
   it('opens the folder, disables, re-enables and removes custom worlds', async () => {
@@ -258,7 +298,9 @@ describe('WorldsScreen', () => {
 
     // A world shipped with Archipelago can only be looked at.
     const alttp = screen.getByRole('article', { name: 'A Link to the Past' })
-    expect(within(alttp).getByRole('button', { name: 'Ouvrir le dossier de A Link to the Past' })).toBeInTheDocument()
+    expect(
+      within(alttp).getByRole('button', { name: 'Ouvrir le dossier de A Link to the Past' }),
+    ).toBeInTheDocument()
     expect(within(alttp).queryByRole('button', { name: /Désactiver|Supprimer/ })).toBeNull()
   })
 
@@ -271,7 +313,9 @@ describe('WorldsScreen', () => {
     const alttp = await screen.findByRole('article', { name: 'A Link to the Past' })
     expect(within(alttp).queryByRole('button')).toBeNull()
     const crystal = screen.getByRole('article', { name: 'Pokemon Crystal' })
-    expect(within(crystal).getByRole('button', { name: 'Ouvrir le dossier de Pokemon Crystal' })).toBeInTheDocument()
+    expect(
+      within(crystal).getByRole('button', { name: 'Ouvrir le dossier de Pokemon Crystal' }),
+    ).toBeInTheDocument()
   })
 
   it('reloads the worlds when the main process announces a change', async () => {
@@ -332,7 +376,9 @@ describe('WorldsScreen', () => {
     expect(within(celeste).getByText('Index vérifié')).toBeInTheDocument()
     await user.click(within(celeste).getByRole('button', { name: 'Installer Celeste' }))
     await waitFor(() =>
-      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([{ source: { kind: 'catalog', id: 'celeste' } }]),
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: { kind: 'catalog', id: 'celeste' } },
+      ]),
     )
     expect(await screen.findByRole('dialog')).toHaveTextContent('Analyse du monde…')
   })
@@ -354,7 +400,9 @@ describe('WorldsScreen', () => {
     )
 
     await waitFor(() =>
-      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([{ source: { kind: 'file', path: DOWNLOADED_A } }]),
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: { kind: 'file', path: DOWNLOADED_A } },
+      ]),
     )
     expect(await screen.findByText('1 en attente')).toBeInTheDocument()
     expect(screen.getByTestId('search').textContent).toBe(`?${query}`)
@@ -384,10 +432,16 @@ describe('WorldsScreen', () => {
     const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds' })
     await user.click(await screen.findByRole('button', { name: 'Installer un fichier…' }))
     await waitFor(() =>
-      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([{ source: { kind: 'file', path: DOWNLOADED_A } }]),
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([
+        { source: { kind: 'file', path: DOWNLOADED_A } },
+      ]),
     )
     expect(goat.inputsOf('app:pickPaths')).toEqual([
-      { mode: 'files', title: 'Choisir des APWorlds', filters: [{ name: 'APWorld', extensions: ['apworld'] }] },
+      {
+        mode: 'files',
+        title: 'Choisir des APWorlds',
+        filters: [{ name: 'APWorld', extensions: ['apworld'] }],
+      },
     ])
   })
 
@@ -446,7 +500,12 @@ describe('WorldsScreen', () => {
       'catalog:list': ({ force }) =>
         force
           ? SNAPSHOT
-          : { ...SNAPSHOT, stale: true, fetchedAt: '2026-10-15T12:00:00.000Z', errors: ['GITHUB_RATE_LIMITED'] },
+          : {
+              ...SNAPSHOT,
+              stale: true,
+              fetchedAt: '2026-10-15T12:00:00.000Z',
+              errors: ['GITHUB_RATE_LIMITED'],
+            },
     })
     const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
 
@@ -454,7 +513,9 @@ describe('WorldsScreen', () => {
     expect(banner).toHaveTextContent('GitHub limite les requêtes')
     expect(banner).toHaveTextContent(/15 oct\. 2026/)
     // The cached copy stays usable.
-    expect(within(screen.getByRole('list', { name: 'Mondes du catalogue' })).getAllByRole('article')).toHaveLength(3)
+    expect(
+      within(screen.getByRole('list', { name: 'Mondes du catalogue' })).getAllByRole('article'),
+    ).toHaveLength(3)
 
     await user.click(within(banner).getByRole('button', { name: 'Réessayer' }))
     await waitFor(() => expect(goat.inputsOf('catalog:list')).toEqual([{}, { force: true }]))

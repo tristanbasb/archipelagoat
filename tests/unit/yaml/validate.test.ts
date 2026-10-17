@@ -60,6 +60,13 @@ const ISSUE_CASES: IssueCase[] = [
   ['duplicate-key', 'error', doc(...BASE, 'TUNIC: {}', 'name: Other')],
   ['no-game', 'error', doc('name: Goat', 'TUNIC: {}')],
   ['game-not-installed', 'error', doc('name: Goat', 'game: Tunic', 'Tunic: {}')],
+  // A world without a manifest may provide the game: Archipelago 0.6 loads it.
+  [
+    'game-unconfirmed',
+    'warning',
+    doc('name: Goat', 'game: Rhythm Doctor', 'Rhythm Doctor: {}'),
+    { unknownWorlds: ['rhythm_doctor'] },
+  ],
   ['game-section-missing', 'error', doc(...BASE)],
   ['game-section-null', 'error', doc(...BASE, 'TUNIC:')],
   ['name-too-long', 'error', doc('name: VeryLongPlayerName{number}', 'game: TUNIC', 'TUNIC: {}')],
@@ -220,6 +227,22 @@ describe('validatePlayerDocs', () => {
     ])
     expect(errorsOf(doc('name: Goat', 'game: Zork', 'Zork: {}'))).toEqual([
       { severity: 'error', code: 'game-not-installed', path: 'game', params: { game: 'Zork' } },
+    ])
+  })
+
+  it('a game no world declares is a warning while a world without a readable game is loaded', () => {
+    const ctx = { ...CTX, unknownWorlds: ['rhythm_doctor', 'mystery'] }
+    expect(issuesOf(doc('name: Goat', 'game: Rhythm Doctor', 'Rhythm Doctor: {}'), ctx)).toEqual([
+      {
+        severity: 'warning',
+        code: 'game-unconfirmed',
+        path: 'game',
+        params: { game: 'Rhythm Doctor', worlds: 'rhythm_doctor, mystery' },
+      },
+    ])
+    // The games the worlds do declare are checked as usual.
+    expect(errorsOf(doc('name: Goat', 'game: TUNIC', 'TUNIC:'), ctx)).toMatchObject([
+      { code: 'game-section-null' },
     ])
   })
 

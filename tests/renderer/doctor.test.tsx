@@ -157,12 +157,15 @@ describe('doctor screen', () => {
     expect(update).toHaveTextContent('Pas vérifié : la dernière version ne peut pas être lue pour le moment.')
     expect(screen.queryByText('Archipelago est à jour.')).toBeNull()
 
-    // 12 checks concern this machine; 10 passed (not the warning, not the update left unchecked).
+    // Every check but two concerns this machine; two of those did not pass (the warning, the update
+    // left unchecked).
+    const concerned = DOCTOR_CHECK_IDS.length - 2
+    const passed = concerned - 2
     const summary = screen.getByRole('region', { name: 'Santé du système' })
-    expect(within(summary).getByText('10/12')).toBeInTheDocument()
+    expect(within(summary).getByText(`${passed}/${concerned}`)).toBeInTheDocument()
     expect(within(summary).getByRole('progressbar', { name: 'Vérifications réussies' })).toHaveAttribute(
       'aria-valuenow',
-      String(Math.round((10 / 12) * 100)),
+      String(Math.round((passed / concerned) * 100)),
     )
   })
 

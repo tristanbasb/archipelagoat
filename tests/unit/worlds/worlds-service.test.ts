@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createWorlds, installedGamesOf, type Worlds } from '@main/services/worlds.service'
+import { createWorlds, installedGamesOf, unknownWorldsOf, type Worlds } from '@main/services/worlds.service'
 import type { ApInstall, ApPaths, WorldInfo } from '@shared/types'
 import { createTestContext, type TestCore } from '../../helpers/core'
 import { apworldManifest, makeApworld } from '../../helpers/make-apworld'
@@ -129,6 +129,32 @@ describe('worlds service: installedGames', () => {
   })
 })
 
+describe('unknownWorldsOf', () => {
+  const custom = (module: string, game: string | null, states: WorldInfo['states']): WorldInfo => ({
+    id: module,
+    fileName: `${module}.apworld`,
+    path: '',
+    location: 'custom',
+    module,
+    game,
+    manifest: null,
+    states,
+    sizeBytes: 0,
+  })
+
+  it('lists the loaded custom worlds whose game nothing tells', () => {
+    expect(
+      unknownWorldsOf([
+        custom('mystery', null, ['no-manifest']),
+        custom('known', 'Known', ['no-manifest']),
+        custom('broken', null, ['corrupt']),
+        custom('misnamed', null, ['bad-name']),
+        { ...custom('core', null, ['ok']), location: 'core' },
+      ]),
+    ).toEqual(['mystery'])
+  })
+})
+
 describe('installedGamesOf', () => {
   const world = (
     game: string | null,
@@ -164,6 +190,7 @@ describe('installedGamesOf', () => {
         world('A', ['ok'], '2.0.0'),
         world('B', ['shadowed'], '1.0.0'),
         world('C', ['incompatible'], '1.0.0'),
+        world('E', ['bad-name'], '1.0.0'),
         world('D', ['no-manifest'], null),
         world(null, ['ok'], null),
       ]),

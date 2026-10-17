@@ -235,6 +235,49 @@ describe('scanWorlds', () => {
   })
 })
 
+describe('scanWorlds and the file name rule', () => {
+  it('marks bad-name an .apworld whose stem is not its module: Archipelago never loads it', async () => {
+    await custom('foo.apworld', {
+      module: 'foo',
+      game: 'Foo',
+      manifest: apworldManifest('Foo', { world_version: '1.0.0' }),
+    })
+    await custom('foo-v1.1.0.apworld', {
+      module: 'foo',
+      manifest: apworldManifest('Foo', { world_version: '1.1.0' }),
+    })
+    // Case counts: Archipelago's zip lookup is case-sensitive.
+    await custom('pokemon.apworld', { module: 'Pokemon', game: 'Pokemon' })
+
+    const worlds = await scanWorlds(paths, disabled, '0.6.8')
+    // The higher version is not loaded, so it shadows nothing: the copy Archipelago loads is ok.
+    expect(statesOf(worlds, 'custom')).toEqual({
+      'foo-v1.1.0.apworld': ['bad-name'],
+      'foo.apworld': ['ok'],
+      'pokemon.apworld': ['bad-name'],
+    })
+  })
+})
+
+describe('scanWorlds and worlds without a manifest', () => {
+  const WORLD = 'from worlds.AutoWorld import World\n\nclass RDWorld(World):\n    game = "Rhythm Doctor"\n'
+
+  it('reads their game from their code, in a file or a folder, without running it', async () => {
+    await custom('rhythm_doctor.apworld', { manifest: null, files: { 'rhythm_doctor/world.py': WORLD } })
+    const loose = folder(join(paths.customWorlds, 'loose_world'))
+    writeFileSync(join(loose, '__init__.py'), WORLD.replace('Rhythm Doctor', 'Loose Game'))
+    await custom('mystery.apworld', { manifest: null })
+
+    const worlds = await scanWorlds(paths, disabled, '0.6.8')
+    expect(worlds.map((w) => [w.fileName, w.game, w.manifest, w.states])).toEqual([
+      ['loose_world', 'Loose Game', null, ['ok']],
+      // Still no manifest: it breaks with Archipelago 0.7.
+      ['mystery.apworld', null, null, ['no-manifest']],
+      ['rhythm_doctor.apworld', 'Rhythm Doctor', null, ['no-manifest']],
+    ])
+  })
+})
+
 describe('computeStates', () => {
   const world = (fileName: string, over: Partial<WorldInfo> = {}): WorldInfo => ({
     id: fileName,

@@ -45,7 +45,7 @@ export interface Studio {
 
 export interface StudioDeps {
   locator: Pick<Locator, 'detect'>
-  worlds: Pick<Worlds, 'installedGames'>
+  worlds: Pick<Worlds, 'installedGames'> & Partial<Pick<Worlds, 'unknownWorlds'>>
   templates: Pick<Templates, 'getSchema'>
   settings: Pick<ApSettings, 'get'>
 }
@@ -145,7 +145,10 @@ defineService(
     // Resolved on use: parsing, rendering and saving never start the locator or the templates.
     createStudio(ctx, {
       locator: { detect: () => get('locator').detect() },
-      worlds: { installedGames: () => get('worlds').installedGames() },
+      worlds: {
+        installedGames: () => get('worlds').installedGames(),
+        unknownWorlds: () => get('worlds').unknownWorlds(),
+      },
       templates: { getSchema: (game) => get('templates').getSchema(game) },
       settings: { get: (path) => get('settings').get(path) },
     }),

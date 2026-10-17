@@ -185,6 +185,8 @@ export interface ChecklistFacts {
   game: string | null
   /** The games of the worlds Archipelago loads. */
   loadedGames: ReadonlySet<string>
+  /** Loaded custom worlds whose game nothing tells (Worlds.unknownWorlds): one may be the slot's. */
+  unknownWorlds?: number
   baseChecksums: readonly string[]
   /** Where each ROM of `romsForPatch` is (`Vault.resolveRomForEntry`). */
   roms: readonly { entry: RomTableEntry; resolution: RomResolution }[]
@@ -198,11 +200,13 @@ const FROM_VAULT: CheckCode = 'rom-apply-from-vault'
 
 const item = (status: CheckItem['status'], code: CheckCode): CheckItem => ({ status, code })
 
-function worldCheck({ game, loadedGames, apVersion }: ChecklistFacts): CheckItem {
+function worldCheck({ game, loadedGames, apVersion, unknownWorlds = 0 }: ChecklistFacts): CheckItem {
   if (game === null) return item('na', 'na')
   const core = apVersion === null ? null : coreWorldsFor(apVersion)
   const provided = loadedGames.has(game) || (core?.some((world) => world.game === game) ?? false)
-  return provided ? item('ok', 'world-ok') : item('missing', 'world-missing')
+  if (provided) return item('ok', 'world-ok')
+  // A world without a readable game may be this one: the client tells, it does not block JOUER.
+  return unknownWorlds > 0 ? item('warning', 'world-unconfirmed') : item('missing', 'world-missing')
 }
 
 function romCheck({ baseChecksums, roms }: ChecklistFacts): CheckItem {
@@ -253,6 +257,8 @@ export interface JoinDeps {
   bizhawk: Pick<Bizhawk, 'state'>
   /** The games of the worlds Archipelago loads, core games included (the worlds service). */
   installedGames: () => Promise<ReadonlyMap<string, unknown>>
+  /** The loaded custom worlds whose game nothing tells (the worlds service). Default: none. */
+  unknownWorlds?: () => Promise<readonly string[]>
   /** The site rooms are read from. Default: an anonymous client of the site of the config. */
   webhost?: () => WebhostClient
   /** Default: spawnAp. */
@@ -378,6 +384,7 @@ export function createJoin(ctx: CoreContext, deps: JoinDeps): Join {
   ): Promise<Pick<JoinPlan, 'checklist' | 'ready'> & { fromVault: SettingsEntry[] }> {
     const install = await deps.locator.detect()
     const loaded = install ? await deps.installedGames() : new Map<string, unknown>()
+    const unknown = install ? ((await deps.unknownWorlds?.()) ?? []) : []
     const needs = base.manifest ? romsForPatch(base.manifest) : []
     const roms = await Promise.all(
       needs.map(async ({ entry, md5s }) => ({
@@ -391,6 +398,7 @@ export function createJoin(ctx: CoreContext, deps: JoinDeps): Join {
       apVersion: install?.version ?? null,
       game,
       loadedGames: new Set(loaded.keys()),
+      unknownWorlds: unknown.length,
       baseChecksums: base.manifest?.baseChecksums ?? [],
       roms,
       route: base.route,

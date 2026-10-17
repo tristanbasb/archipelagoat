@@ -9,7 +9,10 @@ export function worldName(world: WorldInfo): string {
 
 /** Lowercase and without accents, so that "pokémon" finds "Pokemon". */
 export function normalize(text: string): string {
-  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+  return text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
 }
 
 /** True when every word of the query appears in one of the fields. */
@@ -29,6 +32,7 @@ export function parentDir(path: string): string {
 /** Worst first: the order of the badges and of the state filter. */
 export const STATE_ORDER: readonly WorldState[] = [
   'corrupt',
+  'bad-name',
   'incompatible',
   'no-manifest',
   'shadowed',
@@ -40,6 +44,7 @@ export const STATE_ORDER: readonly WorldState[] = [
 /** States the user can act on (badges reachable from the keyboard). */
 export const ACTIONABLE_STATES: ReadonlySet<WorldState> = new Set([
   'corrupt',
+  'bad-name',
   'incompatible',
   'no-manifest',
   'shadowed',

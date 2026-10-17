@@ -24,6 +24,7 @@ defineService(
       bizhawk: get('bizhawk'),
       // Resolved on use: the worlds service is created when a checklist first needs it.
       installedGames: () => get('worlds').installedGames(),
+      unknownWorlds: () => get('worlds').unknownWorlds(),
     }),
   { eager: false },
 )

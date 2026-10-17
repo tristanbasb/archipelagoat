@@ -334,6 +334,7 @@
     "encoding-fallback": "Le fichier n’était pas en UTF-8\u00a0: il a été lu en Windows-1252. Vérifie les accents.",
     "no-game": "Aucun jeu n’est choisi (la clé game manque).",
     "game-not-installed": "Aucun monde installé ne gère ce jeu.",
+    "game-unconfirmed": "Aucun monde installé ne déclare ce jeu, mais un monde sans manifeste ({{worlds}}) le fournit peut-être\u00a0: Archipelago le dira à la génération.",
     "game-section-missing": "La section d’options du jeu manque.",
     "game-section-null": "La section d’options du jeu est vide (null)\u00a0: écris {} à la place.",
     "name-too-long": "Le nom dépasse 16 caractères.",
@@ -361,6 +362,7 @@
     "ap-missing": "Archipelago n’est pas installé",
     "world-ok": "Le monde du jeu est installé",
     "world-missing": "Le monde du jeu n’est pas installé",
+    "world-unconfirmed": "Aucun monde ne déclare ce jeu, mais un monde sans manifeste le fournit peut-être",
     "rom-ok": "ROM trouvée",
     "rom-missing": "ROM manquante",
     "rom-bad-hash": "La ROM n’est pas la bonne version",
@@ -412,6 +414,11 @@
       "title": "Mondes en double",
       "ok": "Aucun monde en double.",
       "problem": "Des mondes existent en double\u00a0: une seule copie est utilisée."
+    },
+    "worlds-bad-name": {
+      "title": "Mondes mal nommés",
+      "ok": "Chaque monde porte le nom de son dossier interne.",
+      "problem": "Des mondes ne portent pas le nom de leur dossier interne\u00a0: Archipelago ne les charge pas. Renomme-les depuis l’écran Mondes."
     },
     "ap-processes": {
       "title": "Programmes Archipelago ouverts",

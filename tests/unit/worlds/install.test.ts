@@ -494,6 +494,21 @@ describe('setEnabled and remove', () => {
     expect(existsSync(join(paths.coreWorlds, 'ahit.apworld'))).toBe(true)
   })
 
+  it('enabling a misnamed world puts it back under its module, the name Archipelago imports', async () => {
+    await makeApworld(join(paths.customWorlds, 'foo-v1.1.0.apworld'), {
+      module: 'foo',
+      manifest: apworldManifest('Foo', { world_version: '1.1.0' }),
+    })
+    const misnamed = await byFile('foo-v1.1.0.apworld')
+    expect(misnamed.states).toEqual(['bad-name'])
+
+    const renamed = await installer.setEnabled(misnamed.id, true)
+
+    expect(renamed).toMatchObject({ fileName: 'foo.apworld', location: 'custom', states: ['ok'] })
+    expect(filesIn(paths.customWorlds)).toEqual(['foo.apworld'])
+    expect(changes).toBe(1)
+  })
+
   it('refuses to enable a corrupt world and to move a folder world', async () => {
     mkdirSync(disabledDir(), { recursive: true })
     writeFileSync(join(disabledDir(), 'broken.apworld'), 'not a zip')

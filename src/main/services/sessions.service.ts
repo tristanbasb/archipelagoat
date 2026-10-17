@@ -41,7 +41,10 @@ defineService(
     // Resolved on use: listing or renaming a session never starts the locator, the worlds or the vault.
     const validation: ValidationContextDeps = {
       locator: { detect: () => get('locator').detect() },
-      worlds: { installedGames: () => get('worlds').installedGames() },
+      worlds: {
+        installedGames: () => get('worlds').installedGames(),
+        unknownWorlds: () => get('worlds').unknownWorlds(),
+      },
       templates: { getSchema: (game) => get('templates').getSchema(game) },
       settings: { get: (path) => get('settings').get(path) },
       log: ctx.log,

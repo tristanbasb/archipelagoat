@@ -132,7 +132,7 @@ export interface WorldManifest {
 }
 
 export type WorldState =
-  'ok' | 'no-manifest' | 'incompatible' | 'corrupt' | 'shadowed' | 'core-loose' | 'disabled'
+  'ok' | 'no-manifest' | 'incompatible' | 'corrupt' | 'shadowed' | 'core-loose' | 'disabled' | 'bad-name'
 
 export interface WorldInfo {
   id: string

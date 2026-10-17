@@ -22,7 +22,6 @@ import type {
   WorldInfo,
   WorldInstallPlan,
   WorldSource,
-  WorldState,
 } from '@shared/types'
 import {
   AP_CONTAINER_VERSION,
@@ -32,13 +31,17 @@ import {
   readApworld,
   type ApworldInspection,
 } from './apworld'
-import { apRangeViolation, computeStates, disabledWorldsDir, scanWorlds, worldId } from './inventory'
+import {
+  apRangeViolation,
+  computeStates,
+  disabledWorldsDir,
+  NOT_LOADED_STATES,
+  scanWorlds,
+  worldId,
+} from './inventory'
 
 /** A plan not confirmed within this delay is dropped, with its staged file. */
 export const PLAN_TTL_MS = 60 * 60 * 1000
-
-/** The states of a world Archipelago does not load: it cannot conflict with a new one. */
-const NEVER_LOADED: ReadonlySet<WorldState> = new Set(['disabled', 'corrupt', 'incompatible'])
 
 export interface WorldInstallerDeps {
   locator: Pick<Locator, 'detect'>
@@ -234,7 +237,8 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
       }
       if (candidate.game === null || world.game !== candidate.game) continue
       const [rival, challenger] = computeStates([world, candidate], apVersion)
-      if (!rival || !challenger || rival.states.some((state) => NEVER_LOADED.has(state))) continue
+      // A rival Archipelago never loads cannot conflict with the new world.
+      if (!rival || !challenger || rival.states.some((state) => NOT_LOADED_STATES.has(state))) continue
       rivals.push(conflict(world, challenger.states.includes('shadowed') ? 'existing' : 'new'))
     }
     return [...replaced, ...rivals]
@@ -349,7 +353,9 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
     async setEnabled(id, enabled) {
       const { install, world } = await findWorld(id)
       if (world.location === 'core') throw forbidden('core', world.path || world.fileName)
-      if (enabled === (world.location === 'custom')) return world
+      // Enabling a world Archipelago cannot import for its file name puts it back under its module.
+      const misnamed = enabled && world.location === 'custom' && world.states.includes('bad-name')
+      if (enabled === (world.location === 'custom') && !misnamed) return world
       if (!world.fileName.endsWith('.apworld')) throw forbidden('not-a-file', world.path)
 
       let dest: string

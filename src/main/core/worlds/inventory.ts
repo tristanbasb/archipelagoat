@@ -9,7 +9,7 @@ import pLimit from 'p-limit'
 import { coreWorldsFor } from '@shared/data/core-worlds'
 import { AppError } from '@shared/errors'
 import type { ApPaths, WorldInfo, WorldManifest, WorldState } from '@shared/types'
-import { parseWorldManifest, readApworld } from './apworld'
+import { gameFromModule, parseWorldManifest, readApworld, sourceFilesOf } from './apworld'
 
 /** Where disabled worlds wait, out of the folders Archipelago scans. */
 export const disabledWorldsDir = (dataRoot: string): string => path.join(dataRoot, 'disabled-worlds')
@@ -19,6 +19,25 @@ export const worldId = (absolutePath: string): string => createHash('sha1').upda
 
 const SCAN_CONCURRENCY = 8
 const APWORLD = '.apworld'
+
+/**
+ * The states of a world Archipelago does not load: it provides no game, competes with no other copy
+ * and is not counted as installed.
+ */
+export const NOT_LOADED_STATES: ReadonlySet<WorldState> = new Set([
+  'disabled',
+  'corrupt',
+  'incompatible',
+  'bad-name',
+])
+
+/**
+ * An .apworld whose file name is not its module (`rhythm_doctor-v0.0.11.apworld` holding
+ * `rhythm_doctor/`, `pokemon.apworld` holding `Pokemon/`): Archipelago imports `worlds.<file stem>`
+ * (worlds/__init__.py add_apworld_spec, case-sensitive), which fails, so it never loads it.
+ */
+const hasBadName = (world: WorldInfo): boolean =>
+  world.fileName.endsWith(APWORLD) && world.module !== world.fileName.slice(0, -APWORLD.length)
 
 type Version = [number, number, number]
 
@@ -69,7 +88,7 @@ const versionOrder = (a: WorldInfo, b: WorldInfo): number =>
     parseVersion(a.manifest?.worldVersion ?? null) ?? ZERO,
   ) || loadOrder(a, b)
 
-const STATE_ORDER: WorldState[] = ['core-loose', 'no-manifest', 'incompatible', 'shadowed']
+const STATE_ORDER: WorldState[] = ['bad-name', 'core-loose', 'no-manifest', 'incompatible', 'shadowed']
 
 /**
  * The states of each world (pure; the input is not changed). Only `corrupt` is taken from the input:
@@ -77,6 +96,7 @@ const STATE_ORDER: WorldState[] = ['core-loose', 'no-manifest', 'incompatible', 
  * - `disabled` for a world in the disabled folder, alone: Archipelago does not see it;
  * - `corrupt`, alone: Archipelago stops on it, whatever the rest;
  * - `core-loose` for a core world folder, which nothing can replace;
+ * - `bad-name` for an .apworld whose file stem is not its module: Archipelago cannot import it;
  * - `no-manifest` for a custom .apworld whose manifest Archipelago refuses;
  * - `incompatible` when `apVersion` is outside the manifest's [min, max];
  * - `shadowed` when the game is already provided: by a loose world (loaded first), or by a higher
@@ -94,8 +114,10 @@ export function computeStates(worlds: readonly WorldInfo[], apVersion: string | 
       active.push(entry)
     } else {
       if (world.manifest === null && world.location === 'custom') states.add('no-manifest')
+      const badName = hasBadName(world)
+      if (badName) states.add('bad-name')
       if (apRangeViolation(world.manifest, apVersion)) states.add('incompatible')
-      else active.push(entry)
+      else if (!badName) active.push(entry)
     }
   }
 
@@ -179,15 +201,26 @@ async function readCandidate(
   if (isDir) {
     const text = await readFile(path.join(file, 'archipelago.json'), 'utf8').catch(() => null)
     const { manifest, error } = parseWorldManifest(text, { packaged: false })
-    return { ...base, game: manifest?.game ?? tableGame, manifest: error === null ? manifest : null }
+    // Without a manifest game, a custom world's game is the one its code declares.
+    const sourceGame =
+      manifest === null && tableGame === null && location !== 'core'
+        ? await gameFromModule(sourceFilesOf(name, await folderPythonFiles(file, name)), (entry) =>
+            readFile(path.join(dir, entry), 'utf8'),
+          )
+        : null
+    return {
+      ...base,
+      game: manifest?.game ?? tableGame ?? sourceGame,
+      manifest: error === null ? manifest : null,
+    }
   }
   try {
-    const { roots, manifest, manifestError } = await readApworld(file)
+    const { roots, manifest, manifestError, sourceGame } = await readApworld(file)
     const [root] = roots
     return {
       ...base,
       module: roots.length === 1 && root !== undefined ? root : base.module,
-      game: manifest?.game ?? tableGame,
+      game: manifest?.game ?? tableGame ?? (location === 'core' ? null : sourceGame),
       manifest: manifestError === null ? manifest : null,
     }
   } catch (error) {
@@ -195,6 +228,12 @@ async function readCandidate(
     // Not a zip, or one that cannot be read safely: Archipelago stops on it (BadZipFile).
     return { ...base, game: tableGame, states: ['corrupt'] }
   }
+}
+
+/** The top-level Python files of a world folder, as `<module>/<file>.py`. */
+async function folderPythonFiles(folder: string, module: string): Promise<string[]> {
+  const names = await readdir(folder).catch(() => [] as string[])
+  return names.filter((name) => name.endsWith('.py')).map((name) => `${module}/${name}`)
 }
 
 /** The core worlds of a version, when Archipelago's folder cannot be read (an AppImage). */

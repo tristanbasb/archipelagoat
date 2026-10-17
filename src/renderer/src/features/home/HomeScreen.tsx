@@ -212,6 +212,7 @@ function apTile(install: ApInstall | null, t: TFunction): TileState {
 /** States that make a world worth a look on the worlds screen. */
 const WORLD_PROBLEMS: ReadonlySet<WorldState> = new Set([
   'corrupt',
+  'bad-name',
   'no-manifest',
   'incompatible',
   'shadowed',

@@ -34,6 +34,11 @@ export interface ApworldContents {
   initRoots: string[]
   manifest: WorldManifest | null
   manifestError: string | null
+  /**
+   * Without a manifest game: the `game` its World class declares in the module's top-level Python
+   * files, read as text (gameFromSource); null when none says.
+   */
+  sourceGame: string | null
 }
 
 export type WorldInvalidReason =
@@ -105,10 +110,67 @@ export function parseWorldManifest(
   return { manifest, error: errors[0] ?? null }
 }
 
+/** A World class: `class TunicWorld(World):`, with any base whose name ends with `World` (not WebWorld). */
+const WORLD_CLASS = /^class[ \t]+\w+[ \t]*\(([^)]*)\)[ \t]*:/gm
+/** `game = "X"`, `game: str = 'X'`, `game: ClassVar[str] = "X"`, indented in a class body. */
+const GAME_ATTRIBUTE = /^[ \t]+game[ \t]*(?::[^=\r\n]*)?=[ \t]*[rRuU]?(["'])((?:(?!\1)[^\\\r\n])+)\1/m
+/** The top-level Python files read for a World class, and the bytes read of each. */
+const MAX_SOURCE_FILES = 32
+const MAX_SOURCE_BYTES = 1024 * 1024
+
+/**
+ * The `game` a World class of `source` declares, read as text (nothing runs): the first class
+ * deriving from a `…World` base other than WebWorld, then the first `game = '…'` of its body. Null when
+ * the source declares none. Archipelago 0.6 loads worlds without a manifest; this is how such a
+ * world's game is known.
+ */
+export function gameFromSource(source: string): string | null {
+  const text = source.replaceAll('\r\n', '\n')
+  for (const match of text.matchAll(WORLD_CLASS)) {
+    const bases = (match[1] ?? '').split(',').map((base) => base.trim().split('.').pop() ?? '')
+    if (!bases.some((base) => base.endsWith('World') && base !== 'WebWorld')) continue
+    const start = (match.index ?? 0) + match[0].length
+    // The class body: up to the next line that is neither blank, indented nor a comment.
+    const rest = text.slice(start)
+    const end = rest.search(/\n(?=[^\s#])/)
+    const body = end === -1 ? rest : rest.slice(0, end)
+    const game = GAME_ATTRIBUTE.exec(body)?.[2]?.trim()
+    if (game) return game
+  }
+  return null
+}
+
+/** `__init__.py` first, then the module's other top-level Python files, by name. */
+export function sourceFilesOf(module: string, names: readonly string[]): string[] {
+  const prefix = `${module}/`
+  const top = names.filter(
+    (name) => name.startsWith(prefix) && name.endsWith('.py') && !name.slice(prefix.length).includes('/'),
+  )
+  const init = `${prefix}__init__.py`
+  return [...top.filter((n) => n === init), ...top.filter((n) => n !== init).sort()].slice(
+    0,
+    MAX_SOURCE_FILES,
+  )
+}
+
+/** The game the module's code declares, from `read` (an entry's text, or null). */
+export async function gameFromModule(
+  files: readonly string[],
+  read: (file: string) => Promise<string | null>,
+): Promise<string | null> {
+  for (const file of files) {
+    const text = await read(file).catch(() => null)
+    const game = text === null ? null : gameFromSource(text)
+    if (game !== null) return game
+  }
+  return null
+}
+
 /**
  * Lists the archive and reads its manifest: `archipelago.json` at the root, else the first entry
- * whose name ends with it (APContainer.read_contents). Throws `WORLD_INVALID` (`not-zip`,
- * `zip-bomb`, `traversal`) for an archive that cannot be read safely, `NOT_FOUND` for a missing file.
+ * whose name ends with it (APContainer.read_contents). Without a manifest game, the game its code
+ * declares (`sourceGame`). Throws `WORLD_INVALID` (`not-zip`, `zip-bomb`, `traversal`) for an archive
+ * that cannot be read safely, `NOT_FOUND` for a missing file.
  */
 export async function readApworld(file: string): Promise<ApworldContents> {
   const entries = await listZip(file)
@@ -123,7 +185,14 @@ export async function readApworld(file: string): Promise<ApworldContents> {
   const manifestName = names.includes(MANIFEST) ? MANIFEST : names.find((n) => n.endsWith(MANIFEST))
   const text = manifestName === undefined ? null : await readZipText(file, manifestName)
   const { manifest, error } = parseWorldManifest(text)
-  return { roots, initRoots, manifest, manifestError: error }
+  const [root] = initRoots
+  const sourceGame =
+    manifest === null && initRoots.length === 1 && root !== undefined
+      ? await gameFromModule(sourceFilesOf(root, names), (entry) =>
+          readZipText(file, entry, MAX_SOURCE_BYTES),
+        )
+      : null
+  return { roots, initRoots, manifest, manifestError: error, sourceGame }
 }
 
 // Characters and names Windows cannot use in a file name, or turns into something else.

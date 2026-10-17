@@ -3,9 +3,9 @@
 import { stat } from 'node:fs/promises'
 import type { CoreContext } from '@main/core/context'
 import { createWorldInstaller, type WorldInstaller, type WorldInstallerDeps } from '@main/core/worlds/install'
-import { disabledWorldsDir } from '@main/core/worlds/inventory'
+import { disabledWorldsDir, NOT_LOADED_STATES } from '@main/core/worlds/inventory'
 import type { ValidationContext } from '@main/core/yaml/validate'
-import type { ApInstall, WorldInfo, WorldState } from '@shared/types'
+import type { ApInstall, WorldInfo } from '@shared/types'
 import { defineService } from './registry'
 // The `catalog`, `locator` and `processes` entries of Services, used below.
 import type {} from './catalog.service'
@@ -21,6 +21,11 @@ export interface Worlds extends WorldInstaller {
    * `worlds:changed` and `ap:installed`, and when the install or its world folders change.
    */
   installedGames(): Promise<InstalledGames>
+  /**
+   * The modules of the custom worlds Archipelago loads whose game cannot be read without running
+   * them (no manifest game, none in their code): any game may be theirs. Same cache.
+   */
+  unknownWorlds(): Promise<string[]>
 }
 
 declare module '@main/services/registry' {
@@ -29,13 +34,12 @@ declare module '@main/services/registry' {
   }
 }
 
-/** The states of a world Archipelago does not load: its game is not installed. */
-const NOT_LOADED: ReadonlySet<WorldState> = new Set(['disabled', 'corrupt', 'incompatible'])
+const isLoaded = (world: WorldInfo): boolean => !world.states.some((s) => NOT_LOADED_STATES.has(s))
 
 /** Game → version of the world Archipelago loads for it (a shadowed one only when it is alone). */
 export function installedGamesOf(worlds: readonly WorldInfo[]): InstalledGames {
   const games: InstalledGames = new Map()
-  const loaded = worlds.filter((world) => world.game !== null && !world.states.some((s) => NOT_LOADED.has(s)))
+  const loaded = worlds.filter((world) => world.game !== null && isLoaded(world))
   const winnersFirst = [
     ...loaded.filter((world) => !world.states.includes('shadowed')),
     ...loaded.filter((world) => world.states.includes('shadowed')),
@@ -48,10 +52,15 @@ export function installedGamesOf(worlds: readonly WorldInfo[]): InstalledGames {
   return games
 }
 
+/** The custom worlds Archipelago loads whose game nothing tells (see Worlds.unknownWorlds). */
+export function unknownWorldsOf(worlds: readonly WorldInfo[]): string[] {
+  return worlds.filter((w) => w.location === 'custom' && w.game === null && isLoaded(w)).map((w) => w.module)
+}
+
 export function createWorlds(ctx: CoreContext, deps: WorldInstallerDeps): Worlds {
   const installer = createWorldInstaller(ctx, deps)
   const disabledDir = disabledWorldsDir(ctx.platform.paths.dataRoot)
-  let cache: { key: string; games: Promise<InstalledGames> } | null = null
+  let cache: { key: string; scan: Promise<{ games: InstalledGames; unknown: string[] }> } | null = null
   const drop = (): void => {
     cache = null
   }
@@ -75,23 +84,38 @@ export function createWorlds(ctx: CoreContext, deps: WorldInstallerDeps): Worlds
     return JSON.stringify([install.root, install.version, install.paths.customWorlds, ...times])
   }
 
+  /** The cached scan of the current install; null without Archipelago. */
+  async function scan(): Promise<{ games: InstalledGames; unknown: string[] } | null> {
+    const install = await deps.locator.detect()
+    if (!install) return null
+    const key = await keyOf(install)
+    let entry = cache
+    if (entry?.key !== key) {
+      const fresh = {
+        key,
+        scan: installer.list().then((worlds) => ({
+          games: installedGamesOf(worlds),
+          unknown: unknownWorldsOf(worlds),
+        })),
+      }
+      entry = cache = fresh
+      // A failed scan is asked again next time.
+      void fresh.scan.catch(() => {
+        if (cache === fresh) cache = null
+      })
+    }
+    return entry.scan
+  }
+
   return {
     ...installer,
 
     async installedGames() {
-      const install = await deps.locator.detect()
-      if (!install) return new Map()
-      const key = await keyOf(install)
-      let entry = cache
-      if (entry?.key !== key) {
-        const fresh = { key, games: installer.list().then(installedGamesOf) }
-        entry = cache = fresh
-        // A failed scan is asked again next time.
-        void fresh.games.catch(() => {
-          if (cache === fresh) cache = null
-        })
-      }
-      return new Map(await entry.games)
+      return new Map((await scan())?.games)
+    },
+
+    async unknownWorlds() {
+      return [...((await scan())?.unknown ?? [])]
     },
   }
 }

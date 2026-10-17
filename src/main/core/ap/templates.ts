@@ -10,11 +10,11 @@ import { AP_EXES } from '@shared/data/ap-constants'
 import { coreWorldsFor } from '@shared/data/core-worlds'
 import { matchApError } from '@shared/data/error-catalog'
 import { AppError } from '@shared/errors'
-import type { ApInstall, GameSchema, OptionSchema, StudioGame, WorldState } from '@shared/types'
+import type { ApInstall, GameSchema, OptionSchema, StudioGame } from '@shared/types'
 import type { CoreContext } from '../context'
 import { redact } from '../system/redact'
 import type { TaskHandle } from '../tasks'
-import { disabledWorldsDir, scanWorlds } from '../worlds/inventory'
+import { disabledWorldsDir, NOT_LOADED_STATES, scanWorlds } from '../worlds/inventory'
 import { fileSafeName, parseTemplate, readTemplateHeader } from '../yaml/template-parser'
 import type { Locator } from './locator'
 import { spawnAp, type ApExit, type ApProcess } from './process'
@@ -27,9 +27,6 @@ export const TEMPLATE_ARGS: readonly string[] = ['Generate Template Options', '-
 
 /** Worlds with `hidden = True` (worlds/generic/__init__.py): Archipelago writes no template for them. */
 const HIDDEN_GAMES: ReadonlySet<string> = new Set(['Archipelago'])
-
-/** The states of a world Archipelago does not load: its game is not installed. */
-const NOT_LOADED: ReadonlySet<WorldState> = new Set(['disabled', 'corrupt', 'incompatible'])
 
 /** The output lines read to translate a failed run. */
 const FAILURE_LINES = 200
@@ -262,7 +259,7 @@ export function createTemplates(ctx: CoreContext, deps: TemplatesDeps): Template
       )
       const installed = new Set(
         worlds
-          .filter((world) => !world.states.some((state) => NOT_LOADED.has(state)))
+          .filter((world) => !world.states.some((state) => NOT_LOADED_STATES.has(state)))
           .flatMap((world) => (world.game === null || HIDDEN_GAMES.has(world.game) ? [] : [world.game])),
       )
       const games = new Set([...installed, ...local.keys()])

@@ -397,6 +397,17 @@ describe('buildChecklist', () => {
     })
   })
 
+  it('a game no world declares is a warning, not a block, while a world without a readable game loads', () => {
+    const missing = buildChecklist(facts({ game: 'Rhythm Doctor', loadedGames: new Set() }))
+    expect(missing.checklist.world).toEqual({ status: 'missing', code: 'world-missing' })
+    expect(missing.ready).toBe(false)
+    const unconfirmed = buildChecklist(
+      facts({ game: 'Rhythm Doctor', loadedGames: new Set(), unknownWorlds: 1 }),
+    )
+    expect(unconfirmed.checklist.world).toEqual({ status: 'warning', code: 'world-unconfirmed' })
+    expect(unconfirmed.ready).toBe(true)
+  })
+
   it('checklist missing rom and emulator → ready false', () => {
     const { checklist, ready } = buildChecklist(
       facts({

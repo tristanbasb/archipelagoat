@@ -76,6 +76,7 @@ export const ISSUE_CODES = [
   // Game
   'no-game',
   'game-not-installed',
+  'game-unconfirmed',
   'game-section-missing',
   'game-section-null',
   // Name
@@ -112,6 +113,7 @@ export const DOCTOR_CHECK_IDS = [
   'worlds-no-manifest',
   'worlds-incompatible',
   'worlds-shadowed',
+  'worlds-bad-name',
   'ap-processes',
   'port-38281',
   'bizhawk',
@@ -149,6 +151,7 @@ export const CHECK_CODES = [
   'ap-missing',
   'world-ok',
   'world-missing',
+  'world-unconfirmed',
   'rom-ok',
   'rom-missing',
   'rom-bad-hash',
