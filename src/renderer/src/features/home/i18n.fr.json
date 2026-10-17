@@ -1,1 +1,90 @@
-{}
+{
+  "eyebrow": "PLAYER SELECT",
+  "subtitle": "Organise une partie multiworld ou rejoins celle d’un ami.",
+  "coin": {
+    "eyebrow": "CREDIT 00",
+    "title": "Archipelago n’est pas encore installé",
+    "body": "ArchipelaGOAT télécharge la version officielle, vérifie son empreinte et l’installe pour toi.",
+    "cta": "INSERT COIN",
+    "ctaHint": "Installer Archipelago 0.6.8"
+  },
+  "players": {
+    "cta": "PRESS START",
+    "host": {
+      "label": "PLAYER 1",
+      "title": "Organiser une partie",
+      "subtitle": "Rassemble les YAML, génère la seed et héberge la room."
+    },
+    "join": {
+      "label": "PLAYER 2",
+      "title": "Rejoindre une partie",
+      "subtitle": "Colle un lien de room ou dépose ton patch, puis joue."
+    }
+  },
+  "stats": {
+    "title": "État de ton installation",
+    "unavailable": "Indisponible",
+    "unknownValue": "?",
+    "ap": {
+      "label": "Archipelago",
+      "missing": "Absent",
+      "unknownVersion": "Version inconnue",
+      "ready": "Prêt",
+      "otherSeries": "Hors série 0.6",
+      "toInstall": "À installer"
+    },
+    "worlds": {
+      "label": "Mondes",
+      "none": "Aucun monde",
+      "allGood": "Tous valides",
+      "corrupt": "Corrompus : {{count}}",
+      "toCheck": "À vérifier : {{count}}"
+    },
+    "roms": {
+      "label": "ROMs",
+      "empty": "Coffre vide",
+      "unknown": "Non reconnues : {{count}}",
+      "allKnown": "Toutes reconnues"
+    },
+    "bizhawk": {
+      "label": "BizHawk",
+      "missing": "Absent",
+      "optional": "Pour certains jeux seulement",
+      "installed": "Installé",
+      "ready": "Prêt",
+      "notLinked": "Pas relié à Archipelago",
+      "prereq": "Prérequis manquant"
+    }
+  },
+  "alerts": {
+    "eyebrow": "WARNING",
+    "title": "À vérifier : {{count}}"
+  },
+  "recent": {
+    "eyebrow": "CONTINUE?",
+    "title": "Parties récentes",
+    "new": "Nouvelle partie",
+    "players": "Joueurs : {{count}}",
+    "hosting": {
+      "local": "Serveur local",
+      "web": "archipelago.gg"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "generated": "Générée",
+      "hosting": "En cours",
+      "finished": "Terminée"
+    },
+    "action": {
+      "continue": "Continuer",
+      "host": "Héberger",
+      "resume": "Reprendre",
+      "reopen": "Rouvrir la room"
+    },
+    "empty": {
+      "title": "Aucune partie pour l’instant",
+      "body": "Dépose les YAML de tes amis : ArchipelaGOAT génère la seed et lance le serveur.",
+      "action": "Organiser une partie"
+    }
+  }
+}

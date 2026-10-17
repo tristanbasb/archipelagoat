@@ -1,0 +1,317 @@
+.doctor {
+  container-type: inline-size;
+}
+
+/* The checks, with the summary and the support bundle in a column at their side. */
+.doctor__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: var(--sp-6);
+}
+
+.doctor__main,
+.doctor__side {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+/* Narrow: the summary and the bundle side by side, above the checks. */
+@container (max-width: 980px) {
+  .doctor__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .doctor__side {
+    order: -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+/* ---- Checks that need a look ------------------------------------------------------------------ */
+
+.doctor-checks {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doctor-check {
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    linear-gradient(90deg, color-mix(in srgb, var(--tone) 10%, transparent), transparent 45%), var(--bg-1);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+}
+
+.doctor-check__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 30%, transparent);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.doctor-check__icon svg {
+  width: 22px;
+  height: 22px;
+  filter: var(--drop-glow);
+}
+
+.doctor-check__main {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.doctor-check__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.doctor-check__title {
+  font-size: var(--fs-14);
+  line-height: 1.4;
+}
+
+.doctor-check__text {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.6;
+}
+
+.doctor-check__fix {
+  align-self: center;
+}
+
+.doctor-check__fix:empty {
+  display: none;
+}
+
+.doctor-check__details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  list-style: none;
+}
+
+.doctor-check__details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A small triangle, like the error panel's details, that turns as they open. */
+.doctor-check__details summary::before {
+  content: '';
+  border-block: 4px solid transparent;
+  border-left: 5px solid currentColor;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.doctor-check__details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.doctor-check__details summary:hover {
+  color: var(--text);
+}
+
+.doctor-check__details dl {
+  display: grid;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-0);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: var(--fs-12);
+}
+
+.doctor-check__details dl > div {
+  display: flex;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.doctor-check__details dt {
+  flex: none;
+  color: var(--text-mute);
+}
+
+.doctor-check__details dt::after {
+  content: ':';
+}
+
+.doctor-check__details dd {
+  margin: 0;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Passing checks (and the ones being checked) ---------------------------------------------- */
+
+.doctor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-2) var(--sp-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doctor-pass {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  min-width: 0;
+}
+
+.doctor-pass__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--neon-green);
+}
+
+.doctor-pass__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.doctor-pass__title {
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.doctor-pass__body {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+/* While scanning: the rows light up one after the other. */
+.doctor-pass--scanning {
+  align-items: center;
+  color: var(--text-dim);
+  animation: doctor-scan 1.4s steps(2, jump-none) infinite;
+}
+
+.doctor-pass--scanning .doctor-pass__icon {
+  color: var(--neon-violet);
+}
+
+.doctor-pass--scanning .doctor-pass__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes doctor-scan {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ---- Summary ---------------------------------------------------------------------------------- */
+
+.doctor-health__body {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.doctor-health__score {
+  color: var(--tone-ink);
+  font-size: 28px;
+  line-height: 1;
+  text-shadow: var(--text-glow);
+}
+
+.doctor-health__verdict {
+  font-size: var(--fs-13);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.doctor-health__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.doctor-health__time {
+  color: var(--text-mute);
+  font-size: var(--fs-12);
+}
+
+/* ---- Support bundle --------------------------------------------------------------------------- */
+
+.doctor-bundle {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-3);
+}
+
+.doctor-bundle__text {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.6;
+}
+
+.doctor-bundle__privacy {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  color: var(--tone-ink);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+}
+
+.doctor-bundle__privacy svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+.doctor-bundle > .neon-btn {
+  justify-self: stretch;
+}
+
+.doctor-bundle__result {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.doctor-bundle__result .copy-field {
+  width: 100%;
+}
+
+/* The whole path, wrapped: the file name at its end is what matters. */
+.doctor-bundle__result .copy-field__value {
+  padding-block: var(--sp-2);
+  font-size: var(--fs-12);
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

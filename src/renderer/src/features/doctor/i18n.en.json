@@ -1,1 +1,49 @@
-{}
+{
+  "eyebrow": "SYSTEM CHECK",
+  "subtitle": "Check that everything is ready and fix what’s stuck.",
+  "rerun": "Run the checks again",
+  "running": "Running the health check…",
+  "checking": "Checking…",
+  "scanning": "NOW LOADING",
+  "lastRun": "Last run: {{time}}",
+  "summary": {
+    "eyebrow": "STATUS",
+    "title": "System health",
+    "health": "Checks passed",
+    "score": "{{passed}}/{{total}}",
+    "allClear": "Everything’s ready. Have a good game!",
+    "attention": "A few things need your attention.",
+    "errors": "Errors: {{count}}",
+    "warnings": "Warnings: {{count}}",
+    "infos": "Notes: {{count}}"
+  },
+  "problems": {
+    "eyebrow": "CAUTION",
+    "title": "To look at"
+  },
+  "passing": {
+    "eyebrow": "ALL GREEN",
+    "title": "All good"
+  },
+  "fix": {
+    "auto": "Fix",
+    "fixing": "Fixing…",
+    "navigate": "Resolve",
+    "done": "Fixed: {{title}}",
+    "partial": "Not solved yet: {{title}}"
+  },
+  "bundle": {
+    "eyebrow": "SUPPORT",
+    "title": "Support bundle",
+    "body": "A zip of your logs (ArchipelaGOAT and Archipelago) and of this health check, to attach when you ask for help.",
+    "privacy": "Passwords are masked. The zip is made on your computer and never sent.",
+    "create": "Create a support bundle",
+    "creating": "Creating the bundle…",
+    "path": "Bundle location",
+    "openFolder": "Open the folder"
+  },
+  "empty": {
+    "title": "No checks",
+    "body": "The health check returned nothing. Run it again."
+  }
+}

@@ -1,0 +1,365 @@
+.home {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+/* The screen header keeps its own bottom margin out of the grid rhythm. */
+.home > .screen-header {
+  margin-bottom: var(--sp-2);
+}
+
+.home__players {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-6);
+}
+
+.home__tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.home-tile__loading {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  color: var(--tone);
+}
+
+/* ---- INSERT COIN --------------------------------------------------------------------------- */
+
+.home-coin {
+  --pb-color: var(--tone);
+  --pb-fill:
+    radial-gradient(60% 140% at 0% 50%, color-mix(in srgb, var(--tone) 18%, transparent), transparent 70%),
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--tone) 6%, transparent) 0 6px,
+      transparent 6px 14px
+    ),
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 6%, var(--bg-2)), var(--bg-1));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-8);
+  filter: var(--drop-glow);
+}
+
+/* The coin bobs and spins above a coin slot. */
+.home-coin__art {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  width: 72px;
+}
+
+.home-coin__coin {
+  width: 50px;
+  height: 60px;
+  animation:
+    home-coin-spin 2.6s steps(1, end) infinite,
+    home-coin-bob 0.9s steps(3, jump-none) infinite alternate;
+}
+
+.home-coin__coin [data-px='O'] {
+  fill: color-mix(in srgb, var(--neon-yellow) 42%, #000);
+}
+.home-coin__coin [data-px='Y'] {
+  fill: var(--neon-yellow);
+}
+.home-coin__coin [data-px='H'] {
+  fill: color-mix(in srgb, var(--neon-yellow) 30%, #fff);
+}
+.home-coin__coin [data-px='S'] {
+  fill: color-mix(in srgb, var(--neon-yellow) 72%, #000);
+}
+
+/* Face up most of the time, then a quick stepped flip. */
+@keyframes home-coin-spin {
+  0% {
+    transform: scaleX(1);
+  }
+  64% {
+    transform: scaleX(0.6);
+  }
+  70% {
+    transform: scaleX(0.15);
+  }
+  76% {
+    transform: scaleX(0.6);
+  }
+  82%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes home-coin-bob {
+  to {
+    translate: 0 -6px;
+  }
+}
+
+/* The slot of the coin door: a dark groove in a lit frame. */
+.home-coin__slot {
+  width: 44px;
+  height: 14px;
+  background:
+    linear-gradient(var(--bg-0), var(--bg-0)) center / 6px 8px no-repeat,
+    color-mix(in srgb, var(--tone) 20%, var(--bg-1));
+  box-shadow:
+    inset 0 0 0 2px var(--tone-line),
+    var(--glow-sm);
+  clip-path: var(--clip-corner-sm);
+}
+
+.home-coin__text {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.home-coin__eyebrow {
+  color: var(--tone-ink);
+}
+
+.home-coin__title {
+  font-size: var(--fs-20);
+  line-height: 1.3;
+}
+
+.home-coin__body {
+  max-width: 54ch;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.6;
+}
+
+/* INSERT COIN over the version it installs. */
+.home-coin__cta.neon-btn {
+  height: auto;
+  min-height: 64px;
+  padding-block: var(--sp-3);
+}
+
+.home-coin__cta .neon-btn__label {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+}
+
+/* The arcade blink, softened so the label stays readable; steady under the pointer or focus. */
+.home-coin__cta-main {
+  font-size: 16px;
+  animation: home-coin-blink 1.2s steps(1, end) infinite;
+}
+
+.home-coin__cta:is(:hover, :focus-visible) .home-coin__cta-main {
+  animation: none;
+}
+
+@keyframes home-coin-blink {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.home-coin__cta-hint {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  text-shadow: none;
+  color: color-mix(in srgb, #fff 82%, var(--tone));
+}
+
+/* ---- Alerts ---------------------------------------------------------------------------------- */
+
+.home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.home-link svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.home-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.home-link:hover svg {
+  transform: translateX(3px);
+}
+
+.home-alerts__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: linear-gradient(90deg, var(--tone-soft), transparent 55%), var(--bg-1);
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+
+.home-alert__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: var(--tone-soft);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.home-alert__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.home-alert__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-alert__title {
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.home-alert__body {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+/* ---- Recent games ---------------------------------------------------------------------------- */
+
+.home-recent__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-6);
+  color: var(--neon-violet);
+}
+
+.home-recent__list {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-session {
+  --tone: var(--text-mute);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-1);
+  box-shadow: inset 3px 0 0 var(--tone);
+  color: var(--text);
+  text-decoration: none;
+  transition:
+    background var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+}
+
+.home-session[data-status='hosting'] {
+  --tone: var(--neon-green);
+}
+.home-session[data-status='generated'] {
+  --tone: var(--neon-cyan);
+}
+.home-session[data-status='draft'] {
+  --tone: var(--neon-violet);
+}
+
+.home-session:hover {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tone) 12%, transparent), transparent 60%), var(--bg-3);
+  box-shadow: inset 4px 0 0 var(--tone);
+}
+
+.home-session__main {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-session__name {
+  overflow: hidden;
+  font-size: var(--fs-14);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-session__meta {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-session__action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1);
+  min-width: 18ch;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  transition: color var(--dur) var(--ease-out);
+}
+
+.home-session__action svg {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.home-session:hover .home-session__action,
+.home-session:focus-visible .home-session__action {
+  color: var(--neon-yellow);
+}
+
+.home-session:hover .home-session__action svg {
+  transform: translateX(3px);
+}
+
+/* ---- Narrow windows -------------------------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .home__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

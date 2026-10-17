@@ -1,1 +1,90 @@
-{}
+{
+  "eyebrow": "PLAYER SELECT",
+  "subtitle": "Host a multiworld game or join a friend’s.",
+  "coin": {
+    "eyebrow": "CREDIT 00",
+    "title": "Archipelago isn’t installed yet",
+    "body": "ArchipelaGOAT downloads the official release, checks its fingerprint and installs it for you.",
+    "cta": "INSERT COIN",
+    "ctaHint": "Install Archipelago 0.6.8"
+  },
+  "players": {
+    "cta": "PRESS START",
+    "host": {
+      "label": "PLAYER 1",
+      "title": "Host a game",
+      "subtitle": "Gather the YAML files, generate the seed and host the room."
+    },
+    "join": {
+      "label": "PLAYER 2",
+      "title": "Join a game",
+      "subtitle": "Paste a room link or drop your patch, then play."
+    }
+  },
+  "stats": {
+    "title": "Your setup",
+    "unavailable": "Unavailable",
+    "unknownValue": "?",
+    "ap": {
+      "label": "Archipelago",
+      "missing": "Missing",
+      "unknownVersion": "Unknown version",
+      "ready": "Ready",
+      "otherSeries": "Not a 0.6 release",
+      "toInstall": "To install"
+    },
+    "worlds": {
+      "label": "Worlds",
+      "none": "No worlds",
+      "allGood": "All valid",
+      "corrupt": "Corrupt: {{count}}",
+      "toCheck": "To check: {{count}}"
+    },
+    "roms": {
+      "label": "ROMs",
+      "empty": "Vault empty",
+      "unknown": "Unrecognized: {{count}}",
+      "allKnown": "All recognized"
+    },
+    "bizhawk": {
+      "label": "BizHawk",
+      "missing": "Missing",
+      "optional": "Only for some games",
+      "installed": "Installed",
+      "ready": "Ready",
+      "notLinked": "Not linked to Archipelago",
+      "prereq": "Missing prerequisite"
+    }
+  },
+  "alerts": {
+    "eyebrow": "WARNING",
+    "title": "To check: {{count}}"
+  },
+  "recent": {
+    "eyebrow": "CONTINUE?",
+    "title": "Recent games",
+    "new": "New game",
+    "players": "Players: {{count}}",
+    "hosting": {
+      "local": "Local server",
+      "web": "archipelago.gg"
+    },
+    "status": {
+      "draft": "Draft",
+      "generated": "Generated",
+      "hosting": "Live",
+      "finished": "Finished"
+    },
+    "action": {
+      "continue": "Continue",
+      "host": "Host",
+      "resume": "Resume",
+      "reopen": "Reopen the room"
+    },
+    "empty": {
+      "title": "No games yet",
+      "body": "Drop your friends’ YAML files: ArchipelaGOAT generates the seed and starts the server.",
+      "action": "Host a game"
+    }
+  }
+}
