@@ -226,7 +226,6 @@
     "DOWNLOAD_HASH_MISMATCH": "The download is corrupted",
     "INSTALL_ELEVATION_DENIED": "Administrator permission denied",
     "INSTALL_FAILED": "The installation failed",
-    "INSTALL_FAILED_no-digest": "The download has no published checksum",
     "WORLD_INVALID": "This file is not a valid APWorld",
     "WORLD_INCOMPATIBLE": "This world is not compatible with your Archipelago version",
     "WORLD_CORRUPT_BLOCKING": "A broken world is blocking Archipelago",

@@ -459,7 +459,8 @@ describe('spawnAp with the fake Archipelago programs', () => {
     expect(record.env).not.toHaveProperty('PYTHONHOME')
     expect(record.env).not.toHaveProperty('PYTHONPATH')
     if (command !== process.execPath) expect(record.runtime).toBe('electron')
-  })
+    // Starting the Electron binary itself: longer than one test's default, as the wait above says.
+  }, 20_000)
 
   it('exited rejects with the spawn error when the program cannot start', async () => {
     const proc = run({ exe: { command: 'goat-definitely-not-a-program', argsPrefix: [] } })

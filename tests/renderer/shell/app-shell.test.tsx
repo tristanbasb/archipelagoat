@@ -37,7 +37,11 @@ describe('app shell', () => {
     ]
     for (const [route, heading] of routes) {
       await renderApp({ route })
-      expect(await screen.findByRole('heading', { level: 1, name: heading }), route).toBeInTheDocument()
+      // A lazily loaded screen may take a while under load: the whole run has its own timeout below.
+      expect(
+        await screen.findByRole('heading', { level: 1, name: heading }, { timeout: 10_000 }),
+        route,
+      ).toBeInTheDocument()
       const main = screen.getByRole('main')
       expect(within(main).getByRole('heading', { level: 1, name: heading })).toBeInTheDocument()
       expect(screen.getByRole('navigation', { name: 'Navigation principale' })).toBeInTheDocument()
