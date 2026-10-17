@@ -1,1 +1,193 @@
-{}
+{
+  "eyebrow": "BONUS STAGE",
+  "title": "Install Archipelago",
+  "subtitle": "Install, update or uninstall the official Archipelago release.",
+  "checkUpdates": "Check for updates",
+  "checking": "Checking…",
+  "detecting": "Looking for Archipelago…",
+  "versions": {
+    "label": "Archipelago versions",
+    "installed": "Installed",
+    "latest": "Latest release",
+    "none": "None",
+    "unknown": "Unknown",
+    "notInstalled": "Not installed yet",
+    "checking": "Checking…",
+    "unavailable": "Unavailable for now",
+    "published": "Released {{date}}",
+    "kinds": {
+      "windows-installer": "Official installer",
+      "linux-managed": "Managed by the app",
+      "linux-targz": "tar.gz archive",
+      "linux-appimage": "AppImage",
+      "custom": "Folder picked by hand"
+    }
+  },
+  "state": {
+    "missing": {
+      "eyebrow": "INSERT COIN",
+      "title": "Archipelago is not installed",
+      "body": "The app downloads the official release from GitHub, checks its checksum and takes care of the rest."
+    },
+    "update": {
+      "eyebrow": "LEVEL UP",
+      "title": "An update is available",
+      "body": "Archipelago {{version}} is out. Your settings and your list of worlds are backed up before the update.",
+      "handPicked": "Archipelago {{version}} is out. The app does not update a folder picked by hand: update this copy yourself, or go back to automatic detection to let the app handle it."
+    },
+    "current": {
+      "eyebrow": "ALL CLEAR",
+      "title": "Archipelago is up to date",
+      "body": "You have the latest official release. Nothing to do: time to play."
+    },
+    "unknown": {
+      "eyebrow": "GLITCH",
+      "title": "Unknown Archipelago version",
+      "body": "The installed version cannot be read or compared. Installing the latest release puts things back in order.",
+      "handPicked": "The version of the folder picked by hand cannot be read. Check that it holds Archipelago, or go back to automatic detection."
+    },
+    "appimage": {
+      "eyebrow": "WARP ZONE",
+      "title": "Archipelago runs from an AppImage",
+      "body": "The app never updates an AppImage. The managed install updates in one click and needs no FUSE."
+    },
+    "unchecked": {
+      "eyebrow": "READY",
+      "title": "Archipelago {{version}} is installed",
+      "checking": "Looking for the latest release…",
+      "error": "Updates cannot be checked right now."
+    }
+  },
+  "offer": {
+    "install": "Install Archipelago {{version}}",
+    "installAny": "Install Archipelago",
+    "update": "Update to {{version}}",
+    "reinstall": "Install version {{version}}",
+    "reinstallAny": "Reinstall Archipelago",
+    "migrate": "Switch to the managed install",
+    "uac": "Windows will ask for administrator permission (UAC), just once. A small vc_redist window may also show up: that is normal."
+  },
+  "options": {
+    "title": "Install options",
+    "desktopIcons": "Desktop icons",
+    "desktopIconsHint": "Shortcuts to the Launcher and to the Archipelago folder.",
+    "advanced": "Advanced options",
+    "dir": "Install folder",
+    "dirDefault": "Default location",
+    "dirPick": "Choose an install folder",
+    "dirReset": "Default location",
+    "dirHintWin": "By default, the installer uses C:\\ProgramData\\Archipelago, or keeps the current folder when updating.",
+    "dirHintLinux": "By default, the app installs Archipelago in its own data folder.",
+    "pickTitle": "Where should Archipelago go?"
+  },
+  "location": {
+    "title": "Location",
+    "path": "Archipelago folder",
+    "appImage": "AppImage file",
+    "missingBody": "Archipelago is already installed somewhere else (a portable copy, another folder)? Show the app its folder.",
+    "installedBody": "Another copy of Archipelago? Choose its folder: the app will use it first.",
+    "pick": "Choose an existing folder",
+    "pickTitle": "Archipelago folder",
+    "auto": "Go back to automatic detection",
+    "customNote": "While this folder is chosen, the app uses it first and leaves its updates to you.",
+    "foreignNote": "The app did not install this copy: to remove it, delete it yourself.",
+    "notFoundTitle": "No Archipelago in this folder",
+    "notFoundBody": "Choose the folder that holds ArchipelagoLauncher.",
+    "usedToast": "The app now uses this folder",
+    "autoToast": "Automatic detection is back"
+  },
+  "notes": {
+    "title": "Release notes {{version}}",
+    "label": "Archipelago {{version}} release notes"
+  },
+  "uninstall": {
+    "title": "Uninstall",
+    "body": "Removes Archipelago from this computer. Your YAML files, games and added worlds stay on disk, unless you ask to delete them.",
+    "button": "Uninstall Archipelago",
+    "dialog": {
+      "eyebrow": "GAME OVER?",
+      "title": "Uninstall Archipelago?",
+      "body": "The program will be removed. Your YAML files, games and added worlds stay on disk, unless you tick the box.",
+      "uac": "Windows will ask for administrator permission (UAC).",
+      "purge": "Delete my data too",
+      "purgeHint": "Players (YAML), generated games, added worlds, logs and Archipelago settings.",
+      "purgeWarning": "Your data will be deleted for good. Copy what you want to keep first.",
+      "confirm": "Uninstall",
+      "confirmPurge": "Uninstall and delete my data"
+    }
+  },
+  "flow": {
+    "stepsLabel": "Install steps",
+    "stages": {
+      "download": "Download",
+      "verify": "Check",
+      "backup": "Backup",
+      "quarantine": "Quarantine",
+      "install": "Install",
+      "detect": "Detect"
+    },
+    "hints": {
+      "starting": "Getting ready…",
+      "download": "Downloading the official release from GitHub.",
+      "verify": "Checking the SHA-256 checksum of the file.",
+      "backup": "Backing up host.yaml, options.yaml and your list of worlds.",
+      "quarantine": "Setting aside broken APWorlds, which would block the installer.",
+      "installWin": "Accept the Windows permission request (UAC). A small vc_redist window may also show up: that is normal.",
+      "installLinux": "Copying the files into the folder the app manages.",
+      "detect": "Checking the new install.",
+      "other": "Moving along…"
+    },
+    "log": "Log",
+    "install": {
+      "eyebrow": "NOW LOADING",
+      "title": "Installing Archipelago {{version}}",
+      "titleAny": "Installing Archipelago",
+      "update": "Updating to {{version}}"
+    },
+    "uninstall": {
+      "eyebrow": "PLEASE WAIT",
+      "title": "Uninstalling Archipelago",
+      "progress": "Uninstalling…",
+      "uac": "Accept the Windows permission request (UAC)."
+    },
+    "done": {
+      "eyebrow": "STAGE CLEAR",
+      "title": "Archipelago {{version}} is installed",
+      "titleAny": "Archipelago is installed",
+      "body": "All set: worlds, the Studio and your games now use this install.",
+      "folder": "Folder",
+      "continue": "Continue",
+      "play": "Host a game"
+    },
+    "removed": {
+      "eyebrow": "GAME OVER",
+      "title": "Archipelago is uninstalled",
+      "purged": "Your data was deleted too.",
+      "kept": "Your data stayed on disk: a new install will find it again.",
+      "generic": "The program was removed from this computer."
+    },
+    "failed": {
+      "eyebrow": "CONTINUE?",
+      "install": "The install did not go through",
+      "uninstall": "The uninstall did not go through",
+      "back": "Back"
+    }
+  },
+  "facts": {
+    "rateLimit": "Try again after {{time}}.",
+    "hash": "Expected checksum: {{expected}} · got: {{actual}}",
+    "size": "Expected size: {{expected}} · received: {{actual}}",
+    "exitCode": "Exit code {{code}}: {{reason}}",
+    "exitCodeOnly": "Exit code {{code}}"
+  },
+  "exitCodes": {
+    "1": "the installer could not start",
+    "2": "cancelled before the install began",
+    "3": "fatal error between two steps",
+    "4": "fatal error during the install",
+    "5": "cancelled during the install",
+    "6": "the installer was stopped by a debugger",
+    "7": "the installer cannot proceed (preparation step)",
+    "8": "the installer cannot proceed, and a restart is needed"
+  }
+}
