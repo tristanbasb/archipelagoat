@@ -224,6 +224,8 @@ describe('LiveGameScreen', () => {
       event: event('item', { player: 'Bob', receiver: 'Bob', item: 'Morph Ball', location: 'Brinstar' }),
     })
     await waitFor(() => expect(feed).toHaveTextContent('Bob a trouvé son objet Morph Ball (Brinstar)'))
+    // Every item line keeps the same tone, whoever sends it to whom (spec §9.1).
+    expect(within(feed).getByText(/Morph Ball/)).toHaveAttribute('data-tone', 'default')
 
     // What the host types in the console reaches everyone as [Server]: that is "yourself".
     goat.emit('server:event', {

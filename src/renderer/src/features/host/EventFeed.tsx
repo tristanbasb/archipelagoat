@@ -27,7 +27,8 @@ function describeEvent(event: ServerEvent, t: TFunction): TerminalLine {
             ? t(`${KEY}.itemSelf`, { player, item })
             : t(`${KEY}.item`, { player, item, receiver })
         // AP's item colors (progression, useful, trap, filler) need the item class, which the
-        // server log does not print: the line keeps the plain tone.
+        // server log does not print (Tracker WebSocket, v1.1; spec §9.1): every item line, sent
+        // to another player or found for oneself, keeps the plain tone.
         return { text: location ? `${sent} (${location})` : sent, tone: 'default' }
       }
       break

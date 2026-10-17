@@ -607,6 +607,7 @@ Aucun de ces tests n'est lancé sans un « oui » explicite.
 - **Schéma d'options** (§3.10) : pas de type `counter` distinct ; ces options sont éditées comme `dict`.
 - **Statuts de session** (§3.13) : pas de statut `validated` ; la validation est recalculée à la demande.
 - **Mots de passe du serveur** (§3.11) : transmis par le `host.yaml` de session, jamais en argument de ligne de commande.
+- **Couleurs du flux d'objets** (§4.2.6) : la sortie du serveur n'indique pas la classe d'un objet (progression, utile, piège, filler) ; ces couleurs demandent un client Tracker en WebSocket, prévu en v1.1. En v1, le flux colore chaque ligne selon qui parle : tes propres messages (console, `[Server]`) en `#EE00EE` (soi-même), les messages des joueurs en cyan, les arrivées en vert, les buts en jaune ; les envois d'objets (expéditeur → destinataire) restent dans le ton neutre du texte. Les tons `--ap-*` sont gardés pour la v1.1.
 
 ## 10. Critères d'acceptation v1
 
