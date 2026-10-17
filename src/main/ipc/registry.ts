@@ -1,8 +1,9 @@
 // Main side of the IPC contract: one ipcMain handler per channel. Every input is validated with the
-// channel's zod schema; every answer is an IpcResult, so errors cross IPC as data.
+// channel's zod schema; every answer is an IpcResult, so errors cross IPC as data, secrets masked.
 import type { Logger } from '@main/core/logger'
+import { redact } from '@main/core/system/redact'
 import type { ServiceContainer } from '@main/services/registry'
-import { toAppErrorData } from '@shared/errors'
+import { toAppErrorData, type AppErrorData } from '@shared/errors'
 import { channels } from '@shared/ipc'
 import {
   describeZodError,
@@ -46,23 +47,37 @@ type AnyHandler = (input: unknown, meta: HandlerMeta) => Promise<unknown>
 
 const isChannel = (name: string): name is ChannelName => Object.hasOwn(channels, name)
 
+/** The error as the renderer gets it: it shows the detail and the params raw, so secrets are masked. */
+function redactError(error: AppErrorData): IpcResult<never> {
+  const safe: AppErrorData = { ...error }
+  if (error.detail !== undefined) safe.detail = redact(error.detail)
+  if (error.params !== undefined) {
+    safe.params = Object.fromEntries(
+      Object.entries(error.params).map(([key, value]) => [
+        key,
+        typeof value === 'string' ? redact(value) : value,
+      ]),
+    )
+  }
+  return { ok: false, error: safe }
+}
+
 export function createIpcRegistry(): IpcRegistry {
   const handlers = new Map<ChannelName, AnyHandler>()
 
   const dispatch: IpcRegistry['dispatch'] = async (name, raw, meta, log) => {
-    if (!isChannel(name)) return { ok: false, error: { code: 'NOT_FOUND', detail: name } }
+    if (!isChannel(name)) return redactError({ code: 'NOT_FOUND', detail: name })
     const handler = handlers.get(name)
     if (!handler) return { ok: false, error: { code: 'NOT_IMPLEMENTED' } }
     const parsed = channels[name].input.safeParse(raw)
-    if (!parsed.success)
-      return { ok: false, error: { code: 'INVALID_INPUT', detail: describeZodError(parsed.error) } }
+    if (!parsed.success) return redactError({ code: 'INVALID_INPUT', detail: describeZodError(parsed.error) })
     try {
       return { ok: true, value: await handler(parsed.data, meta) }
     } catch (error) {
       const data = toAppErrorData(error)
       // Our own errors are expected outcomes; anything else is a bug worth a stack trace.
       if (data.code === 'AP_UNKNOWN') log?.error(`ipc ${name} failed`, error)
-      return { ok: false, error: data }
+      return redactError(data)
     }
   }
 

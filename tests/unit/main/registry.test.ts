@@ -91,4 +91,34 @@ describe('ipc registry', () => {
     registry.registerHandler('tasks:list', () => Promise.resolve([]))
     expect(() => registry.registerHandler('tasks:list', () => Promise.resolve([]))).toThrow(/tasks:list/)
   })
+
+  it('masks the secrets of error details and string params: the renderer shows them raw', async () => {
+    const { registry, call } = setup()
+    registry.registerHandler('session:get', () =>
+      Promise.reject(
+        new AppError(
+          'SERVER_START_FAILED',
+          { line: 'Hosting game at 1.2.3.4:38281 (Password: hunter2)', port: 38281 },
+          { detail: "refused: {'cmd': 'Connect', 'password': 'hunter2'}", logPath: 'C:\\logs\\server.log' },
+        ),
+      ),
+    )
+    registry.registerHandler('tasks:list', () => {
+      throw new Error('GET https://archipelago.gg/session/0f8fad5b-d9cb-469f-a165-70867728950e failed')
+    })
+
+    expect(await call('session:get', { id: 's1' })).toStrictEqual({
+      ok: false,
+      error: {
+        code: 'SERVER_START_FAILED',
+        params: { line: 'Hosting game at 1.2.3.4:38281 (Password: •••)', port: 38281 },
+        detail: "refused: {'cmd': 'Connect', 'password': '•••'}",
+        logPath: 'C:\\logs\\server.log',
+      },
+    })
+    expect(await call('tasks:list')).toEqual({
+      ok: false,
+      error: { code: 'AP_UNKNOWN', detail: 'Error: GET https://archipelago.gg/session/••• failed' },
+    })
+  })
 })

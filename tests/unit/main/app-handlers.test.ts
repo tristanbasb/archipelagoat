@@ -193,8 +193,9 @@ describe('app handlers', () => {
     expect(core.quit).toHaveBeenCalledOnce()
   })
 
-  it('leaves app:pendingOpenRequests to Task 21', async () => {
-    expect(await call('app:pendingOpenRequests')).toEqual({ ok: false, error: { code: 'NOT_IMPLEMENTED' } })
+  it('app:pendingOpenRequests drains the queue of the openRequests service (ipc/system.ts)', async () => {
+    // Outside Electron there is no launch argv to read: the queue starts empty.
+    expect(await call('app:pendingOpenRequests')).toEqual({ ok: true, value: [] })
   })
 })
 
