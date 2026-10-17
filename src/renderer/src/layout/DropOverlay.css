@@ -1,0 +1,106 @@
+.drop-overlay {
+  position: fixed;
+  inset: 36px 0 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--sp-8);
+  background:
+    radial-gradient(
+      60% 50% at 50% 50%,
+      color-mix(in srgb, var(--neon-cyan) 12%, transparent),
+      transparent 70%
+    ),
+    rgb(4 4 8 / 0.82);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  animation: drop-overlay-in var(--dur) var(--ease-out);
+}
+
+@keyframes drop-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* A marching dashed frame around the whole window, like a selection box. */
+.drop-overlay::before {
+  content: '';
+  position: absolute;
+  inset: var(--sp-5);
+  background:
+    linear-gradient(90deg, var(--neon-cyan) 50%, transparent 0) top / 16px 2px repeat-x,
+    linear-gradient(90deg, var(--neon-cyan) 50%, transparent 0) bottom / 16px 2px repeat-x,
+    linear-gradient(0deg, var(--neon-cyan) 50%, transparent 0) left / 2px 16px repeat-y,
+    linear-gradient(0deg, var(--neon-cyan) 50%, transparent 0) right / 2px 16px repeat-y;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--neon-cyan) 70%, transparent));
+  animation: drop-overlay-march 0.6s linear infinite;
+}
+
+@keyframes drop-overlay-march {
+  to {
+    background-position:
+      16px 0,
+      -16px 100%,
+      0 -16px,
+      100% 16px;
+  }
+}
+
+.drop-overlay__frame {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-4);
+  text-align: center;
+}
+
+.drop-overlay__icon {
+  width: 64px;
+  height: 64px;
+  color: var(--tone);
+  filter: var(--drop-glow);
+  animation: drop-overlay-bob 1.2s steps(2, jump-none) infinite;
+}
+
+@keyframes drop-overlay-bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.drop-overlay__title {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--fs-20);
+  text-shadow: var(--text-glow);
+}
+
+.drop-overlay__hints {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.drop-overlay__hints li {
+  display: grid;
+  grid-template-columns: 96px auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.drop-overlay__hints code {
+  color: var(--tone-ink);
+  font-weight: 700;
+  text-align: right;
+}
+
+:where(.fx-off, .fx-no-glow) .drop-overlay::before {
+  filter: none;
+}

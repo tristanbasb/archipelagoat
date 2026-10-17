@@ -1,0 +1,83 @@
+.title-bar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: 36px;
+  flex: none;
+  padding-left: calc(var(--controls-left, env(titlebar-area-x, 0px)) + var(--sp-4));
+  padding-right: calc(
+    var(--controls-right, calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))) +
+      var(--sp-4)
+  );
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg-2) 70%, var(--bg-1)), var(--bg-1));
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* The neon seam under the bar, lit on the left and fading out. */
+.title-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--neon-violet) 0%,
+    color-mix(in srgb, var(--neon-cyan) 80%, transparent) 28%,
+    transparent 62%
+  );
+  box-shadow: 0 0 8px color-mix(in srgb, var(--neon-violet) 60%, transparent);
+  pointer-events: none;
+}
+
+:where(.fx-off, .fx-no-glow) .title-bar::after {
+  box-shadow: none;
+}
+
+.title-bar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.title-bar__mark {
+  filter: var(--drop-glow);
+}
+
+.title-bar__wordmark {
+  font-size: var(--fs-display);
+  line-height: 1;
+  /* Press Start 2P sits a pixel high: center it on the mark. */
+  padding-top: 2px;
+}
+
+/* A lit pixel between the brand and the screen name. */
+.title-bar__sep {
+  width: 4px;
+  height: 4px;
+  background: var(--neon-violet);
+  box-shadow: var(--glow-violet);
+  opacity: 0.8;
+}
+
+.title-bar__screen {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .title-bar::after {
+    box-shadow: none;
+  }
+}

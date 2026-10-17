@@ -1,0 +1,71 @@
+.screen-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  margin-bottom: var(--sp-8);
+}
+
+.screen-header__text {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* The arcade eyebrow: a lit pixel, then the label. */
+.screen-header__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--tone-ink);
+}
+
+.screen-header__eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--tone);
+  box-shadow: var(--tone-glow);
+}
+
+.screen-header__title {
+  position: relative;
+  padding-bottom: var(--sp-3);
+  font-size: var(--fs-28);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 35%, transparent);
+}
+
+/* A short neon rule under the title, violet into cyan. */
+.screen-header__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 72px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--neon-violet), var(--neon-cyan));
+  box-shadow: var(--glow-violet);
+}
+
+:where(.fx-off, .fx-no-glow) .screen-header__title {
+  text-shadow: none;
+}
+
+.screen-header__subtitle {
+  color: var(--text-dim);
+  font-size: var(--fs-14);
+}
+
+.screen-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-header__title {
+    text-shadow: none;
+  }
+}

@@ -1,0 +1,19 @@
+.screen-crash {
+  max-width: 760px;
+  margin: var(--sp-10) auto;
+}
+
+.screen-crash--app {
+  padding: var(--sp-12) var(--sp-8);
+}
+
+.screen-crash__cause {
+  color: var(--text);
+}
+
+.screen-crash__link {
+  align-self: center;
+  color: var(--neon-cyan);
+  font-size: var(--fs-13);
+  font-weight: 700;
+}

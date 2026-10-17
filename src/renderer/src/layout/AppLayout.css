@@ -1,0 +1,111 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Overlays drawn over the title bar's drag region must take the clicks themselves. */
+.modal-backdrop,
+.toast-viewport {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.skip-link {
+  position: fixed;
+  top: 44px;
+  left: 80px;
+  z-index: var(--z-tooltip);
+  padding: var(--sp-2) var(--sp-4);
+  border: 0;
+  background: var(--neon-yellow);
+  color: var(--bg-0);
+  font-weight: 700;
+}
+
+/* Off screen until the keyboard reaches it. */
+.skip-link:not(:focus-visible) {
+  top: -100px;
+}
+
+/* Toasts sit above the status bar rather than over it. */
+.fx-root .toast-viewport {
+  bottom: calc(32px + var(--sp-4));
+}
+
+/* ---- The screen area ------------------------------------------------------------------------ */
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  outline: none;
+}
+
+/* The perspective floor stays a backdrop: dimmer than in the gallery. */
+.app-main.grid-bg::before {
+  opacity: 0.45;
+}
+
+.app-main__screen {
+  position: relative;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--sp-8) var(--sp-8) var(--sp-12);
+  animation: screen-in 300ms var(--ease-out) backwards;
+}
+
+/* Page transition: the screen slides in while the tube flashes. */
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
+
+.app-main__flash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 0, color-mix(in srgb, #ffffff 55%, transparent) 50%, transparent 100%)
+      0 0 / 100% 3px no-repeat,
+    linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--neon-violet) 16%, transparent),
+      color-mix(in srgb, var(--neon-cyan) 8%, transparent)
+    );
+  animation: screen-flash 380ms ease-out;
+}
+
+@keyframes screen-flash {
+  0% {
+    opacity: 1;
+    background-position:
+      0 0,
+      0 0;
+  }
+  100% {
+    opacity: 0;
+    background-position:
+      0 100%,
+      0 0;
+  }
+}
+
+.app-main__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-12);
+  color: var(--neon-violet);
+}

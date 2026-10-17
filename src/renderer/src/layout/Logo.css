@@ -1,0 +1,47 @@
+.goat-mark,
+.island-mark {
+  flex: none;
+  overflow: visible;
+}
+
+/* Pixel art colors. */
+.pixel-horn {
+  fill: var(--neon-yellow);
+}
+.pixel-head {
+  fill: var(--neon-violet);
+}
+.pixel-muzzle {
+  fill: color-mix(in srgb, var(--neon-violet) 55%, #ffffff);
+}
+.pixel-light {
+  fill: #ffffff;
+}
+.pixel-eye {
+  fill: var(--bg-0);
+}
+.pixel-leaf {
+  fill: var(--neon-green);
+}
+.pixel-trunk {
+  fill: color-mix(in srgb, var(--neon-yellow) 55%, var(--bg-3));
+}
+.pixel-grass {
+  fill: color-mix(in srgb, var(--neon-green) 75%, var(--bg-1));
+}
+.pixel-earth {
+  fill: color-mix(in srgb, var(--neon-violet) 38%, var(--bg-3));
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.wordmark__goat {
+  color: var(--neon-yellow);
+  text-shadow: var(--text-glow);
+}
