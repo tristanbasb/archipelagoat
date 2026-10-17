@@ -1,1 +1,180 @@
-{}
+{
+  "eyebrow": "OPTIONS",
+  "subtitle": "Language, effects, Archipelago, system integration and app data.",
+  "display": {
+    "eyebrow": "DISPLAY",
+    "title": "Display",
+    "language": "Language",
+    "auto": "Auto",
+    "names": {
+      "fr": "Français",
+      "en": "English"
+    },
+    "languageHint": "Auto follows the system language (here: {{language}}).",
+    "afterDark": "18+ worlds",
+    "afterDarkHint": "Also show adults-only worlds in the catalog."
+  },
+  "effects": {
+    "eyebrow": "FX",
+    "title": "Effects",
+    "crt": "CRT screen",
+    "crtHint": "Scanlines and the vignette of an old TV.",
+    "glow": "Neon glow",
+    "glowHint": "Light halos around buttons, fields and titles.",
+    "animations": "Animations",
+    "animationsHint": "Screen transitions, typed-in titles, blinking cursor.",
+    "sounds": "Sounds",
+    "soundsHint": "Synthesized 8-bit blips, off by default.",
+    "reduced": "Your system asks for reduced motion: the CRT screen, glow and animations stay off."
+  },
+  "ap": {
+    "eyebrow": "ARCHIPELAGO",
+    "title": "Archipelago folder",
+    "checking": "Looking for Archipelago…",
+    "found": "Archipelago {{version}}",
+    "foundUnknown": "Archipelago (unknown version)",
+    "missing": "Archipelago not found",
+    "missingBody": "Install it from the install screen, or point to the folder of an existing install.",
+    "auto": "Automatic detection",
+    "custom": "Chosen folder",
+    "kinds": {
+      "windows-installer": "Windows installer",
+      "linux-managed": "Installed by ArchipelaGOAT",
+      "linux-targz": "tar.gz archive",
+      "linux-appimage": "AppImage"
+    },
+    "choose": "Choose a folder…",
+    "pickTitle": "Archipelago install folder",
+    "reset": "Back to automatic detection",
+    "install": "Install Archipelago",
+    "hint": "ArchipelaGOAT checks that the chosen folder really holds Archipelago before using it.",
+    "notHere": "No Archipelago in this folder",
+    "notHereBody": "Pick the folder Archipelago is installed in: the one that holds ArchipelagoLauncher.",
+    "saved": "Archipelago found in this folder",
+    "resetDone": "Automatic detection restored"
+  },
+  "integration": {
+    "eyebrow": "SYSTEM",
+    "title": "System integration",
+    "loading": "Reading the integration…",
+    "linuxDesktop": "Integrate ArchipelaGOAT with the desktop",
+    "linuxDesktopHint": "Applications menu entry, archipelago:// links and .apworld files.",
+    "winProtocol": "Open archipelago:// links here",
+    "winProtocolHint": "For your account only, and reversible: the Archipelago Launcher takes them back if you turn this off.",
+    "winAssociations": "Open .apsml2 files here",
+    "winAssociationsHint": "Archipelago does not associate this patch type with any program.",
+    "unavailable": "Not available on this system.",
+    "none": "Nothing to integrate on this system"
+  },
+  "github": {
+    "eyebrow": "SECRETS",
+    "title": "GitHub token",
+    "intro": "Optional. Without a token, GitHub limits the app to 60 requests an hour (worlds catalog, updates).",
+    "loading": "Reading secrets…",
+    "saved": "Token saved",
+    "none": "No token saved",
+    "field": "New token",
+    "placeholder": "ghp_… or github_pat_…",
+    "fieldHint": "It needs no permission. Once saved, it is never shown again.",
+    "save": "Save the token",
+    "remove": "Remove the token",
+    "savedToast": "GitHub token saved",
+    "removedToast": "GitHub token removed",
+    "encrypted": "Your secrets are encrypted by the system keyring before they are saved.",
+    "noKeyring": "The system keyring is not available: secrets cannot be encrypted.",
+    "plaintext": "Remember secrets in plain text",
+    "plaintextHint": "Otherwise ArchipelaGOAT refuses to save them and asks for them again.",
+    "confirmEyebrow": "WARNING",
+    "confirmTitle": "Remember secrets in plain text?",
+    "confirmBody": "The GitHub token, the archipelago.gg sign-in and server passwords will be written unencrypted in the app folder.",
+    "confirmRisk": "Any program run with your account will be able to read them.",
+    "confirm": "Remember in plain text"
+  },
+  "data": {
+    "eyebrow": "SAVE DATA",
+    "title": "App data",
+    "open": "Open",
+    "clear": "Clear",
+    "confirmEyebrow": "ERASE?",
+    "confirmTitle": "{{action}}?",
+    "targets": {
+      "dataRoot": {
+        "label": "Data",
+        "hint": "Games, set-aside worlds, backups",
+        "open": "Open the data folder"
+      },
+      "userData": {
+        "label": "Settings",
+        "hint": "The app’s settings and secrets",
+        "open": "Open the settings folder"
+      },
+      "downloads": {
+        "label": "Downloads",
+        "hint": "Installers and downloaded files, verified",
+        "open": "Open the downloads folder",
+        "clear": "Clear the downloads",
+        "confirm": "Files already downloaded will be deleted. They will be downloaded again when needed.",
+        "done": "Downloads cleared"
+      },
+      "catalog": {
+        "label": "Catalog cache",
+        "hint": "Worlds index and wiki data",
+        "open": "Open the catalog cache folder",
+        "clear": "Clear the catalog cache",
+        "confirm": "The worlds catalog will be downloaded again on your next visit to the Worlds screen.",
+        "done": "Catalog cache cleared"
+      },
+      "logs": {
+        "label": "Logs",
+        "hint": "The app’s logs, secrets masked",
+        "open": "Open the logs folder",
+        "clear": "Clear the logs",
+        "confirm": "The app’s logs will be deleted. Keep them if you need to report a problem.",
+        "done": "Logs cleared"
+      }
+    }
+  },
+  "about": {
+    "eyebrow": "CREDITS",
+    "title": "About",
+    "tagline": "Installs Archipelago and sets up your multiworld games end to end.",
+    "notAffiliated": "ArchipelaGOAT is neither made nor endorsed by the Archipelago team.",
+    "target": "Target Archipelago",
+    "targetValue": "0.6.8 (0.6 series)",
+    "system": "System",
+    "systems": {
+      "win32": "Windows",
+      "linux": "Linux"
+    },
+    "build": "Build",
+    "builds": {
+      "packaged": "Release",
+      "dev": "Development"
+    },
+    "updates": "Automatic updates",
+    "updatesState": "Not configured",
+    "attributions": "Attributions",
+    "credits": {
+      "archipelago": {
+        "name": "Archipelago",
+        "body": "The multiworld randomizer at the heart of it all, by the ArchipelagoMW team."
+      },
+      "wiki": {
+        "name": "Archipelago wiki",
+        "body": "Status, maintainers and links of the catalog’s worlds."
+      },
+      "ionium": {
+        "name": "ionium index",
+        "body": "The community list of APWorlds and their verified hashes."
+      }
+    },
+    "license": "{{name}} license",
+    "external": "(opens in the browser)",
+    "licenses": "Dependency licenses",
+    "licensesCount": "Packages: {{count}}",
+    "licensesShow": "Show the licenses",
+    "licenseUnknown": "Not declared",
+    "licensesMissing": "Not available in a development build",
+    "licensesMissingBody": "The license list is generated when the app is packaged."
+  }
+}

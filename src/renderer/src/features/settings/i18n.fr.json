@@ -1,1 +1,180 @@
-{}
+{
+  "eyebrow": "OPTIONS",
+  "subtitle": "Langue, effets, Archipelago, intégration au système et données de l’app.",
+  "display": {
+    "eyebrow": "DISPLAY",
+    "title": "Affichage",
+    "language": "Langue",
+    "auto": "Auto",
+    "names": {
+      "fr": "Français",
+      "en": "English"
+    },
+    "languageHint": "Auto suit la langue du système (ici\u00a0: {{language}}).",
+    "afterDark": "Mondes 18+",
+    "afterDarkHint": "Montre aussi les mondes réservés aux adultes dans le catalogue."
+  },
+  "effects": {
+    "eyebrow": "FX",
+    "title": "Effets",
+    "crt": "Écran CRT",
+    "crtHint": "Scanlines et vignette de vieux téléviseur.",
+    "glow": "Glow néon",
+    "glowHint": "Halos lumineux autour des boutons, champs et titres.",
+    "animations": "Animations",
+    "animationsHint": "Transitions d’écran, titres qui s’écrivent, curseur qui clignote.",
+    "sounds": "Sons",
+    "soundsHint": "Bips 8-bit synthétisés, coupés par défaut.",
+    "reduced": "Ton système demande de réduire les animations\u00a0: l’écran CRT, le glow et les animations restent coupés."
+  },
+  "ap": {
+    "eyebrow": "ARCHIPELAGO",
+    "title": "Dossier d’Archipelago",
+    "checking": "Recherche d’Archipelago…",
+    "found": "Archipelago {{version}}",
+    "foundUnknown": "Archipelago (version inconnue)",
+    "missing": "Archipelago introuvable",
+    "missingBody": "Installe-le depuis l’écran d’installation, ou indique le dossier d’une installation existante.",
+    "auto": "Détection automatique",
+    "custom": "Dossier choisi",
+    "kinds": {
+      "windows-installer": "Installateur Windows",
+      "linux-managed": "Installé par ArchipelaGOAT",
+      "linux-targz": "Archive tar.gz",
+      "linux-appimage": "AppImage"
+    },
+    "choose": "Choisir un dossier…",
+    "pickTitle": "Dossier d’installation d’Archipelago",
+    "reset": "Revenir à la détection automatique",
+    "install": "Installer Archipelago",
+    "hint": "ArchipelaGOAT vérifie que le dossier choisi contient bien Archipelago avant de l’utiliser.",
+    "notHere": "Pas d’Archipelago dans ce dossier",
+    "notHereBody": "Choisis le dossier où Archipelago est installé\u00a0: celui qui contient ArchipelagoLauncher.",
+    "saved": "Archipelago trouvé dans ce dossier",
+    "resetDone": "Détection automatique rétablie"
+  },
+  "integration": {
+    "eyebrow": "SYSTEM",
+    "title": "Intégration au système",
+    "loading": "Lecture de l’intégration…",
+    "linuxDesktop": "Intégrer ArchipelaGOAT au bureau",
+    "linuxDesktopHint": "Raccourci dans le menu des applications, liens archipelago:// et fichiers .apworld.",
+    "winProtocol": "Ouvrir les liens archipelago:// ici",
+    "winProtocolHint": "Pour ton compte seulement, et réversible\u00a0: le Launcher d’Archipelago les reprend si tu désactives.",
+    "winAssociations": "Ouvrir les fichiers .apsml2 ici",
+    "winAssociationsHint": "Archipelago n’associe ce type de patch à aucun programme.",
+    "unavailable": "Pas disponible sur ce système.",
+    "none": "Rien à intégrer sur ce système"
+  },
+  "github": {
+    "eyebrow": "SECRETS",
+    "title": "Jeton GitHub",
+    "intro": "Optionnel. Sans jeton, GitHub limite l’app à 60 requêtes par heure (catalogue des mondes, mises à jour).",
+    "loading": "Lecture des secrets…",
+    "saved": "Jeton enregistré",
+    "none": "Aucun jeton enregistré",
+    "field": "Nouveau jeton",
+    "placeholder": "ghp_… ou github_pat_…",
+    "fieldHint": "Aucune permission n’est nécessaire. Une fois enregistré, il n’est plus jamais affiché.",
+    "save": "Enregistrer le jeton",
+    "remove": "Supprimer le jeton",
+    "savedToast": "Jeton GitHub enregistré",
+    "removedToast": "Jeton GitHub supprimé",
+    "encrypted": "Tes secrets sont chiffrés par le trousseau du système avant d’être enregistrés.",
+    "noKeyring": "Le trousseau du système n’est pas disponible\u00a0: les secrets ne peuvent pas être chiffrés.",
+    "plaintext": "Mémoriser les secrets en clair",
+    "plaintextHint": "Sinon, ArchipelaGOAT refuse de les enregistrer et te les redemande.",
+    "confirmEyebrow": "WARNING",
+    "confirmTitle": "Mémoriser les secrets en clair\u00a0?",
+    "confirmBody": "Le jeton GitHub, la connexion à archipelago.gg et les mots de passe de serveur seront écrits sans chiffrement dans le dossier de l’app.",
+    "confirmRisk": "Tout programme lancé avec ton compte pourra les lire.",
+    "confirm": "Mémoriser en clair"
+  },
+  "data": {
+    "eyebrow": "SAVE DATA",
+    "title": "Données de l’app",
+    "open": "Ouvrir",
+    "clear": "Vider",
+    "confirmEyebrow": "ERASE?",
+    "confirmTitle": "{{action}}\u00a0?",
+    "targets": {
+      "dataRoot": {
+        "label": "Données",
+        "hint": "Parties, mondes mis de côté, sauvegardes",
+        "open": "Ouvrir le dossier des données"
+      },
+      "userData": {
+        "label": "Réglages",
+        "hint": "Réglages et secrets de l’app",
+        "open": "Ouvrir le dossier des réglages"
+      },
+      "downloads": {
+        "label": "Téléchargements",
+        "hint": "Installateurs et fichiers téléchargés, vérifiés",
+        "open": "Ouvrir le dossier des téléchargements",
+        "clear": "Vider les téléchargements",
+        "confirm": "Les fichiers déjà téléchargés seront supprimés. Ils seront retéléchargés au besoin.",
+        "done": "Téléchargements vidés"
+      },
+      "catalog": {
+        "label": "Cache du catalogue",
+        "hint": "Index des mondes et infos du wiki",
+        "open": "Ouvrir le dossier du cache du catalogue",
+        "clear": "Vider le cache du catalogue",
+        "confirm": "Le catalogue des mondes sera retéléchargé à ta prochaine visite de l’écran Mondes.",
+        "done": "Cache du catalogue vidé"
+      },
+      "logs": {
+        "label": "Logs",
+        "hint": "Journaux de l’app, secrets masqués",
+        "open": "Ouvrir le dossier des logs",
+        "clear": "Vider les logs",
+        "confirm": "Les journaux de l’app seront supprimés. Garde-les si tu dois signaler un problème.",
+        "done": "Logs vidés"
+      }
+    }
+  },
+  "about": {
+    "eyebrow": "CREDITS",
+    "title": "À propos",
+    "tagline": "Installe Archipelago et prépare tes parties multiworld de bout en bout.",
+    "notAffiliated": "ArchipelaGOAT n’est ni développé ni soutenu par l’équipe d’Archipelago.",
+    "target": "Archipelago visé",
+    "targetValue": "0.6.8 (série 0.6)",
+    "system": "Système",
+    "systems": {
+      "win32": "Windows",
+      "linux": "Linux"
+    },
+    "build": "Type de version",
+    "builds": {
+      "packaged": "Publiée",
+      "dev": "Développement"
+    },
+    "updates": "Mises à jour automatiques",
+    "updatesState": "Non configuré",
+    "attributions": "Attributions",
+    "credits": {
+      "archipelago": {
+        "name": "Archipelago",
+        "body": "Le randomizer multiworld au cœur de tout, par l’équipe ArchipelagoMW."
+      },
+      "wiki": {
+        "name": "Wiki d’Archipelago",
+        "body": "Statuts, mainteneurs et liens des mondes du catalogue."
+      },
+      "ionium": {
+        "name": "Index ionium",
+        "body": "La liste communautaire des APWorlds et de leurs empreintes vérifiées."
+      }
+    },
+    "license": "Licence {{name}}",
+    "external": "(s’ouvre dans le navigateur)",
+    "licenses": "Licences des dépendances",
+    "licensesCount": "Paquets\u00a0: {{count}}",
+    "licensesShow": "Voir les licences",
+    "licenseUnknown": "Non déclarée",
+    "licensesMissing": "Pas disponible dans une version de développement",
+    "licensesMissingBody": "La liste des licences est générée au moment du packaging de l’app."
+  }
+}
