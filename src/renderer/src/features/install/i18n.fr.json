@@ -1,1 +1,193 @@
-{}
+{
+  "eyebrow": "BONUS STAGE",
+  "title": "Installer Archipelago",
+  "subtitle": "Installe, mets à jour ou désinstalle la version officielle d’Archipelago.",
+  "checkUpdates": "Vérifier les mises à jour",
+  "checking": "Vérification…",
+  "detecting": "Recherche d’Archipelago…",
+  "versions": {
+    "label": "Versions d’Archipelago",
+    "installed": "Installée",
+    "latest": "Dernière version",
+    "none": "Aucune",
+    "unknown": "Inconnue",
+    "notInstalled": "Pas encore installé",
+    "checking": "Recherche…",
+    "unavailable": "Indisponible pour l’instant",
+    "published": "Publiée le {{date}}",
+    "kinds": {
+      "windows-installer": "Installateur officiel",
+      "linux-managed": "Installation gérée par l’app",
+      "linux-targz": "Archive tar.gz",
+      "linux-appimage": "AppImage",
+      "custom": "Dossier choisi à la main"
+    }
+  },
+  "state": {
+    "missing": {
+      "eyebrow": "INSERT COIN",
+      "title": "Archipelago n’est pas installé",
+      "body": "L’app télécharge la version officielle depuis GitHub, vérifie son empreinte et s’occupe du reste."
+    },
+    "update": {
+      "eyebrow": "LEVEL UP",
+      "title": "Une mise à jour est disponible",
+      "body": "Archipelago {{version}} est sorti. Tes réglages et la liste de tes mondes sont sauvegardés avant la mise à jour.",
+      "handPicked": "Archipelago {{version}} est sorti. L’app ne met pas à jour un dossier choisi à la main : mets cette copie à jour toi-même, ou reviens à la détection automatique pour que l’app s’en occupe."
+    },
+    "current": {
+      "eyebrow": "ALL CLEAR",
+      "title": "Archipelago est à jour",
+      "body": "Tu as la dernière version officielle. Rien à faire\u00a0: place au jeu."
+    },
+    "unknown": {
+      "eyebrow": "GLITCH",
+      "title": "Version d’Archipelago inconnue",
+      "body": "Impossible de lire ou de comparer la version installée. Installer la dernière version remet les choses en ordre.",
+      "handPicked": "Impossible de lire la version du dossier choisi à la main. Vérifie qu’il contient bien Archipelago, ou reviens à la détection automatique."
+    },
+    "appimage": {
+      "eyebrow": "WARP ZONE",
+      "title": "Archipelago tourne depuis une AppImage",
+      "body": "L’app ne met jamais une AppImage à jour. L’installation gérée, elle, se met à jour en un clic et se passe de FUSE."
+    },
+    "unchecked": {
+      "eyebrow": "READY",
+      "title": "Archipelago {{version}} est installé",
+      "checking": "Recherche de la dernière version…",
+      "error": "Impossible de vérifier les mises à jour pour le moment."
+    }
+  },
+  "offer": {
+    "install": "Installer Archipelago {{version}}",
+    "installAny": "Installer Archipelago",
+    "update": "Mettre à jour vers {{version}}",
+    "reinstall": "Installer la version {{version}}",
+    "reinstallAny": "Réinstaller Archipelago",
+    "migrate": "Passer à l’installation gérée",
+    "uac": "Windows te demandera une autorisation administrateur (UAC), une seule fois. Une petite fenêtre vc_redist peut aussi apparaître\u00a0: c’est normal."
+  },
+  "options": {
+    "title": "Options d’installation",
+    "desktopIcons": "Icônes sur le bureau",
+    "desktopIconsHint": "Des raccourcis vers le Launcher et le dossier d’Archipelago.",
+    "advanced": "Options avancées",
+    "dir": "Dossier d’installation",
+    "dirDefault": "Emplacement par défaut",
+    "dirPick": "Choisir un dossier d’installation",
+    "dirReset": "Emplacement par défaut",
+    "dirHintWin": "Par défaut, l’installateur utilise C:\\ProgramData\\Archipelago, ou garde le dossier actuel lors d’une mise à jour.",
+    "dirHintLinux": "Par défaut, l’app installe Archipelago dans son propre dossier de données.",
+    "pickTitle": "Où installer Archipelago\u00a0?"
+  },
+  "location": {
+    "title": "Emplacement",
+    "path": "Dossier d’Archipelago",
+    "appImage": "Fichier AppImage",
+    "missingBody": "Archipelago est déjà installé ailleurs (une copie portable, un autre dossier)\u00a0? Indique son dossier à l’app.",
+    "installedBody": "Une autre copie d’Archipelago\u00a0? Choisis son dossier\u00a0: l’app l’utilisera en priorité.",
+    "pick": "Choisir un dossier existant",
+    "pickTitle": "Dossier d’Archipelago",
+    "auto": "Revenir à la détection automatique",
+    "customNote": "Tant que ce dossier est choisi, l’app l’utilise en priorité et te laisse ses mises à jour.",
+    "foreignNote": "Cette copie n’a pas été installée par l’app\u00a0: pour la retirer, supprime-la toi-même.",
+    "notFoundTitle": "Aucun Archipelago dans ce dossier",
+    "notFoundBody": "Choisis le dossier qui contient ArchipelagoLauncher.",
+    "usedToast": "L’app utilise maintenant ce dossier",
+    "autoToast": "Détection automatique rétablie"
+  },
+  "notes": {
+    "title": "Notes de version {{version}}",
+    "label": "Notes de version d’Archipelago {{version}}"
+  },
+  "uninstall": {
+    "title": "Désinstaller",
+    "body": "Retire Archipelago de ce PC. Tes YAML, tes parties et tes mondes ajoutés restent sur le disque, sauf si tu demandes de les supprimer.",
+    "button": "Désinstaller Archipelago",
+    "dialog": {
+      "eyebrow": "GAME OVER?",
+      "title": "Désinstaller Archipelago\u00a0?",
+      "body": "Le programme sera retiré. Tes YAML, tes parties et tes mondes ajoutés restent sur le disque, sauf si tu coches la case.",
+      "uac": "Windows va te demander une autorisation administrateur (UAC).",
+      "purge": "Supprimer aussi mes données",
+      "purgeHint": "Joueurs (YAML), parties générées, mondes ajoutés, logs et réglages d’Archipelago.",
+      "purgeWarning": "Tes données seront supprimées définitivement. Copie d’abord ce que tu veux garder.",
+      "confirm": "Désinstaller",
+      "confirmPurge": "Désinstaller et supprimer mes données"
+    }
+  },
+  "flow": {
+    "stepsLabel": "Étapes de l’installation",
+    "stages": {
+      "download": "Téléchargement",
+      "verify": "Vérification",
+      "backup": "Sauvegarde",
+      "quarantine": "Quarantaine",
+      "install": "Installation",
+      "detect": "Détection"
+    },
+    "hints": {
+      "starting": "Préparation…",
+      "download": "Téléchargement de la version officielle depuis GitHub.",
+      "verify": "Vérification de l’empreinte SHA-256 du fichier.",
+      "backup": "Sauvegarde de host.yaml, d’options.yaml et de la liste de tes mondes.",
+      "quarantine": "Mise de côté des APWorlds corrompus, qui bloqueraient l’installateur.",
+      "installWin": "Accepte la demande d’autorisation de Windows (UAC). Une petite fenêtre vc_redist peut aussi apparaître\u00a0: c’est normal.",
+      "installLinux": "Copie des fichiers dans le dossier géré par l’app.",
+      "detect": "Vérification de la nouvelle installation.",
+      "other": "Ça avance…"
+    },
+    "log": "Journal",
+    "install": {
+      "eyebrow": "NOW LOADING",
+      "title": "Installation d’Archipelago {{version}}",
+      "titleAny": "Installation d’Archipelago",
+      "update": "Mise à jour vers {{version}}"
+    },
+    "uninstall": {
+      "eyebrow": "PLEASE WAIT",
+      "title": "Désinstallation d’Archipelago",
+      "progress": "Désinstallation…",
+      "uac": "Accepte la demande d’autorisation de Windows (UAC)."
+    },
+    "done": {
+      "eyebrow": "STAGE CLEAR",
+      "title": "Archipelago {{version}} est installé",
+      "titleAny": "Archipelago est installé",
+      "body": "Tout est prêt\u00a0: les mondes, le Studio et tes parties utilisent maintenant cette installation.",
+      "folder": "Dossier",
+      "continue": "Continuer",
+      "play": "Organiser une partie"
+    },
+    "removed": {
+      "eyebrow": "GAME OVER",
+      "title": "Archipelago est désinstallé",
+      "purged": "Tes données ont été supprimées aussi.",
+      "kept": "Tes données sont restées sur le disque\u00a0: une réinstallation les retrouvera.",
+      "generic": "Le programme a été retiré de ce PC."
+    },
+    "failed": {
+      "eyebrow": "CONTINUE?",
+      "install": "L’installation n’a pas abouti",
+      "uninstall": "La désinstallation n’a pas abouti",
+      "back": "Retour"
+    }
+  },
+  "facts": {
+    "rateLimit": "Réessaie après {{time}}.",
+    "hash": "Empreinte attendue\u00a0: {{expected}} · obtenue\u00a0: {{actual}}",
+    "size": "Taille attendue\u00a0: {{expected}} · reçue\u00a0: {{actual}}",
+    "exitCode": "Code de sortie {{code}}\u00a0: {{reason}}",
+    "exitCodeOnly": "Code de sortie {{code}}"
+  },
+  "exitCodes": {
+    "1": "l’installateur n’a pas pu démarrer",
+    "2": "installation annulée avant de commencer",
+    "3": "erreur fatale entre deux étapes",
+    "4": "erreur fatale pendant l’installation",
+    "5": "installation annulée en cours de route",
+    "6": "installateur arrêté par un débogueur",
+    "7": "l’installateur ne peut pas continuer (étape de préparation)",
+    "8": "l’installateur ne peut pas continuer, et un redémarrage est nécessaire"
+  }
+}
