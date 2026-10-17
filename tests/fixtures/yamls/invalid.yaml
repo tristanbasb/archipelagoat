@@ -1,0 +1,9 @@
+name: Archipelago
+game: TUNIC
+quantity: 0
+local_items: [Sword]
+requires:
+  version: 0.7
+TUNIC:
+  hexagon_goal: 2.5
+  sword_progression: maybe

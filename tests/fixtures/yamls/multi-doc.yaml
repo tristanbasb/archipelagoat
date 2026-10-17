@@ -1,0 +1,15 @@
+name: Player{number}
+game: TUNIC
+TUNIC:
+  hexagon_goal: 10
+---
+name: Player{number}
+game: TUNIC
+TUNIC: {}
+---
+name: Bob
+game:
+  TUNIC: 1
+  A Link to the Past: 0
+TUNIC: {}
+---

@@ -1,0 +1,23 @@
+# A valid TUNIC player, as a player would write it by hand.
+name: Goat
+description: Hexagon quest, sword first
+game: TUNIC
+requires:
+  version: 0.6.8
+TUNIC:
+  progression_balancing: normal
+  accessibility: full
+  sword_progression: 'true'
+  start_with_sword: true
+  hexagon_quest: on
+  hexagon_goal: 25
+  extra_hexagon_percentage: random-range-10-40
+  fool_traps:
+    off: 0
+    normal: 30
+    double: 10
+  entrance_rando: 'no'
+  local_fill: 50
+  start_inventory:
+    Fairy: 1
+  death_link_unknown_for_tunic: false

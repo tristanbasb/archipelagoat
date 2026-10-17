@@ -1,0 +1,4 @@
+name: Goat
+game: TUNIC
+TUNIC:
+	hexagon_goal: 20

@@ -1,0 +1,9 @@
+﻿name: Alice
+game: TUNIC
+TUNIC:
+  hexagon_goal: 20
+---
+name: Bob
+game: TUNIC
+TUNIC: {}
+---
