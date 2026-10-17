@@ -1,0 +1,115 @@
+// Pure helpers of the worlds screen: names, search, versions, states and sizes.
+import type { CatalogEntry, WorldInfo, WorldState } from '@shared/types'
+import type { Tone } from '../../design/classes'
+
+/** The name a world goes by: its game, else the module of its folder. */
+export function worldName(world: WorldInfo): string {
+  return world.game ?? world.manifest?.game ?? world.module
+}
+
+/** Lowercase and without accents, so that "pokémon" finds "Pokemon". */
+export function normalize(text: string): string {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+/** True when every word of the query appears in one of the fields. */
+export function matchesQuery(query: string, fields: readonly (string | null | undefined)[]): boolean {
+  const words = normalize(query).split(/\s+/).filter(Boolean)
+  if (words.length === 0) return true
+  const haystack = normalize(fields.filter(Boolean).join('\n'))
+  return words.every((word) => haystack.includes(word))
+}
+
+/** The folder that holds a world (a world file itself cannot be opened). */
+export function parentDir(path: string): string {
+  const cut = Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/'))
+  return cut > 0 ? path.slice(0, cut) : path
+}
+
+/** Worst first: the order of the badges and of the state filter. */
+export const STATE_ORDER: readonly WorldState[] = [
+  'corrupt',
+  'incompatible',
+  'no-manifest',
+  'shadowed',
+  'disabled',
+  'core-loose',
+  'ok',
+]
+
+/** States the user can act on (badges reachable from the keyboard). */
+export const ACTIONABLE_STATES: ReadonlySet<WorldState> = new Set([
+  'corrupt',
+  'incompatible',
+  'no-manifest',
+  'shadowed',
+  'disabled',
+])
+
+/** The badges of a world, worst first; `ok` only when there is nothing else to say. */
+export function badgeStates(world: WorldInfo): WorldState[] {
+  const states = STATE_ORDER.filter((state) => state !== 'ok' && world.states.includes(state))
+  return states.length > 0 ? states : ['ok']
+}
+
+export function countStates(worlds: readonly WorldInfo[]): Record<WorldState, number> {
+  const counts = Object.fromEntries(STATE_ORDER.map((state) => [state, 0])) as Record<WorldState, number>
+  for (const world of worlds) for (const state of new Set(world.states)) counts[state] += 1
+  return counts
+}
+
+function numericParts(version: string): number[] {
+  return (version.match(/\d+/g) ?? []).map(Number)
+}
+
+/** True when `candidate` is a later version than `current`, comparing their numbers in turn. */
+export function isNewerVersion(candidate: string, current: string): boolean {
+  const next = numericParts(candidate)
+  const now = numericParts(current)
+  if (next.length === 0 || now.length === 0) return candidate !== current
+  for (let index = 0; index < Math.max(next.length, now.length); index += 1) {
+    const diff = (next[index] ?? 0) - (now[index] ?? 0)
+    if (diff !== 0) return diff > 0
+  }
+  return false
+}
+
+/** An installed world for which the catalog has a later version. */
+export function hasUpdate(entry: CatalogEntry): boolean {
+  return (
+    entry.installedVersion !== null &&
+    entry.latest !== null &&
+    isNewerVersion(entry.latest.version, entry.installedVersion)
+  )
+}
+
+/** The catalog as the user may see it: "After Dark" worlds only when the settings allow them. */
+export function visibleEntries(entries: readonly CatalogEntry[], showAfterDark: boolean): CatalogEntry[] {
+  return showAfterDark ? [...entries] : entries.filter((entry) => !entry.afterDark)
+}
+
+/** The color of a wiki status (free text on the wiki: Stable, Unstable, Broken on Main…). */
+export function statusTone(status: string): Tone {
+  if (/broken/i.test(status)) return 'pink'
+  if (/unstable|beta|alpha|wip|experimental|in development/i.test(status)) return 'yellow'
+  if (/stable|complete|verified/i.test(status)) return 'green'
+  return 'neutral'
+}
+
+const BYTE_UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte'] as const
+
+/** "1,2 Mo" / "1.2 MB". */
+export function formatBytes(bytes: number, lang: string): string {
+  let value = bytes
+  let unit = 0
+  while (value >= 1000 && unit < BYTE_UNITS.length - 1) {
+    value /= 1000
+    unit += 1
+  }
+  return new Intl.NumberFormat(lang, {
+    style: 'unit',
+    unit: BYTE_UNITS[unit],
+    unitDisplay: 'short',
+    maximumFractionDigits: unit > 0 && value < 10 ? 1 : 0,
+  }).format(value)
+}

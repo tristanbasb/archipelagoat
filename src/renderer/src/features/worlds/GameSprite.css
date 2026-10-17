@@ -1,0 +1,33 @@
+.game-sprite {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--tone) 20%, transparent), transparent 72%),
+    var(--bg-1);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 28%, transparent);
+  clip-path: var(--clip-corner);
+}
+
+.game-sprite svg {
+  width: 60%;
+  height: 60%;
+  fill: var(--tone);
+  filter: var(--drop-glow);
+}
+
+/* The big one floats free on a catalog card's banner. */
+.game-sprite[data-size='lg'] {
+  width: 64px;
+  height: 64px;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+}
+
+.game-sprite[data-size='lg'] svg {
+  width: 100%;
+  height: 100%;
+}

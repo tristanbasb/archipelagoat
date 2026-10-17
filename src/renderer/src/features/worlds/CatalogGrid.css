@@ -1,0 +1,372 @@
+.worlds-catalog {
+  display: grid;
+  gap: var(--sp-5);
+  padding-top: var(--sp-2);
+}
+
+.worlds-catalog__spinner {
+  color: var(--neon-violet);
+}
+
+/* ---- Stale notice -------------------------------------------------------------------------- */
+
+.catalog-notice {
+  --pb-color: var(--tone-line);
+  --pb-fill: linear-gradient(90deg, color-mix(in srgb, var(--tone) 11%, var(--bg-2)), var(--bg-2) 70%);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.catalog-notice__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--tone);
+  filter: var(--drop-glow);
+}
+
+.catalog-notice__text {
+  display: grid;
+  gap: var(--sp-1);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+}
+
+.catalog-notice__title {
+  color: var(--tone-ink);
+  font-size: var(--fs-14);
+}
+
+.catalog-notice__text strong {
+  color: var(--text);
+}
+
+.catalog-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  align-self: center;
+}
+
+/* ---- Quick filters, count and refresh ------------------------------------------------------ */
+
+.worlds-catalog__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: calc(var(--sp-2) * -1);
+}
+
+.worlds-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.worlds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: 0;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  clip-path: var(--clip-corner-sm);
+  transition:
+    color var(--dur) var(--ease-out),
+    background var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out);
+}
+
+.worlds-chip:hover {
+  box-shadow: inset 0 0 0 1px var(--tone-line);
+  color: var(--text);
+}
+
+.worlds-chip[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--tone) 20%, var(--bg-2));
+  box-shadow: inset 0 0 0 1px var(--tone);
+  color: var(--tone-ink);
+  font-weight: 700;
+  text-shadow: var(--text-glow);
+}
+
+/* The clip-path would cut an outline: the focus ring is drawn inside. */
+.worlds-chip:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.worlds-chip__icon {
+  display: inline-flex;
+}
+
+.worlds-chip__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.worlds-catalog__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.worlds-catalog__count {
+  color: var(--text);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Grid of cards ------------------------------------------------------------------------- */
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-grid:empty {
+  display: none;
+}
+
+.catalog-grid > li {
+  display: flex;
+  min-width: 0;
+}
+
+/* A cartridge: a lit label (the banner) on a dark shell. */
+.catalog-card {
+  --pb-color: var(--line);
+  --pb-fill: linear-gradient(180deg, var(--bg-2), color-mix(in srgb, var(--bg-2) 50%, var(--bg-1)));
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  transition:
+    filter var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.catalog-card:hover,
+.catalog-card:focus-within {
+  --pb-color: var(--tone-line);
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--tone) 22%, transparent));
+  transform: translateY(-2px);
+}
+
+:where(.fx-off, .fx-no-glow) .catalog-card:hover,
+:where(.fx-off, .fx-no-glow) .catalog-card:focus-within {
+  filter: none;
+}
+
+.catalog-card__banner {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 104px;
+  margin: 6px 6px 0;
+  padding: var(--sp-3);
+  overflow: hidden;
+  background:
+    radial-gradient(60% 90% at 22% 100%, color-mix(in srgb, var(--tone) 32%, transparent), transparent 70%),
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--tone) 9%, transparent) 0 1px,
+      transparent 1px 6px
+    ),
+    linear-gradient(160deg, color-mix(in srgb, var(--tone) 14%, var(--bg-1)), var(--bg-0) 85%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 24%, transparent);
+  clip-path: var(--clip-corner);
+}
+
+/* A row of lit pixels along the top of the label, like a cartridge's grip. */
+.catalog-card__banner::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  left: 12px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--tone) 35%, transparent) 0 6px, transparent 6px 10px);
+}
+
+/* "1UP": an update is waiting. */
+.catalog-card__ribbon {
+  position: absolute;
+  top: 18px;
+  right: 12px;
+  padding: 3px 5px 2px;
+  background: var(--neon-yellow);
+  color: var(--bg-0);
+  box-shadow: var(--glow-yellow);
+  animation: catalog-1up 1.2s steps(2, jump-none) infinite;
+}
+
+@keyframes catalog-1up {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.catalog-card__sprite {
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.catalog-card:hover .catalog-card__sprite {
+  transform: translateY(-4px);
+}
+
+.catalog-card__body {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) 0;
+}
+
+.catalog-card__title {
+  overflow: hidden;
+  font-size: var(--fs-16);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  min-height: 18px;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.catalog-card__version {
+  color: var(--tone-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-card__maintainer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.catalog-card__help {
+  display: inline-flex;
+}
+
+.catalog-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-top: 1px dashed var(--line);
+}
+
+.catalog-card__links {
+  display: flex;
+  gap: 2px;
+}
+
+.catalog-card__link.neon-btn {
+  width: 28px;
+  padding: 0;
+}
+
+/* Installed version → catalog version, when an update waits. */
+.catalog-card__delta {
+  color: var(--neon-cyan);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-card--skeleton {
+  display: block;
+  flex: 1;
+  height: 252px;
+  animation: worlds-breathe 1.1s steps(4, end) infinite alternate;
+}
+
+.catalog-card--skeleton:nth-child(even) {
+  animation-delay: 220ms;
+}
+
+.worlds-catalog__more {
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- Credits ------------------------------------------------------------------------------- */
+
+.catalog-credits {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+
+.catalog-credits__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.catalog-credits__text {
+  display: grid;
+  gap: 2px;
+}
+
+.worlds-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--neon-cyan);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.worlds-link:hover {
+  color: color-mix(in srgb, var(--neon-cyan) 70%, #ffffff);
+}
+
+.worlds-link svg {
+  width: 12px;
+  height: 12px;
+}
