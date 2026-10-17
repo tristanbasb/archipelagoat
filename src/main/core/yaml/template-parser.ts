@@ -40,7 +40,7 @@ const YAML_OPTIONS = { version: '1.1', uniqueKeys: false, logLevel: 'error' } as
 /** The group of an option met before any banner (Options.get_option_groups names it so). */
 const DEFAULT_GROUP = 'Game Options'
 
-/** The lines dictify_range adds after a range's doc (data/options.yaml, `range_option`). */
+/** The lines the `range_option` macro of data/options.yaml writes after a range's doc. */
 const RANGE_INTRO = 'You can define additional values between the minimum and maximum values.'
 const MINIMUM = /^Minimum value is (-?\d+(?:\.\d+)?)$/
 const MAXIMUM = /^Maximum value is (-?\d+(?:\.\d+)?)$/
