@@ -19,6 +19,7 @@ import {
   overflowingTexts,
   rawTexts,
   removeDirs,
+  repoRoot,
   screenTitle,
   screenshot,
   stopServer,
@@ -68,6 +69,12 @@ async function shoot(
 
 const bootDialog = (page: Page, t: Translate): Locator => page.getByRole('dialog', { name: t('boot.label') })
 
+/** The `version` of package.json. */
+async function packageVersion(): Promise<string> {
+  const file = join(await repoRoot(), 'package.json')
+  return (JSON.parse(readFileSync(file, 'utf8')) as { version: string }).version
+}
+
 for (const lang of ['fr', 'en'] as const) {
   test.describe(lang, () => {
     test(`visits every screen without console errors or CSP violations and screenshots it (${lang})`, async () => {
@@ -111,7 +118,8 @@ for (const lang of ['fr', 'en'] as const) {
           '/settings',
           t('nav.settings'),
           'settings',
-          page.locator('main').getByText(t('shell.status.version', { version: '0.1.0' })),
+          // `electron .` runs the package: About shows its version, not Electron's.
+          page.locator('main').getByText(t('shell.status.version', { version: await packageVersion() })),
         ],
       ]
       for (const [route, title, name, loaded] of screens) {
