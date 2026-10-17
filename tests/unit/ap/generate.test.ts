@@ -277,6 +277,21 @@ describe('reduceProgress', () => {
     expect(new Set(states.map((s) => s.stage))).toEqual(new Set(GENERATE_STAGE_IDS))
   })
 
+  it('follows the real 12-player generation of Archipelago 0.6.8 up to 100/done', () => {
+    // The log of the real run (docs/verification/2026-10-16-real-run.md): stdout and stderr as they
+    // came, with a fill step past its own total (`1490/1473`).
+    let state = start
+    const fill: number[] = []
+    for (const line of apOutputLines('real-generate-12-players.txt')) {
+      const next = reduceProgress(state, line)
+      expect(next.percent).toBeGreaterThanOrEqual(state.percent)
+      if (next.stage === 'fill') fill.push(next.percent)
+      state = next
+    }
+    expect(state).toEqual({ stage: 'done', percent: 100 })
+    expect(Math.max(...fill)).toBe(59)
+  })
+
   it('ignores unknown lines, fill steps outside the fill stage and stages already passed', () => {
     const prefill: GenProgress = { stage: 'prefill', percent: 28 }
     expect(reduceProgress(prefill, 'Took 1.0520 seconds in PokemonEmeraldWorld.set_rules')).toBe(prefill)

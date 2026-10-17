@@ -133,6 +133,38 @@ describe('FINAL_ARCHIVE_RE', () => {
   })
 })
 
+describe('the real output of Archipelago 0.6.8 (docs/verification/2026-10-16-real-run.md)', () => {
+  const generation = apOutputLines('real-generate-12-players.txt')
+  const server = apOutputLines('real-server-session.txt')
+
+  it('logs every stage of a 12-player generation, in order, and one final archive', () => {
+    expect(stagesOf(generation)).toEqual([...GENERATE_STAGE_IDS])
+    const archives = generation.filter((line) => FINAL_ARCHIVE_RE.test(line))
+    expect(archives).toHaveLength(1)
+    expect(FINAL_ARCHIVE_RE.exec(archives[0] ?? '')?.groups?.path).toMatch(
+      /\\output\\AP_85957999565022565374\.zip$/,
+    )
+  })
+
+  it('reads a fill step that goes past its total', () => {
+    const over = generation.find((line) => line.includes('1490/1473'))
+    expect(FILL_STEP_RE.exec(over ?? '')?.groups).toMatchObject({
+      name: 'Remaining',
+      done: '1490',
+      total: '1473',
+    })
+  })
+
+  it('logs Hosting game at, then one listening line per socket, [::] first', () => {
+    const hosting = server.findIndex((line) => SERVER_HOSTING_RE.test(line))
+    expect(server.filter((line) => SERVER_READY_RE.test(line))).toEqual([
+      'server listening on [::]:38281',
+      'server listening on 0.0.0.0:38281',
+    ])
+    expect(server.findIndex((line) => SERVER_READY_RE.test(line))).toBe(hosting + 1)
+  })
+})
+
 describe('server patterns', () => {
   const startup = apOutputLines('server-startup.txt')
 

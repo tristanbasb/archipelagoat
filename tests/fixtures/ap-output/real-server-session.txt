@@ -1,0 +1,30 @@
+Archipelago (0.6.8) logging initialized on Windows-11-10.0.26200-SP0 process 26764 running Python 3.13.15 (frozen)
+worlds\pokemon_emerald\data.py:12: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+Loading embedded data package for game A Hat in Time
+Loading embedded data package for game Archipelago
+Loading embedded data package for game Celeste 64
+Loading embedded data package for game Factorio
+Loading embedded data package for game Hollow Knight
+Loading embedded data package for game Hylics 2
+Loading embedded data package for game Jak and Daxter: The Precursor Legacy
+Loading embedded data package for game Kingdom Hearts 2
+Loading embedded data package for game Stardew Valley
+Loading embedded data package for game Super Mario 64
+Loading embedded data package for game TUNIC
+Loading embedded data package for game The Witness
+Loading embedded data package for game Timespinner
+No save data found, starting a new game
+Hosting game at 203.0.113.7:38281 (No password)
+server listening on [::]:38281
+server listening on 0.0.0.0:38281
+0 players of 12 connected :: Team #1: (Goat1) (Goat10) (Goat11) (Goat12) (Goat2) (Goat3) (Goat4) (Goat5) (Goat6) (Goat7) (Goat8) (Goat9)
+Notice (all): [Server]: bonjour depuis la verification
+Notice (all): [Server]: accents: café élève ü — 日本
+connection open
+Notice (all): Goat1 (Team #1) viewing TUNIC has joined. Client(0.6.8), ['AP', 'TextOnly'].
+Notice (Player Goat1 in team 1): Now that you are connected, you can use !help to list commands to run via the server. If your client supports it, you may have additional local commands you can list with /help.
+1 players of 12 connected :: Team #1: Goat1 (Goat10) (Goat11) (Goat12) (Goat2) (Goat3) (Goat4) (Goat5) (Goat6) (Goat7) (Goat8) (Goat9)
+Notice (all): Goat1 (Team #1) has stopped viewing the game. Client(0.6.8), ['AP', 'TextOnly'].
+connection closed
+server closing
+server closed

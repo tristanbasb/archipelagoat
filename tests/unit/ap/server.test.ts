@@ -319,6 +319,20 @@ describe('parseServerLine', () => {
     expect(parsed[11]).not.toHaveProperty('player')
   })
 
+  it('reads the real session of Archipelago 0.6.8: a Text Client that joins and leaves, the host chat', () => {
+    // What the real server printed (docs/verification/2026-10-16-real-run.md), public address
+    // replaced: the /players answers are print() lines, held back until the next log line.
+    const parsed = apOutputLines('real-server-session.txt').map((line) => parseServerLine(line))
+    const events = parsed.filter((event) => event !== null)
+    expect(events.map((event) => [event.kind, event.player])).toEqual([
+      ['chat', '[Server]'],
+      ['chat', '[Server]'],
+      ['join', 'Goat1'],
+      ['leave', 'Goat1'],
+    ])
+    expect(events[1]).toMatchObject({ text: 'Notice (all): [Server]: accents: café élève ü — 日本' })
+  })
+
   it('takes the startup lines for no event', () => {
     for (const line of apOutputLines('server-startup.txt')) expect(parseServerLine(line)).toBeNull()
     expect(
