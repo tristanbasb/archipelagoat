@@ -1,0 +1,21 @@
+.file-choice {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.file-choice__file {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.file-choice__file svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--neon-cyan);
+}
+
+.file-choice__options {
+  display: grid;
+  gap: var(--sp-3);
+}

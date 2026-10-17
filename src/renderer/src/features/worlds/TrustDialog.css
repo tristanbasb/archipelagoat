@@ -1,0 +1,243 @@
+.trust-dialog {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.trust-dialog__preparing {
+  padding: var(--sp-2) 0 var(--sp-4);
+}
+
+.trust-dialog__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* Facts: a two-column sheet, labels dim on the left. */
+.trust-dialog__facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-5);
+  margin: 0;
+  padding: var(--sp-4);
+  background: color-mix(in srgb, var(--bg-0) 60%, transparent);
+  border-left: 2px solid var(--tone-line);
+  font-size: var(--fs-13);
+}
+
+.trust-dialog__facts dt {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 22px;
+}
+
+.trust-dialog__facts dd {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+  line-height: 22px;
+}
+
+.trust-dialog__kind {
+  flex: none;
+  padding: 0 6px;
+  background: var(--bg-3);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.trust-dialog__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trust-dialog__mono,
+.trust-dialog__hash code {
+  font-family: var(--font-mono);
+}
+
+.trust-dialog__hash {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.trust-dialog__hash code {
+  color: var(--neon-cyan);
+  letter-spacing: 0.02em;
+}
+
+.trust-dialog__icon-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  clip-path: var(--clip-corner-sm);
+}
+
+.trust-dialog__icon-btn:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.trust-dialog__icon-btn[data-copied] {
+  color: var(--neon-green);
+}
+
+.trust-dialog__icon-btn svg,
+.trust-dialog__link svg {
+  width: 15px;
+  height: 15px;
+}
+
+.trust-dialog__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--neon-cyan);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.trust-dialog__link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Conflicts and warnings. */
+.trust-dialog__notes h3 {
+  margin-bottom: var(--sp-2);
+  color: var(--tone-ink);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.trust-dialog__notes ul {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trust-dialog__notes li {
+  display: flex;
+  gap: var(--sp-2);
+  color: var(--text);
+  font-size: var(--fs-13);
+}
+
+.trust-dialog__notes li svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--tone);
+}
+
+/* "An APWorld is code": the warning that must be acknowledged. */
+.trust-dialog__code {
+  --pb-color: var(--tone-line);
+  --pb-fill: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tone) 10%, var(--bg-2)),
+    color-mix(in srgb, var(--tone) 3%, var(--bg-2))
+  );
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+
+.trust-dialog__code-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  color: var(--tone);
+  filter: var(--drop-glow);
+}
+
+.trust-dialog__code-title {
+  color: var(--tone-ink);
+  font-weight: 700;
+}
+
+.trust-dialog__code-body {
+  margin-top: var(--sp-1);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.trust-dialog__ack {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trust-dialog__ack input {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.trust-dialog__box {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--tone);
+  background: var(--bg-0);
+  color: var(--bg-0);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.trust-dialog__box svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+  opacity: 0;
+}
+
+.trust-dialog__ack input:checked + .trust-dialog__box {
+  background: var(--tone);
+  box-shadow: var(--glow-sm);
+}
+
+.trust-dialog__ack input:checked + .trust-dialog__box svg {
+  opacity: 1;
+}
+
+.trust-dialog__ack input:focus-visible + .trust-dialog__box {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.trust-dialog__queued {
+  margin-right: auto;
+  align-self: center;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}

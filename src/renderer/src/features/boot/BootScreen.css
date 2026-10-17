@@ -1,0 +1,212 @@
+/* The boot screen covers everything under the title bar, which stays draggable. */
+.boot.grid-bg {
+  position: fixed;
+  inset: 36px 0 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  outline: none;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.boot[data-leaving] {
+  animation: boot-leave 280ms ease-in forwards;
+}
+
+@keyframes boot-leave {
+  to {
+    opacity: 0;
+    filter: brightness(2.2);
+  }
+}
+
+/* The tube switching on: a bright line that opens into the picture. */
+.boot__screen {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-8);
+  transform-origin: 50% 50%;
+  animation: boot-power 560ms var(--ease-out) both;
+}
+
+@keyframes boot-power {
+  0% {
+    transform: scale(1, 0.004);
+    filter: brightness(5);
+  }
+  35% {
+    transform: scale(1, 0.004);
+    filter: brightness(5);
+  }
+  65% {
+    transform: scale(1, 1.03);
+    filter: brightness(1.6);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+.boot__logo {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-4);
+}
+
+/* The archipelago: little islands floating around the goat, each on its own beat. */
+.boot__sky {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.boot__island {
+  position: absolute;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon-green) 30%, transparent));
+  animation: boot-float 2.8s steps(2, jump-none) infinite;
+}
+
+.boot__island--left {
+  top: 34px;
+  left: -96px;
+}
+
+.boot__island--right {
+  top: 6px;
+  right: -88px;
+  animation-delay: -0.9s;
+}
+
+.boot__island--far {
+  top: 92px;
+  right: -150px;
+  opacity: 0.75;
+  animation-delay: -1.7s;
+}
+
+:where(.fx-off, .fx-no-glow) .boot__island {
+  filter: none;
+}
+
+.boot__mark {
+  filter: var(--drop-glow);
+  animation: boot-float 2.4s steps(2, jump-none) infinite;
+}
+
+@keyframes boot-float {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.boot__wordmark {
+  font-size: var(--fs-28);
+  line-height: 1.2;
+  text-shadow: 0 0 16px color-mix(in srgb, var(--neon-violet) 65%, transparent);
+}
+
+.boot__unofficial {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  letter-spacing: 0.02em;
+}
+
+/* The power-on self test. */
+.boot__lines {
+  display: grid;
+  gap: var(--sp-1);
+  width: min(380px, 80vw);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-13);
+}
+
+.boot__lines li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  animation: boot-line 1ms steps(1, end) both;
+}
+
+@keyframes boot-line {
+  from {
+    visibility: hidden;
+  }
+}
+
+.boot__prompt {
+  color: var(--neon-violet);
+}
+
+.boot__dots {
+  flex: 1;
+  border-bottom: 2px dotted var(--line-strong);
+  transform: translateY(-4px);
+}
+
+.boot__ok {
+  color: var(--neon-green);
+  font-weight: 700;
+}
+
+/* A life bar filling up, segment by segment. */
+.boot__bar {
+  width: min(380px, 80vw);
+  height: 10px;
+  padding: 2px;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.boot__bar span {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--tone) 0 12px, transparent 12px 15px);
+  box-shadow: var(--glow-sm);
+  animation: boot-fill 1500ms steps(25, end) 350ms both;
+}
+
+@keyframes boot-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.boot__start {
+  margin-top: var(--sp-2);
+  color: var(--neon-yellow);
+  font-size: var(--fs-16);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+  animation: fx-blink 1.06s steps(1, end) infinite;
+}
+
+.boot__skip {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+:where(.fx-off, .fx-no-glow) :is(.boot__wordmark, .boot__start) {
+  text-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot__wordmark,
+  .boot__start {
+    text-shadow: none;
+  }
+
+  .boot__island {
+    filter: none;
+  }
+}

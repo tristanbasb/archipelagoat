@@ -457,7 +457,8 @@ function GalleryContent({
           ))}
         </nav>
 
-        <main className="gallery__main">
+        {/* A div, not a main: the app layout already has the page's main landmark. */}
+        <div className="gallery__main">
           <Section id="colors" eyebrow="TOKENS" title="Couleurs">
             <Colors />
           </Section>
@@ -917,7 +918,7 @@ function GalleryContent({
               </Row>
             </div>
           </Section>
-        </main>
+        </div>
       </div>
     </div>
   )

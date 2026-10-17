@@ -1,0 +1,150 @@
+.rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 68px;
+  padding: var(--sp-3) 0;
+  background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+  border-right: 1px solid var(--line);
+}
+
+/* A faint neon seam along the right edge. */
+.rail::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -1px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--neon-violet) 55%, transparent) 30%,
+    color-mix(in srgb, var(--neon-cyan) 35%, transparent) 70%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.rail__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rail__list li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+
+.rail__link {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--text-dim);
+  clip-path: var(--clip-corner);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.rail__icon {
+  width: 22px;
+  height: 22px;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    filter var(--dur) var(--ease-out);
+}
+
+.rail__link:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.rail__link:hover .rail__icon {
+  transform: translateY(-1px);
+}
+
+/* The clip-path would cut an outline: the keyboard ring is drawn inside the tile. */
+.rail__link:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.rail__link[aria-current='page'] {
+  background: color-mix(in srgb, var(--neon-violet) 18%, transparent);
+  color: color-mix(in srgb, var(--neon-violet) 70%, #ffffff);
+}
+
+.rail__link[aria-current='page'] .rail__icon {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon-violet) 85%, transparent));
+}
+
+/* The lit marker of the current screen, at the rail's edge. */
+.rail__list li:has(> .rail__link[aria-current='page'])::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  background: var(--neon-violet);
+  box-shadow: var(--glow-violet);
+}
+
+:where(.fx-off, .fx-no-glow) .rail__link[aria-current='page'] .rail__icon {
+  filter: none;
+}
+
+/* The label shown beside a hovered or focused entry (portalled, so never under a panel). */
+.rail-flyout {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 2px var(--sp-5);
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);
+  background: linear-gradient(90deg, var(--bg-3), var(--bg-2));
+  box-shadow:
+    inset 2px 0 0 var(--neon-violet),
+    0 10px 24px rgb(0 0 0 / 0.5);
+  clip-path: var(--clip-corner);
+  transform: translateY(-50%);
+  pointer-events: none;
+  animation: rail-flyout-in var(--dur-fast) var(--ease-out);
+}
+
+@keyframes rail-flyout-in {
+  from {
+    opacity: 0;
+    transform: translate(-6px, -50%);
+  }
+}
+
+.rail-flyout__label {
+  color: var(--text);
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.rail-flyout__hint {
+  grid-column: 1;
+  grid-row: 2;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+.rail-flyout__keys {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  gap: var(--sp-1);
+}

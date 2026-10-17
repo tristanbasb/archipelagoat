@@ -1,0 +1,448 @@
+{
+  "common": {
+    "appName": "ArchipelaGOAT",
+    "unofficial": "Compagnon non officiel pour Archipelago",
+    "close": "Fermer",
+    "closeDialog": "Fermer la fenêtre",
+    "cancel": "Annuler",
+    "retry": "Réessayer",
+    "copy": "Copier",
+    "copied": "Copié",
+    "loading": "Chargement…",
+    "technicalDetails": "Détails techniques",
+    "openLog": "Ouvrir le log",
+    "notifications": "Notifications"
+  },
+  "languages": {
+    "fr": "français",
+    "en": "anglais"
+  },
+  "nav": {
+    "label": "Navigation principale",
+    "home": "Accueil",
+    "session": "Partie",
+    "join": "Rejoindre",
+    "studio": "Studio YAML",
+    "worlds": "Mondes",
+    "vault": "Émulateurs et ROMs",
+    "settings": "Réglages",
+    "doctor": "Diagnostic",
+    "install": "Installer Archipelago",
+    "play": "Partie en cours",
+    "gallery": "Galerie du design system",
+    "hints": {
+      "home": "Tableau de bord et parties récentes",
+      "session": "Organiser une partie multiworld",
+      "join": "Rejoindre la partie d’un ami",
+      "studio": "Créer ou modifier un YAML de joueur",
+      "worlds": "APWorlds installés et catalogue",
+      "vault": "Tes ROMs et BizHawk",
+      "settings": "Langue, effets, chemins et à propos",
+      "doctor": "Vérifier que tout est prêt",
+      "install": "Installer ou mettre à jour Archipelago 0.6.8",
+      "play": "Serveur, joueurs et flux d’objets"
+    }
+  },
+  "shell": {
+    "skipToContent": "Aller au contenu",
+    "status": {
+      "label": "Barre d’état",
+      "apChecking": "AP…",
+      "apVersion": "AP {{version}}",
+      "apUnknownVersion": "AP (version inconnue)",
+      "apMissing": "AP absent",
+      "apUnavailable": "AP\u00a0?",
+      "apHint": "Installation et mises à jour d’Archipelago",
+      "serverOff": "Serveur arrêté",
+      "serverStarting": "Serveur en démarrage",
+      "serverLocal": "Serveur local :{{port}}",
+      "serverWeb": "archipelago.gg",
+      "serverCrashed": "Serveur planté",
+      "serverHint": "Ouvrir la partie en cours",
+      "tasksMore": "+{{count}}",
+      "doctor": "Diagnostic",
+      "language": "Langue\u00a0: {{language}}",
+      "version": "v{{version}}"
+    },
+    "boundary": {
+      "title": "Cet écran a planté",
+      "body": "Le reste de l’app fonctionne toujours. Recharge l’écran pour réessayer\u00a0; si ça recommence, le diagnostic peut aider.",
+      "reload": "Recharger l’écran",
+      "reloadApp": "Recharger l’app",
+      "appTitle": "ArchipelaGOAT a planté"
+    },
+    "quit": {
+      "eyebrow": "CONTINUE?",
+      "title": "Quitter ArchipelaGOAT\u00a0?",
+      "body": "Des choses tournent encore.",
+      "servers": "Serveurs en cours",
+      "serversNote": "Le serveur enregistre la partie puis s’arrête\u00a0: les joueurs connectés seront déconnectés.",
+      "tasks": "Tâches en cours",
+      "tasksNote": "Elles seront annulées.",
+      "stay": "Rester",
+      "quit": "Quitter quand même",
+      "quitting": "Fermeture…"
+    },
+    "drop": {
+      "title": "Dépose ici",
+      "worlds": "Installer un monde",
+      "yaml": "Ouvrir dans le Studio, ou ajouter à la partie ouverte",
+      "patch": "Rejoindre la partie avec ton patch",
+      "unsupported": "Fichier non pris en charge\u00a0: {{name}}",
+      "noPath": "Ce fichier n’a pas de chemin sur le disque\u00a0: {{name}}",
+      "addedOne": "Ajouté à la partie\u00a0: {{name}}",
+      "added": "Fichiers ajoutés à la partie\u00a0: {{count}}",
+      "ignored": "Ignorés\u00a0: {{names}}",
+      "oneAtATime": "Un seul fichier à la fois pour cette action\u00a0: {{name}} est laissé de côté."
+    },
+    "choice": {
+      "title": "Que faire de cette archive\u00a0?",
+      "body": "{{name}} peut être le fichier de patch d’un slot (Factorio, Kingdom Hearts…) ou un lot de YAML de joueurs.",
+      "join": "Rejoindre une partie avec ce fichier",
+      "session": "Ajouter les YAML à la partie ouverte"
+    },
+    "stub": {
+      "stage": "STAGE {{n}}",
+      "bonus": "BONUS STAGE",
+      "live": "LIVE",
+      "title": "Écran en construction",
+      "body": "Cette partie de l’app arrive très bientôt."
+    }
+  },
+  "boot": {
+    "label": "Démarrage d’ArchipelaGOAT",
+    "pressStart": "PRESS START",
+    "skip": "Appuie sur une touche pour passer",
+    "lines": {
+      "islands": "Chargement des îles",
+      "goat": "Réveil de la chèvre",
+      "worlds": "Synchronisation des mondes",
+      "ok": "OK"
+    }
+  },
+  "tasks": {
+    "running": "Tâches en cours\u00a0: {{count}}",
+    "kinds": {
+      "ap-install": "Installation d’Archipelago",
+      "ap-uninstall": "Désinstallation d’Archipelago",
+      "templates": "Génération des templates",
+      "world-prepare": "Analyse d’un monde",
+      "generate": "Génération de la partie",
+      "webhost-host": "Hébergement sur archipelago.gg",
+      "join-prepare": "Préparation pour rejoindre",
+      "rom-scan": "Recherche de ROMs",
+      "bizhawk-install": "Installation de BizHawk"
+    }
+  },
+  "trust": {
+    "core": {
+      "label": "Monde officiel",
+      "description": "Fourni avec Archipelago."
+    },
+    "indexed-verified": {
+      "label": "Index vérifié",
+      "description": "Référencé dans l’index communautaire, avec une empreinte vérifiée."
+    },
+    "wiki-release": {
+      "label": "Release du wiki",
+      "description": "Trouvé via le wiki d’Archipelago\u00a0: personne n’a vérifié ce fichier."
+    },
+    "unknown": {
+      "label": "Source inconnue",
+      "description": "Rien ne permet de savoir d’où vient ce fichier."
+    }
+  },
+  "worldInstall": {
+    "eyebrow": "NEW CHALLENGER",
+    "title": "Installer {{game}}\u00a0?",
+    "titlePending": "Nouveau monde",
+    "preparing": "Analyse du monde…",
+    "queued": "{{count}} en attente",
+    "source": "Source",
+    "sourceKinds": {
+      "file": "Fichier",
+      "url": "Lien",
+      "catalog": "Catalogue"
+    },
+    "file": "Fichier installé",
+    "authors": "Auteurs",
+    "authorsUnknown": "Non renseignés",
+    "version": "Version",
+    "versionUnknown": "Inconnue",
+    "archipelago": "Archipelago",
+    "apMin": "{{version}} ou plus récent",
+    "apMax": "{{version}} au plus",
+    "apAny": "Toutes versions",
+    "sha256": "Empreinte SHA-256",
+    "copyHash": "Copier l’empreinte",
+    "hashCopied": "Empreinte copiée",
+    "homepage": "Page du projet",
+    "conflicts": "Conflits",
+    "replaces": "{{newName}} remplacera {{oldName}}",
+    "keeps": "{{oldName}} reste prioritaire sur {{newName}}",
+    "warnings": "Points d’attention",
+    "codeTitle": "Un APWorld, c’est du code",
+    "codeBody": "Archipelago exécute le code Python de ce monde avec tes droits, sans bac à sable. N’installe que des mondes dont tu connais la source.",
+    "ack": "J’ai compris",
+    "install": "Installer",
+    "installing": "Installation…",
+    "installed": "{{game}} est installé",
+    "restartTitle": "Redémarre les programmes Archipelago ouverts",
+    "restartBody": "Ils ne verront {{game}} qu’après un redémarrage."
+  },
+  "errors": {
+    "NOT_IMPLEMENTED": "Cette fonction n’est pas encore disponible",
+    "INVALID_INPUT": "Requête invalide",
+    "NOT_FOUND": "Introuvable",
+    "PATH_FORBIDDEN": "Accès refusé à cet emplacement",
+    "TASK_CANCELLED": "Tâche annulée",
+    "UNSUPPORTED_PLATFORM": "Pas disponible sur ce système",
+    "AP_NOT_INSTALLED": "Archipelago n’est pas installé",
+    "AP_RUNNING": "Archipelago est ouvert",
+    "SETTINGS_LOCKED": "Les réglages d’Archipelago sont verrouillés",
+    "NETWORK_OFFLINE": "Pas de connexion Internet",
+    "GITHUB_RATE_LIMITED": "GitHub limite les requêtes",
+    "HTTP_ERROR": "Le serveur distant a répondu par une erreur",
+    "DOWNLOAD_HASH_MISMATCH": "Le téléchargement est corrompu",
+    "INSTALL_ELEVATION_DENIED": "Autorisation administrateur refusée",
+    "INSTALL_FAILED": "L’installation a échoué",
+    "WORLD_INVALID": "Ce fichier n’est pas un APWorld valide",
+    "WORLD_INCOMPATIBLE": "Ce monde n’est pas compatible avec ta version d’Archipelago",
+    "WORLD_CORRUPT_BLOCKING": "Un monde cassé bloque Archipelago",
+    "YAML_PARSE": "Ce YAML est illisible",
+    "GENERATION_PREFLIGHT": "La partie n’est pas prête à être générée",
+    "GENERATION_FAILED": "La génération a échoué",
+    "PROCESS_TIMEOUT": "Archipelago ne répond plus",
+    "PORT_IN_USE": "Le port est déjà utilisé",
+    "SERVER_START_FAILED": "Le serveur n’a pas pu démarrer",
+    "WEBHOST_UPLOAD_FAILED": "L’envoi vers archipelago.gg a échoué",
+    "WEBHOST_ROOM_FAILED": "La room n’a pas pu être créée",
+    "WEBHOST_UNAVAILABLE": "archipelago.gg est indisponible",
+    "JOIN_BAD_INPUT": "Lien ou adresse non reconnu",
+    "PATCH_INVALID": "Ce fichier de patch est invalide",
+    "ROM_MISSING": "ROM manquante",
+    "ROM_BAD_HASH": "Ce n’est pas la bonne ROM",
+    "BIZHAWK_PREREQ_MISSING": "Il manque un prérequis à BizHawk",
+    "SECRETS_UNAVAILABLE": "Impossible de chiffrer les secrets",
+    "AP_YAML_INVALID": "Archipelago refuse un YAML",
+    "AP_WORLD_NOT_FOUND": "Aucun monde installé pour {{game}}",
+    "AP_NO_GAME_OPTIONS": "Options manquantes pour {{game}}",
+    "AP_QUANTITY_DISABLED": "Les quantités sont désactivées",
+    "AP_VERSION_REQUIRED": "Version d’Archipelago trop ancienne",
+    "AP_PLANDO_DISABLED": "Plando non activé",
+    "AP_NAMES_NOT_UNIQUE": "Deux joueurs ont le même nom",
+    "AP_FILL_UNBEATABLE": "Partie impossible à terminer",
+    "AP_FILL_NO_SPOTS": "Plus de place pour les objets",
+    "AP_FILL_NOT_ENOUGH_LOCATIONS": "Pas assez d’emplacements",
+    "AP_FILL_FAILED": "Le placement des objets a échoué",
+    "AP_ROM_MISSING": "ROM manquante pour la génération",
+    "AP_ROM_HASH": "La ROM n’est pas la bonne version",
+    "AP_MULTIDATA_INCOMPATIBLE": "Partie générée par une autre version",
+    "AP_SERVER_TOO_OLD": "Le serveur est trop ancien",
+    "AP_NO_ARCHIPELAGO_IN_ZIP": "Pas de partie dans cette archive",
+    "AP_PORT_IN_USE": "Le port du serveur est déjà utilisé",
+    "AP_UNKNOWN": "Erreur inattendue",
+    "help": {
+      "NOT_IMPLEMENTED": "Elle arrive dans une prochaine version d’ArchipelaGOAT.",
+      "INVALID_INPUT": "L’app a envoyé une demande mal formée. Réessaie\u00a0; si ça recommence, crée un bundle de support depuis le diagnostic.",
+      "NOT_FOUND": "Le fichier ou l’élément demandé n’existe plus. Il a peut-être été déplacé ou supprimé.",
+      "PATH_FORBIDDEN": "Pour ta sécurité, l’app n’ouvre que ses propres dossiers, ceux d’Archipelago et quelques sites connus.",
+      "TASK_CANCELLED": "Tu peux la relancer quand tu veux.",
+      "UNSUPPORTED_PLATFORM": "Cette action n’existe que sous Windows ou que sous Linux.",
+      "AP_NOT_INSTALLED": "Installe Archipelago 0.6.8 depuis l’écran d’installation, ou indique où il se trouve dans les réglages.",
+      "AP_RUNNING": "Ferme les programmes Archipelago ouverts (Launcher, clients, serveur), puis réessaie.",
+      "SETTINGS_LOCKED": "Un autre programme utilise le fichier de réglages. Ferme Archipelago et réessaie.",
+      "NETWORK_OFFLINE": "Vérifie ta connexion. Ce qui est déjà en cache reste disponible.",
+      "GITHUB_RATE_LIMITED": "Trop de requêtes sans compte. Attends un peu, ou ajoute un jeton GitHub dans les réglages pour relever la limite.",
+      "HTTP_ERROR": "Réessaie dans quelques instants. Si ça continue, le site est peut-être en panne.",
+      "DOWNLOAD_HASH_MISMATCH": "Son empreinte ne correspond pas à celle attendue, alors le fichier a été supprimé. Relance le téléchargement.",
+      "INSTALL_ELEVATION_DENIED": "L’installateur d’Archipelago a besoin de ton accord (fenêtre de contrôle de compte). Relance l’installation et accepte la demande.",
+      "INSTALL_FAILED": "Le log donne le détail. Réessaie\u00a0; le diagnostic peut repérer la cause.",
+      "WORLD_INVALID": "Un .apworld est une archive zip qui contient le dossier Python d’un monde. Vérifie que tu as téléchargé le bon fichier.",
+      "WORLD_INCOMPATIBLE": "Cherche une version du monde faite pour ta version d’Archipelago, ou mets Archipelago à jour.",
+      "WORLD_CORRUPT_BLOCKING": "Un APWorld corrompu empêche Archipelago de démarrer. Mets-le de côté depuis l’écran Mondes ou le diagnostic.",
+      "YAML_PARSE": "Une erreur de syntaxe empêche de le lire (souvent une tabulation ou un deux-points oublié). Corrige-le dans le Studio.",
+      "GENERATION_PREFLIGHT": "Des vérifications ont échoué avant le lancement. Corrige les points signalés à l’étape Vérification.",
+      "GENERATION_FAILED": "Archipelago s’est arrêté sur une erreur. Le log contient le détail.",
+      "PROCESS_TIMEOUT": "Le programme a dépassé le temps prévu et a été arrêté. Réessaie\u00a0: une génération avec beaucoup de joueurs peut être longue.",
+      "PORT_IN_USE": "Un autre serveur tourne sans doute déjà. Arrête-le, ou utilise un autre port.",
+      "SERVER_START_FAILED": "Le log du serveur donne la cause. Corrige-la, puis réessaie.",
+      "WEBHOST_UPLOAD_FAILED": "Le site a refusé le fichier de partie. Réessaie, ou héberge la partie en local.",
+      "WEBHOST_ROOM_FAILED": "archipelago.gg n’a pas ouvert de room pour cette partie. Réessaie dans quelques instants.",
+      "WEBHOST_UNAVAILABLE": "Le site ne répond pas pour le moment. Réessaie plus tard, ou héberge la partie en local.",
+      "JOIN_BAD_INPUT": "Colle un lien de room archipelago.gg, une adresse archipelago:// ou hôte:port, ou dépose un fichier de patch.",
+      "PATCH_INVALID": "Il est peut-être incomplet, ou fait pour une autre version. Redemande-le à l’organisateur.",
+      "ROM_MISSING": "Ce jeu a besoin de ta ROM. Ajoute-la dans le coffre (Émulateurs et ROMs). ArchipelaGOAT ne fournit aucune ROM.",
+      "ROM_BAD_HASH": "Son empreinte ne correspond pas à la version attendue par Archipelago (souvent la région ou la révision). Utilise une copie de la bonne version.",
+      "BIZHAWK_PREREQ_MISSING": "Installe les composants indiqués dans l’écran Émulateurs et ROMs, puis réessaie.",
+      "SECRETS_UNAVAILABLE": "Le trousseau du système n’est pas disponible. Autorise l’enregistrement en clair dans les réglages, ou ressaisis le secret à chaque fois.",
+      "AP_YAML_INVALID": "Un fichier de joueur contient une erreur. Corrige-le dans le Studio, puis relance la génération.",
+      "AP_WORLD_NOT_FOUND": "Installe ce monde depuis l’écran Mondes, et vérifie l’orthographe du jeu dans le YAML.",
+      "AP_NO_GAME_OPTIONS": "Le YAML choisit ce jeu mais n’a pas de section d’options à son nom. Ouvre-le dans le Studio pour l’ajouter.",
+      "AP_QUANTITY_DISABLED": "Un YAML demande plusieurs exemplaires d’un même joueur, ce que les réglages de l’hôte interdisent. Retire la quantité du YAML.",
+      "AP_VERSION_REQUIRED": "Un YAML demande la version {{required}}, et tu as la {{current}}. Mets Archipelago ou le monde à jour, ou adapte le YAML.",
+      "AP_PLANDO_DISABLED": "Un YAML utilise le plando ({{module}}) alors qu’il n’est pas activé. Active-le dans les règles de la partie, ou retire-le du YAML.",
+      "AP_NAMES_NOT_UNIQUE": "Chaque slot doit avoir un nom unique. Renomme l’un des joueurs à l’étape Vérification.",
+      "AP_FILL_UNBEATABLE": "Avec ces options, Archipelago n’a pas trouvé de répartition qui permette à tout le monde de finir. Relance, ou assouplis les options.",
+      "AP_FILL_NO_SPOTS": "Il reste {{count}} objets sans emplacement. Réduis les objets ajoutés ou augmente les emplacements, puis relance.",
+      "AP_FILL_NOT_ENOUGH_LOCATIONS": "Il manque de la place pour {{count}} objets de progression. Ajuste les options (moins d’objets, plus de lieux), puis relance.",
+      "AP_FILL_FAILED": "Archipelago n’a pas réussi à placer tous les objets. Relance\u00a0; si ça recommence, change les options.",
+      "AP_ROM_MISSING": "Ajoute la ROM dans le coffre (Émulateurs et ROMs), puis relance. ArchipelaGOAT ne fournit aucune ROM.",
+      "AP_ROM_HASH": "Archipelago ne reconnaît pas cette ROM. Utilise une copie de la version attendue.",
+      "AP_MULTIDATA_INCOMPATIBLE": "Ce fichier de partie vient d’une version d’Archipelago incompatible. Régénère la partie, ou utilise la même version.",
+      "AP_SERVER_TOO_OLD": "La partie demande un serveur {{required}} ou plus récent, et celui-ci est en {{current}}. Mets Archipelago à jour.",
+      "AP_NO_ARCHIPELAGO_IN_ZIP": "Le zip ne contient pas de fichier .archipelago. Utilise le zip produit par la génération.",
+      "AP_PORT_IN_USE": "Un autre serveur occupe déjà ce port. Arrête-le, ou utilise un autre port.",
+      "AP_UNKNOWN": "Quelque chose s’est mal passé. Le détail technique et le log peuvent aider, le diagnostic aussi."
+    },
+    "actions": {
+      "install": "Installer Archipelago",
+      "update": "Mettre à jour Archipelago",
+      "worlds": "Ouvrir les mondes",
+      "vault": "Ouvrir le coffre à ROMs",
+      "settings": "Ouvrir les réglages",
+      "doctor": "Ouvrir le diagnostic",
+      "studio": "Ouvrir le Studio"
+    }
+  },
+  "issues": {
+    "yaml-syntax": "Erreur de syntaxe YAML\u00a0: vérifie l’indentation (des espaces, pas de tabulations) et les deux-points.",
+    "duplicate-key": "Une clé apparaît deux fois au même niveau.",
+    "encoding-fallback": "Le fichier n’était pas en UTF-8\u00a0: il a été lu en Windows-1252. Vérifie les accents.",
+    "no-game": "Aucun jeu n’est choisi (la clé game manque).",
+    "game-not-installed": "Aucun monde installé ne gère ce jeu.",
+    "game-section-missing": "La section d’options du jeu manque.",
+    "game-section-null": "La section d’options du jeu est vide (null)\u00a0: écris {} à la place.",
+    "name-too-long": "Le nom dépasse 16 caractères.",
+    "name-reserved": "Ce nom est réservé par Archipelago.",
+    "name-numeric": "Le nom ne peut pas être fait que de chiffres.",
+    "name-duplicate": "Un autre joueur porte déjà ce nom.",
+    "requires-version-format": "La version demandée (requires) n’est pas au format x.y.z.",
+    "requires-version-too-new": "Ce YAML demande une version d’Archipelago plus récente que la tienne.",
+    "requires-plando-disabled": "Ce YAML demande un module de plando qui n’est pas activé.",
+    "requires-game-version": "Ce YAML demande une autre version du monde installé.",
+    "option-unknown": "Option inconnue pour ce jeu\u00a0: elle sera ignorée.",
+    "option-invalid-value": "Valeur non valide pour cette option.",
+    "option-float": "Cette option attend un nombre entier.",
+    "weights-all-zero": "Tous les poids de cette option sont à 0\u00a0: aucune valeur ne peut être tirée.",
+    "quantity-disabled": "Les quantités supérieures à 1 sont désactivées sur cet hôte.",
+    "root-common-option": "Cette option est à la racine du fichier\u00a0: place-la dans la section du jeu.",
+    "plando-items-disabled": "Ce YAML place des objets en plando, mais le plando d’objets n’est pas activé.",
+    "not-yaml-file": "Ce fichier n’est pas un YAML.",
+    "world-no-manifest": "Ce monde n’a pas de manifeste\u00a0: il ne marchera plus avec Archipelago 0.7.",
+    "world-version-conflict": "Une autre version de ce monde est déjà installée.",
+    "patch-server-stale": "L’adresse de la room a changé depuis la création du patch."
+  },
+  "checks": {
+    "ap-ok": "Archipelago est installé",
+    "ap-missing": "Archipelago n’est pas installé",
+    "world-ok": "Le monde du jeu est installé",
+    "world-missing": "Le monde du jeu n’est pas installé",
+    "rom-ok": "ROM trouvée",
+    "rom-missing": "ROM manquante",
+    "rom-bad-hash": "La ROM n’est pas la bonne version",
+    "rom-apply-from-vault": "ROM trouvée dans le coffre, elle sera configurée au lancement",
+    "emulator-ok": "Émulateur prêt",
+    "emulator-missing": "Émulateur manquant",
+    "emulator-not-configured": "Émulateur installé, mais pas encore configuré dans Archipelago",
+    "emulator-assisted": "Lance ton émulateur toi-même en suivant les étapes",
+    "na": "Pas nécessaire pour ce jeu"
+  },
+  "doctor": {
+    "severity": {
+      "ok": "OK",
+      "info": "Info",
+      "warning": "Attention",
+      "error": "Erreur"
+    },
+    "ap-installed": {
+      "title": "Archipelago installé",
+      "ok": "Archipelago est installé.",
+      "problem": "Archipelago est introuvable. Installe-le pour commencer."
+    },
+    "ap-update": {
+      "title": "Mise à jour d’Archipelago",
+      "ok": "Archipelago est à jour.",
+      "problem": "Une nouvelle version d’Archipelago est disponible."
+    },
+    "settings-file": {
+      "title": "Fichier de réglages",
+      "ok": "Le fichier de réglages d’Archipelago est lisible.",
+      "problem": "Le fichier de réglages d’Archipelago manque ou est illisible."
+    },
+    "worlds-corrupt": {
+      "title": "Mondes corrompus",
+      "ok": "Aucun monde corrompu.",
+      "problem": "Un monde corrompu empêche Archipelago de démarrer\u00a0: mets-le de côté."
+    },
+    "worlds-no-manifest": {
+      "title": "Mondes sans manifeste",
+      "ok": "Tous les mondes ont un manifeste.",
+      "problem": "Des mondes n’ont pas de manifeste et ne marcheront plus avec Archipelago 0.7."
+    },
+    "worlds-incompatible": {
+      "title": "Mondes incompatibles",
+      "ok": "Tous les mondes sont compatibles avec ta version.",
+      "problem": "Des mondes ne sont pas compatibles avec ta version d’Archipelago."
+    },
+    "worlds-shadowed": {
+      "title": "Mondes en double",
+      "ok": "Aucun monde en double.",
+      "problem": "Des mondes existent en double\u00a0: une seule copie est utilisée."
+    },
+    "ap-processes": {
+      "title": "Programmes Archipelago ouverts",
+      "ok": "Aucun programme Archipelago ne tourne.",
+      "problem": "Des programmes Archipelago sont ouverts\u00a0: ferme-les avant d’installer ou de changer les réglages."
+    },
+    "port-38281": {
+      "title": "Port 38281",
+      "ok": "Le port par défaut des serveurs est libre.",
+      "problem": "Le port 38281 est déjà utilisé\u00a0: un serveur tourne peut-être déjà."
+    },
+    "bizhawk": {
+      "title": "BizHawk",
+      "ok": "BizHawk est prêt.",
+      "problem": "BizHawk ou l’un de ses prérequis manque (seulement utile pour les jeux qui en ont besoin)."
+    },
+    "disk-space": {
+      "title": "Espace disque",
+      "ok": "Il reste assez d’espace disque.",
+      "problem": "Il reste peu d’espace disque pour installer ou générer."
+    },
+    "programdata-acl": {
+      "title": "Droits du dossier d’Archipelago",
+      "ok": "Les droits du dossier d’Archipelago sont normaux.",
+      "problem": "Le dossier C:\\ProgramData\\Archipelago est modifiable par tous les comptes de ce PC."
+    },
+    "glibc": {
+      "title": "Bibliothèque C (glibc)",
+      "ok": "La version de glibc convient.",
+      "problem": "La version de glibc est trop ancienne pour Archipelago (2.35 minimum)."
+    },
+    "network": {
+      "title": "Connexion et horloge",
+      "ok": "La connexion fonctionne et l’horloge est à l’heure.",
+      "problem": "Connexion impossible ou horloge déréglée\u00a0: les téléchargements peuvent échouer."
+    }
+  },
+  "stages": {
+    "init": "Démarrage",
+    "weights": "Lecture des YAML",
+    "generating": "Préparation de la génération",
+    "worlds": "Chargement des mondes",
+    "creating": "Création des mondes",
+    "items": "Création des objets",
+    "rules": "Application des règles",
+    "plando": "Plando",
+    "prefill": "Pré-placement",
+    "fill": "Placement des objets",
+    "balancing": "Équilibrage de la progression",
+    "preoutput": "Préparation des fichiers",
+    "output": "Écriture de la partie",
+    "output-files": "Écriture des patchs",
+    "playthrough": "Calcul du parcours",
+    "archive": "Création de l’archive",
+    "done": "Terminé"
+  }
+}
