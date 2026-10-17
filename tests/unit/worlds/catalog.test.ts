@@ -185,7 +185,6 @@ function fakeFetch(remote: FakeRemote): typeof fetch {
     }
     if (url.origin === 'https://archipelago.miraheze.org' && url.pathname === '/w/api.php') {
       const params = url.searchParams
-      expect(params.get('origin')).toBe('*')
       if (
         params.get('generator') === 'categorymembers' &&
         params.get('gcmtitle') === 'Category:Implementations'
@@ -787,8 +786,9 @@ describe('createCatalog', () => {
     ])
     expect(apiRequests(remote)).toEqual([`https://api.github.com${TREE_PATH}?recursive=1`])
     expect(rawRequests(remote).sort()).toEqual([...remote.files.keys()].sort())
-    // Two pages of implementations (gcmcontinue), then the three categories.
+    // Two pages of implementations (gcmcontinue), then the three categories; CORS-style anonymous calls.
     expect(wikiRequests(remote)).toHaveLength(5)
+    for (const url of wikiRequests(remote)) expect(new URL(url).searchParams.get('origin')).toBe('*')
     expect(readdirSync(join(catalogDir(), 'blobs'))).toHaveLength(remote.files.size)
   })
 
