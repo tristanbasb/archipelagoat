@@ -31,6 +31,8 @@ export interface AppConfig {
   integration: { linuxDesktop: boolean; winProtocol: boolean; winAssociations: boolean }
   allowPlaintextSecrets: boolean
   firstRunDone: boolean
+  /** A local server was hosted once: Windows already asked to let it through its firewall. */
+  firstLocalHostDone: boolean
   webhostUrl: string
 }
 
@@ -355,9 +357,12 @@ export interface SessionValidation {
 }
 
 export interface Address {
-  kind: 'localhost' | 'lan' | 'public'
+  /** `vpn`: only players on the same VPN (Tailscale, ZeroTier…) reach it. */
+  kind: 'localhost' | 'lan' | 'vpn' | 'public'
   host: string
   port: number
+  /** The VPN, when its network interface names it (`Tailscale`). */
+  network?: string
 }
 
 export interface ServerState {

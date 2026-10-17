@@ -166,6 +166,33 @@
   width: 100%;
 }
 
+/* What Windows is about to ask on the first local hosting. */
+.host-firewall {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--neon-yellow) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--neon-yellow);
+  font-size: var(--fs-13);
+}
+
+.host-firewall__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--neon-yellow);
+}
+
+.host-firewall__title {
+  font-weight: 700;
+}
+
+.host-firewall__body {
+  color: var(--text-dim);
+}
+
 .host-card__note {
   margin: 0;
   color: var(--text-dim);

@@ -48,8 +48,12 @@
     "address": {
       "lan": "Local network",
       "public": "Internet",
-      "localhost": "On this PC"
+      "localhost": "On this PC",
+      "vpn": "VPN",
+      "vpnNamed": "{{network}} VPN"
     },
+    "vpnHint": "Only for players on the same VPN.",
+    "firewallHint": "A friend on your network cannot connect? Check that Windows Firewall allows Archipelago Server on private networks.",
     "publicHint": "To play over the Internet, forward port {{port}} (TCP) to this PC on your router.",
     "noAddress": "No address yet.",
     "password": "Game password",
@@ -80,6 +84,8 @@
       "lan": "Address (local network): {{address}}",
       "public": "Address (Internet): {{address}}",
       "localhost": "Address: {{address}}",
+      "vpn": "Address (VPN): {{address}}",
+      "vpnNamed": "Address ({{network}} VPN): {{address}}",
       "web": "Address: {{address}}"
     },
     "room": "Room: {{url}}",

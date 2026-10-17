@@ -112,6 +112,19 @@ describe('buildShareText', () => {
     expect(text).not.toContain('Slots')
   })
 
+  it('shares a VPN address only when there is no local network or public one', () => {
+    const tailscale: Address = { kind: 'vpn', network: 'Tailscale', host: '100.85.10.20', port: 38281 }
+    const vpnOnly = [ADDRESSES[0]!, tailscale, { kind: 'vpn', host: '10.8.0.6', port: 38281 } as const]
+    expect(buildShareText(SESSION, [...ADDRESSES, tailscale], { password: null }, en)).not.toContain('VPN')
+    expect(buildShareText(SESSION, vpnOnly, { password: null }, en).split('\n').slice(1, 3)).toEqual([
+      'Address (Tailscale VPN): 100.85.10.20:38281',
+      'Address (VPN): 10.8.0.6:38281',
+    ])
+    expect(buildShareText(SESSION, vpnOnly, { password: null }, fr).split('\n')[1]).toBe(
+      'Adresse (VPN Tailscale) : 100.85.10.20:38281',
+    )
+  })
+
   it('speaks French with French punctuation', () => {
     const text = buildShareText(SESSION, ADDRESSES, { password: 'hunter2' }, fr)
     expect(text.split('\n')).toEqual([

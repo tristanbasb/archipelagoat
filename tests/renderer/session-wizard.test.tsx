@@ -6,6 +6,7 @@ import type {
   Generation,
   PlayerDoc,
   PlayerFile,
+  ServerState,
   Session,
   SessionValidation,
   WebRoom,
@@ -797,6 +798,53 @@ describe('session wizard', () => {
     await waitFor(() => expect(goat.inputsOf('server:start')).toEqual([{ sessionId: 's1' }]))
     await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
     expect(goat.inputsOf('webhost:host')).toEqual([])
+  })
+
+  it('step 5 warns of the Windows Firewall prompt before the first local server, then never again', async () => {
+    const ready: ServerState = {
+      sessionId: 's1',
+      status: 'ready',
+      port: 38281,
+      addresses: [{ kind: 'localhost', host: 'localhost', port: 38281 }],
+      startedAt: NOW,
+      resumedFromSave: false,
+      error: null,
+    }
+    const { goat, user } = await openWizard('/session/s1?step=5', {
+      handlers: {
+        'session:get': () => session({ status: 'generated', generation: GENERATION }),
+        'server:start': () => ready,
+      },
+    })
+    const local = await screen.findByRole('listitem', { name: 'Sur ce PC' })
+    const notice = await within(local).findByRole('note')
+    expect(notice).toHaveTextContent('Windows va demander l’accès au réseau')
+    expect(notice).toHaveTextContent(/Accepte\s: sinon, seuls les joueurs de ce PC pourront se connecter/)
+
+    await user.click(within(local).getByRole('button', { name: 'Lancer le serveur local' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
+    expect(goat.inputsOf('app:setConfig')).toContainEqual({ firstLocalHostDone: true })
+
+    navigateTo('/session/s1?step=5')
+    expect(await screen.findByRole('button', { name: 'Lancer le serveur local' })).toBeInTheDocument()
+    expect(screen.queryByText('Windows va demander l’accès au réseau')).not.toBeInTheDocument()
+  })
+
+  it('step 5 has no firewall notice under Linux, nor once a local server was hosted', async () => {
+    for (const options of [
+      { info: { os: 'linux' as const } },
+      { config: { ...NO_FX, firstLocalHostDone: true } },
+    ]) {
+      const { goat, unmount } = await openWizard('/session/s1?step=5', {
+        handlers: { 'session:get': () => session({ status: 'generated', generation: GENERATION }) },
+        ...options,
+      })
+      expect(await screen.findByRole('button', { name: 'Lancer le serveur local' })).toBeInTheDocument()
+      await waitFor(() => expect(goat.inputsOf('app:getInfo')).not.toHaveLength(0))
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
+      expect(screen.queryByRole('note')).not.toBeInTheDocument()
+      unmount()
+    }
   })
 
   it('step 5 says the game is hosted only while it is live, not once its server stopped', async () => {

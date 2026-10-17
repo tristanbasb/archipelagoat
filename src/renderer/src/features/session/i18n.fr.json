@@ -340,7 +340,9 @@
       "pointPort": "Pour Internet\u00a0: redirige le port TCP du serveur sur ta box",
       "pointConsole": "Tu gardes la main sur la console du serveur",
       "action": "Lancer le serveur local",
-      "starting": "Démarrage du serveur…"
+      "starting": "Démarrage du serveur…",
+      "firewallTitle": "Windows va demander l’accès au réseau",
+      "firewallBody": "Quelques secondes après le premier lancement, une fenêtre « Sécurité Windows » demande s’il faut autoriser Archipelago Server. Accepte : sinon, seuls les joueurs de ce PC pourront se connecter. Les réseaux privés suffisent pour jouer à la maison."
     },
     "replaceWeb": {
       "eyebrow": "LAN",

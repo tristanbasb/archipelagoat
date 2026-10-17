@@ -24,6 +24,7 @@ const FALLBACK_CONFIG: AppConfig = {
   integration: { linuxDesktop: false, winProtocol: false, winAssociations: false },
   allowPlaintextSecrets: false,
   firstRunDone: false,
+  firstLocalHostDone: false,
   webhostUrl: 'https://archipelago.gg',
 }
 

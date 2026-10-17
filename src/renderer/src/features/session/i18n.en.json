@@ -340,7 +340,9 @@
       "pointPort": "For the Internet: forward the server’s TCP port on your router",
       "pointConsole": "You keep control of the server console",
       "action": "Start the local server",
-      "starting": "Starting the server…"
+      "starting": "Starting the server…",
+      "firewallTitle": "Windows will ask for network access",
+      "firewallBody": "A few seconds after the first start, a “Windows Security” window asks whether to allow Archipelago Server. Accept it: otherwise only players on this PC can connect. Private networks are enough to play at home."
     },
     "replaceWeb": {
       "eyebrow": "LAN",

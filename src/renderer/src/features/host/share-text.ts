@@ -5,10 +5,16 @@ import type { Address, Session, WebRoom } from '@shared/types'
 
 const KEY = 'screens.host.share'
 
-/** Players reach the server through its LAN or public address; localhost only when there is no other. */
+/**
+ * Players reach the server through its LAN or public address. A VPN address only serves the players
+ * on that VPN: it is shared when there is no other, and localhost when there is nothing else at all.
+ */
 export function sharedAddresses(addresses: readonly Address[]): Address[] {
-  const reachable = addresses.filter((address) => address.kind !== 'localhost')
-  return reachable.length > 0 ? reachable : [...addresses]
+  for (const kinds of [['lan', 'public'], ['vpn']]) {
+    const reachable = addresses.filter((address) => kinds.includes(address.kind))
+    if (reachable.length > 0) return reachable
+  }
+  return [...addresses]
 }
 
 function isAddressList(target: readonly Address[] | WebRoom): target is readonly Address[] {
@@ -28,7 +34,13 @@ export function buildShareText(
   const lines = [t(`${KEY}.heading`, { name: session.name })]
   if (isAddressList(target)) {
     for (const address of sharedAddresses(target)) {
-      lines.push(t(`${KEY}.address.${address.kind}`, { address: `${address.host}:${address.port}` }))
+      const named = address.kind === 'vpn' && address.network !== undefined
+      lines.push(
+        t(`${KEY}.address.${named ? 'vpnNamed' : address.kind}`, {
+          address: `${address.host}:${address.port}`,
+          network: address.network,
+        }),
+      )
     }
   } else {
     // A sleeping room has no port until it is woken up.

@@ -32,6 +32,7 @@ export function defaultConfig(os: OS): AppConfig {
     integration: { linuxDesktop: os === 'linux', winProtocol: false, winAssociations: false },
     allowPlaintextSecrets: false,
     firstRunDone: false,
+    firstLocalHostDone: false,
     webhostUrl: 'https://archipelago.gg',
   }
 }
@@ -50,6 +51,7 @@ const StoredConfig = z.object({
     .catch(undefined),
   allowPlaintextSecrets: flag,
   firstRunDone: flag,
+  firstLocalHostDone: flag,
   webhostUrl: z.string().min(1).optional().catch(undefined),
 })
 

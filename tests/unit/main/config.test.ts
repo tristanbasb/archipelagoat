@@ -27,6 +27,7 @@ describe('defaultConfig', () => {
       integration: { linuxDesktop: false, winProtocol: false, winAssociations: false },
       allowPlaintextSecrets: false,
       firstRunDone: false,
+      firstLocalHostDone: false,
       webhostUrl: 'https://archipelago.gg',
     })
   })

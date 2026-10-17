@@ -22,6 +22,7 @@ export const AppConfigPatch = z
     desktopIcons: z.boolean(),
     allowPlaintextSecrets: z.boolean(),
     firstRunDone: z.boolean(),
+    firstLocalHostDone: z.boolean(),
   })
   .partial()
 

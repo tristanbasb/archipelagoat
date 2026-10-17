@@ -1,6 +1,14 @@
 // Where players connect: the server addresses (or the archipelago.gg address and room link), the
 // game password, and a ready-to-paste message for the group chat.
-import { IconAlertTriangle, IconClock, IconMessageShare, IconZzz } from '@tabler/icons-react'
+import {
+  IconAlertTriangle,
+  IconClock,
+  IconMessageShare,
+  IconNetwork,
+  IconShieldCheck,
+  IconZzz,
+} from '@tabler/icons-react'
+import type { TFunction } from 'i18next'
 import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Address, ServerState, Session, WebRoom } from '@shared/types'
@@ -20,7 +28,7 @@ const SHARE = 'screens.host.share'
 const PASSWORD_MASK = '••••••••'
 
 /** The order addresses are listed in: the ones players use first. */
-const ADDRESS_ORDER: readonly Address['kind'][] = ['lan', 'public', 'localhost']
+const ADDRESS_ORDER: readonly Address['kind'][] = ['lan', 'public', 'vpn', 'localhost']
 
 export type ConnectionTarget = { kind: 'local'; state: ServerState } | { kind: 'web'; room: WebRoom }
 
@@ -88,8 +96,16 @@ export function ConnectionCard({
   )
 }
 
+/** The label of an address: its kind, and the name of its VPN when its adapter tells it. */
+export function addressLabel(address: Address, t: TFunction): string {
+  if (address.kind === 'vpn' && address.network !== undefined)
+    return t(`${KEY}.address.vpnNamed`, { network: address.network })
+  return t(`${KEY}.address.${address.kind}`)
+}
+
 function LocalAddresses({ state }: { state: ServerState }): React.JSX.Element {
   const { t } = useTranslation()
+  const os = useIpcQuery('app:getInfo', undefined, { staleTime: Infinity }).data?.os
   if (state.addresses.length === 0) {
     return state.status === 'starting' ? (
       <Spinner label={t(`${KEY}.starting`)} className="connection-card__waiting connection-card__wide" />
@@ -100,16 +116,31 @@ function LocalAddresses({ state }: { state: ServerState }): React.JSX.Element {
   const addresses = [...state.addresses].sort(
     (a, b) => ADDRESS_ORDER.indexOf(a.kind) - ADDRESS_ORDER.indexOf(b.kind),
   )
+  // Windows lets the players of the local network in once its firewall allows the server (it asks on
+  // the first local hosting): said once, under the first local network address.
+  const firewallHintAt = os === 'win32' ? addresses.find((address) => address.kind === 'lan') : undefined
   return (
     <>
       {addresses.map((address) => (
         <div key={`${address.kind}-${address.host}`} className="connection-card__address">
           <CopyField
-            label={t(`${KEY}.address.${address.kind}`)}
+            label={addressLabel(address, t)}
             value={`${address.host}:${address.port}`}
             copyLabel={t('common.copy')}
             copiedLabel={t('common.copied')}
           />
+          {address === firewallHintAt && (
+            <p className="connection-card__note">
+              <IconShieldCheck aria-hidden="true" />
+              <span>{t(`${KEY}.firewallHint`)}</span>
+            </p>
+          )}
+          {address.kind === 'vpn' && (
+            <p className="connection-card__note">
+              <IconNetwork aria-hidden="true" />
+              <span>{t(`${KEY}.vpnHint`)}</span>
+            </p>
+          )}
           {address.kind === 'public' && (
             <p className="connection-card__note connection-card__note--warn">
               <IconAlertTriangle aria-hidden="true" />

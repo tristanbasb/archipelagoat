@@ -10,6 +10,7 @@ import {
   IconPlayerPlay,
   IconRouter,
   IconServer2,
+  IconShieldCheck,
   IconSparkles,
   IconTerminal2,
   IconWifi,
@@ -32,9 +33,10 @@ import {
   type Tone,
 } from '../../design/components'
 import { cx, toneClass } from '../../design/classes'
-import { useIpcMutation } from '../../hooks/useIpc'
+import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useTask } from '../../hooks/useTask'
 import { describeError } from '../../lib/errors'
+import { useConfig } from '../../stores/config'
 import { StepNav } from './StepNav'
 import { WebConsentDialog } from './WebConsentDialog'
 import './StepHost.css'
@@ -66,6 +68,10 @@ export function StepHost({ session, taskId, onTaskId, onBack }: StepHostProps): 
   /** Set from the consent until its hosting is answered: a second confirm sends nothing. */
   const submitting = useRef(false)
   const task = useTask(taskId)
+  const config = useConfig()
+  const os = useIpcQuery('app:getInfo', undefined, { staleTime: Infinity }).data?.os
+  // The first local server makes Windows ask whether to let it through its firewall: said beforehand.
+  const firewallNotice = os === 'win32' && config.loaded && !config.firstLocalHostDone
   const live = `/play/${session.id}`
   const room = session.hosting?.mode === 'web' ? session.hosting : null
 
@@ -82,7 +88,9 @@ export function StepHost({ session, taskId, onTaskId, onBack }: StepHostProps): 
   const local = useIpcMutation('server:start', {
     invalidates: ['session:get', 'session:list'],
     onSuccess: (state) => {
-      if (state.error === null) void navigate(live)
+      if (state.error !== null) return
+      if (!config.firstLocalHostDone) void config.set({ firstLocalHostDone: true }).catch(() => undefined)
+      void navigate(live)
     },
   })
 
@@ -242,6 +250,15 @@ export function StepHost({ session, taskId, onTaskId, onBack }: StepHostProps): 
               { icon: <IconTerminal2 />, text: t('screens.session.host.local.pointConsole') },
             ]}
           >
+            {firewallNotice && (
+              <div className="host-firewall" role="note">
+                <IconShieldCheck className="host-firewall__icon" aria-hidden="true" />
+                <div>
+                  <p className="host-firewall__title">{t('screens.session.host.local.firewallTitle')}</p>
+                  <p className="host-firewall__body">{t('screens.session.host.local.firewallBody')}</p>
+                </div>
+              </div>
+            )}
             <NeonButton
               variant="secondary"
               size="lg"

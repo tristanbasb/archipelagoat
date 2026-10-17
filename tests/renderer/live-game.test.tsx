@@ -1,9 +1,9 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { Route, Routes } from 'react-router-dom'
 import { AppError } from '@shared/errors'
 import type { Address, Hosting, Rules, ServerEvent, ServerState, Session, Slot, WebRoom } from '@shared/types'
 import { LiveGameScreen } from '@renderer/features/host/LiveGameScreen'
-import { installGoatMock, type GoatHandlers } from './goat-mock'
+import { installGoatMock, type GoatHandlers, type GoatMock, type GoatMockOptions } from './goat-mock'
 import { renderWithProviders } from './render-app'
 
 const WORKSPACE = 'C:\\Users\\Joueur\\AppData\\Local\\ArchipelaGOAT\\sessions\\s1'
@@ -108,12 +108,15 @@ function event(kind: ServerEvent['kind'], fields: Partial<ServerEvent> = {}): Se
   return { ts: '2026-10-17T19:10:00.000Z', kind, text: `${kind} line`, ...fields }
 }
 
-async function renderLive(handlers: GoatHandlers) {
-  const goat = installGoatMock({
-    'session:getSecrets': () => ({ password: 'hunter2', serverPassword: null }),
-    'server:history': () => ({ events: [], log: [] }),
-    ...handlers,
-  })
+async function renderLive(handlers: GoatHandlers, options: GoatMockOptions = {}) {
+  const goat = installGoatMock(
+    {
+      'session:getSecrets': () => ({ password: 'hunter2', serverPassword: null }),
+      'server:history': () => ({ events: [], log: [] }),
+      ...handlers,
+    },
+    options,
+  )
   const view = await renderWithProviders(
     <Routes>
       <Route path="/play/:sessionId" element={<LiveGameScreen />} />
@@ -122,6 +125,12 @@ async function renderLive(handlers: GoatHandlers) {
     { route: '/play/s1' },
   )
   return { goat, ...view }
+}
+
+/** Lets the app info reach the screen: what depends on the OS is then on screen, or never will be. */
+async function osKnown(goat: GoatMock): Promise<void> {
+  await waitFor(() => expect(goat.inputsOf('app:getInfo')).not.toHaveLength(0))
+  await act(() => new Promise((resolve) => setTimeout(resolve, 20)))
 }
 
 /** The row of a player in the players panel. */
@@ -154,6 +163,51 @@ describe('LiveGameScreen', () => {
     expect(screen.getByText(/redirige le port 38281 \(TCP\) vers ce PC/)).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Sur ce PC' })).toHaveTextContent('localhost:38281')
     expect(goat.inputsOf('server:get')).toEqual([{ sessionId: 's1' }])
+  })
+
+  it('local: labels a VPN address, and tells under the LAN one that Windows Firewall must let players in', async () => {
+    await renderLive({
+      'session:get': () => LOCAL,
+      'server:get': () =>
+        serverState({
+          addresses: [
+            ...ADDRESSES,
+            { kind: 'vpn', network: 'Tailscale', host: '100.85.10.20', port: 38281 },
+            { kind: 'vpn', host: '10.8.0.6', port: 38281 },
+          ],
+        }),
+    })
+    const tailscale = await screen.findByRole('group', { name: 'VPN Tailscale' })
+    expect(tailscale).toHaveTextContent('100.85.10.20:38281')
+    expect(screen.getByRole('group', { name: 'VPN' })).toHaveTextContent('10.8.0.6:38281')
+    expect(screen.getAllByText('Seulement pour les joueurs connectés au même VPN.')).toHaveLength(2)
+    // Said once, under the local network address.
+    const firewall = await screen.findByText(/Vérifie que le Pare-feu Windows autorise Archipelago Server/)
+    expect(firewall.closest('.connection-card__address')).toBe(
+      screen.getByRole('group', { name: 'Réseau local' }).closest('.connection-card__address'),
+    )
+    // The share message keeps to the addresses every player can use.
+    expect(document.querySelector('.connection-card__preview')).not.toHaveTextContent('VPN')
+  })
+
+  it('local: no firewall hint under Linux', async () => {
+    const { goat } = await renderLive(
+      { 'session:get': () => LOCAL, 'server:get': () => serverState() },
+      { info: { os: 'linux' } },
+    )
+    expect(await screen.findByRole('group', { name: 'Réseau local' })).toBeInTheDocument()
+    await osKnown(goat)
+    expect(screen.queryByText(/Pare-feu Windows/)).not.toBeInTheDocument()
+  })
+
+  it('local: no firewall hint on Windows when the server has no local network address', async () => {
+    const { goat } = await renderLive({
+      'session:get': () => LOCAL,
+      'server:get': () => serverState({ addresses: [ADDRESSES[0]!] }),
+    })
+    expect(await screen.findByRole('group', { name: 'Sur ce PC' })).toBeInTheDocument()
+    await osKnown(goat)
+    expect(screen.queryByText(/Pare-feu Windows/)).not.toBeInTheDocument()
   })
 
   it('local: rebuilds feed from server:history on mount and shows resumed banner', async () => {

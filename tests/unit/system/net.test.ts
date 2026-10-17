@@ -2,6 +2,7 @@ import { createServer, type AddressInfo, type Server } from 'node:net'
 import type { NetworkInterfaceInfo } from 'node:os'
 import type { Http } from '@main/core/context'
 import {
+  classifyInterface,
   fetchPublicIp,
   findFreePort,
   isPortFree,
@@ -112,7 +113,9 @@ describe('ports', () => {
     const free = await releasedPort()
 
     // A port in use is not even probed when it is excluded...
-    expect(await findFreePort(reserved, reserved, new Set([reserved])).catch((e: unknown) => e)).toMatchObject({
+    expect(
+      await findFreePort(reserved, reserved, new Set([reserved])).catch((e: unknown) => e),
+    ).toMatchObject({
       code: 'PORT_IN_USE',
       params: { port: reserved },
     })
@@ -156,6 +159,92 @@ describe('listAddresses', () => {
 
   it('reads the interfaces of this machine by default', () => {
     expect(listAddresses(undefined, 38281)[0]).toEqual({ kind: 'localhost', host: 'localhost', port: 38281 })
+  })
+
+  it('leaves out WSL and labels Tailscale, as on the PC of the real run', () => {
+    // The interfaces of docs/verification/2026-10-16-real-run.md, in the order Windows gives them.
+    const ifaces = {
+      Tailscale: [v4('100.85.10.20')],
+      Ethernet: [v4('192.168.1.20')],
+      'Loopback Pseudo-Interface 1': [v4('127.0.0.1', true)],
+      'vEthernet (WSL (Hyper-V firewall))': [v4('172.23.160.1')],
+    }
+    expect(listAddresses(ifaces, 38281)).toEqual([
+      { kind: 'localhost', host: 'localhost', port: 38281 },
+      { kind: 'lan', host: '192.168.1.20', port: 38281 },
+      { kind: 'vpn', network: 'Tailscale', host: '100.85.10.20', port: 38281 },
+    ])
+  })
+
+  it('leaves out the networks of virtual machines and containers', () => {
+    const ifaces = {
+      'vEthernet (Default Switch)': [v4('172.20.48.1')],
+      'vEthernet (WSL)': [v4('172.23.160.1')],
+      'vEthernet (DockerNAT)': [v4('10.0.75.1')],
+      'VirtualBox Host-Only Network': [v4('192.168.56.1')],
+      'VMware Network Adapter VMnet8': [v4('192.168.152.1')],
+      docker0: [v4('172.17.0.1')],
+      'br-0123456789ab': [v4('172.18.0.1')],
+      veth1a2b3c4: [v4('172.18.0.2')],
+      virbr0: [v4('192.168.122.1')],
+      vboxnet0: [v4('192.168.57.1')],
+      lxdbr0: [v4('10.10.10.1')],
+      'cni-podman0': [v4('10.88.0.1')],
+      wlan0: [v4('192.168.1.42')],
+    }
+    expect(listAddresses(ifaces, 38281)).toEqual([
+      { kind: 'localhost', host: 'localhost', port: 38281 },
+      { kind: 'lan', host: '192.168.1.42', port: 38281 },
+    ])
+  })
+
+  it('keeps a Hyper-V switch the user made: an external one carries the real network', () => {
+    expect(listAddresses({ 'vEthernet (External Switch)': [v4('192.168.1.20')] }, 5)).toEqual([
+      { kind: 'localhost', host: 'localhost', port: 5 },
+      { kind: 'lan', host: '192.168.1.20', port: 5 },
+    ])
+  })
+
+  it('lists the VPN addresses after the local network ones', () => {
+    const ifaces = {
+      'ZeroTier One [8056c2e21c000001]': [v4('10.147.17.5')],
+      ztabcdef12: [v4('10.147.18.5')],
+      Hamachi: [v4('25.10.20.30')],
+      tun0: [v4('10.8.0.6')],
+      eth0: [v4('192.168.1.20')],
+      nb0: [v4('100.100.1.2')],
+    }
+    expect(listAddresses(ifaces, 38281)).toEqual([
+      { kind: 'localhost', host: 'localhost', port: 38281 },
+      { kind: 'lan', host: '192.168.1.20', port: 38281 },
+      { kind: 'vpn', network: 'ZeroTier', host: '10.147.17.5', port: 38281 },
+      { kind: 'vpn', network: 'ZeroTier', host: '10.147.18.5', port: 38281 },
+      { kind: 'vpn', network: 'Hamachi', host: '25.10.20.30', port: 38281 },
+      { kind: 'vpn', host: '10.8.0.6', port: 38281 },
+      { kind: 'vpn', host: '100.100.1.2', port: 38281 },
+    ])
+  })
+})
+
+describe('classifyInterface', () => {
+  it('calls 100.64.0.0/10 a VPN whatever the interface, and only that range', () => {
+    expect(classifyInterface('Ethernet 3', '100.64.0.1')).toEqual({ kind: 'vpn' })
+    expect(classifyInterface('Ethernet 3', '100.127.255.254')).toEqual({ kind: 'vpn' })
+    expect(classifyInterface('Ethernet 3', '100.63.255.255')).toEqual({ kind: 'lan' })
+    expect(classifyInterface('Ethernet 3', '100.128.0.1')).toEqual({ kind: 'lan' })
+  })
+
+  it('names the VPNs players use to play together', () => {
+    expect(classifyInterface('tailscale0', '100.101.102.103')).toEqual({ kind: 'vpn', network: 'Tailscale' })
+    expect(classifyInterface('Radmin VPN', '26.1.2.3')).toEqual({ kind: 'vpn', network: 'Radmin VPN' })
+    expect(classifyInterface('wg0', '10.6.0.2')).toEqual({ kind: 'vpn', network: 'WireGuard' })
+    expect(classifyInterface('OpenVPN TAP-Windows6', '10.8.0.6')).toEqual({ kind: 'vpn', network: 'OpenVPN' })
+  })
+
+  it('keeps ordinary adapters as the local network', () => {
+    for (const name of ['Ethernet', 'Wi-Fi', 'eth0', 'enp3s0', 'wlp2s0', 'en0', 'Ethernet 2']) {
+      expect(classifyInterface(name, '192.168.1.20')).toEqual({ kind: 'lan' })
+    }
   })
 })
 

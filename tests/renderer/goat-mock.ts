@@ -47,6 +47,7 @@ export const TEST_CONFIG: AppConfig = {
   integration: { linuxDesktop: false, winProtocol: false, winAssociations: false },
   allowPlaintextSecrets: false,
   firstRunDone: true,
+  firstLocalHostDone: false,
   webhostUrl: 'https://archipelago.gg',
 }
 
