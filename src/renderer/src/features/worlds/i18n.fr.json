@@ -1,1 +1,146 @@
-{}
+{
+  "eyebrow": "STAGE 05",
+  "subtitle": "Tes APWorlds installés, et le catalogue de la communauté pour en ajouter.",
+  "pickFile": "Installer un fichier…",
+  "pickTitle": "Choisir des APWorlds",
+  "pickFilter": "APWorld",
+  "dropHint": "Ou dépose un .apworld n’importe où dans l’app.",
+  "searchClear": "Effacer la recherche",
+  "noMatch": {
+    "title": "Aucun monde ne correspond",
+    "body": "Essaie une autre recherche, ou retire des filtres."
+  },
+  "clearFilters": "Effacer les filtres",
+  "tabs": {
+    "label": "Vues des mondes",
+    "installed": "Installés",
+    "catalog": "Catalogue"
+  },
+  "states": {
+    "ok": {
+      "label": "Prêt",
+      "help": "Archipelago charge ce monde au démarrage."
+    },
+    "no-manifest": {
+      "label": "Sans manifeste",
+      "help": "Il n’a pas de fichier archipelago.json\u00a0: il marche avec Archipelago 0.6, mais ne se chargera plus avec Archipelago 0.7."
+    },
+    "incompatible": {
+      "label": "Incompatible",
+      "help": "Il n’est pas fait pour ta version d’Archipelago, qui ne le chargera pas."
+    },
+    "corrupt": {
+      "label": "Corrompu",
+      "help": "Le fichier est illisible, et Archipelago refuse de démarrer tant qu’il est là. Désactive-le ou supprime-le."
+    },
+    "shadowed": {
+      "label": "Masqué",
+      "help": "Une autre version du même jeu passe avant lui\u00a0: Archipelago ignore ce fichier."
+    },
+    "core-loose": {
+      "label": "Intégré",
+      "help": "Livré avec Archipelago sous forme de dossier\u00a0: ce monde ne peut pas être remplacé."
+    },
+    "disabled": {
+      "label": "Désactivé",
+      "help": "Mis de côté par ArchipelaGOAT\u00a0: Archipelago ne le charge pas. Réactive-le quand tu veux."
+    }
+  },
+  "installed": {
+    "loading": "Chargement des mondes installés…",
+    "search": "Rechercher un monde installé",
+    "searchPlaceholder": "Jeu, fichier ou auteur",
+    "stateFilter": "Filtrer par état",
+    "allStates": "Tous les états ({{count}})",
+    "stateOption": "{{label}} ({{count}})",
+    "origin": "Provenance",
+    "origins": {
+      "all": "Tous",
+      "custom": "Ajoutés",
+      "core": "Officiels"
+    },
+    "sections": {
+      "custom": "Ajoutés par toi",
+      "core": "Livrés avec Archipelago"
+    },
+    "versionUnknown": "Version inconnue",
+    "openFolder": "Ouvrir le dossier",
+    "openFolderOf": "Ouvrir le dossier de {{game}}",
+    "disable": "Désactiver",
+    "disableGame": "Désactiver {{game}}",
+    "enable": "Réactiver",
+    "enableGame": "Réactiver {{game}}",
+    "remove": "Supprimer",
+    "removeGame": "Supprimer {{game}}",
+    "disabled": "{{game}} est désactivé",
+    "enabled": "{{game}} est réactivé",
+    "restartHint": "Redémarre les programmes Archipelago ouverts pour qu’ils en tiennent compte.",
+    "corruptBody_one": "Un fichier illisible empêche Archipelago de démarrer. Désactive-le ou supprime-le.",
+    "corruptBody_other": "{{count}} fichiers illisibles empêchent Archipelago de démarrer. Désactive-les ou supprime-les.",
+    "corruptAction": "Voir les mondes corrompus",
+    "emptyTitle": "Aucun monde ajouté pour l’instant",
+    "emptyBody": "Pioche dans le catalogue de la communauté, ou dépose un fichier .apworld n’importe où dans l’app.",
+    "browseCatalog": "Parcourir le catalogue"
+  },
+  "remove": {
+    "eyebrow": "GAME OVER?",
+    "title": "Supprimer {{game}}\u00a0?",
+    "body": "{{file}} part dans les sauvegardes d’ArchipelaGOAT\u00a0: tu pourras le récupérer à la main si besoin.",
+    "confirm": "Supprimer",
+    "removing": "Suppression…",
+    "done": "{{game}} est supprimé"
+  },
+  "catalog": {
+    "loading": "Chargement du catalogue…",
+    "listLabel": "Mondes du catalogue",
+    "search": "Rechercher dans le catalogue",
+    "searchPlaceholder": "Jeu, tag ou mainteneur",
+    "status": "Statut sur le wiki",
+    "allStatuses": "Tous les statuts",
+    "tag": "Tag",
+    "allTags": "Tous les tags",
+    "rom": "ROM",
+    "roms": {
+      "any": "Avec ou sans ROM",
+      "none": "Sans ROM à fournir",
+      "needed": "ROM requise"
+    },
+    "quickFilters": "Filtres rapides",
+    "installedOnly": "Installés",
+    "updatesOnly": "Mises à jour",
+    "popTracker": "PopTracker",
+    "afterDark": "18+",
+    "results_one": "{{count}} monde",
+    "results_other": "{{count}} mondes",
+    "fetchedAt": "Mis à jour le {{date}}",
+    "refresh": "Actualiser",
+    "refreshing": "Actualisation…",
+    "more": "Afficher plus ({{count}} restants)",
+    "install": "Installer",
+    "installGame": "Installer {{game}}",
+    "update": "Mettre à jour",
+    "updateGame": "Mettre à jour {{game}}",
+    "updateFromTo": "{{from}} → {{to}}",
+    "installedPill": "Installé · {{version}}",
+    "unavailable": "Pas de version compatible",
+    "by": "par {{name}}",
+    "version": "v{{version}}",
+    "romHelp": "Il faut ta propre ROM du jeu pour générer une partie. ArchipelaGOAT n’en fournit aucune.",
+    "popTrackerHelp": "Un pack PopTracker existe pour suivre ta progression.",
+    "afterDarkHelp": "Contenu pour adultes.",
+    "wikiPage": "Fiche du wiki",
+    "wikiPageOf": "Fiche de {{game}} sur le wiki",
+    "setup": "Guide d’installation",
+    "setupOf": "Guide d’installation de {{game}}",
+    "homepage": "Page du projet",
+    "homepageOf": "Page du projet de {{game}}",
+    "staleTitle": "Catalogue pas à jour",
+    "staleCopy": "Voici la copie du {{date}}.",
+    "staleNoCopy": "Aucune copie n’est disponible pour l’instant.",
+    "emptyTitle": "Le catalogue est vide",
+    "emptyBody": "Rien à afficher pour l’instant. Réessaie dans un moment.",
+    "credits": "Sources du catalogue",
+    "creditsWiki": "Statuts, mainteneurs et catégories\u00a0: <wiki>wiki Archipelago</wiki>, sous licence CC BY-NC-SA 4.0.",
+    "creditsIndex": "Liste des mondes et empreintes\u00a0: <index>ionium-ap/Archipelago-index</index>."
+  }
+}

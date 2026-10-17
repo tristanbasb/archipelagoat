@@ -1,1 +1,146 @@
-{}
+{
+  "eyebrow": "STAGE 05",
+  "subtitle": "Your installed APWorlds, and the community catalog to add more.",
+  "pickFile": "Install a file…",
+  "pickTitle": "Choose APWorlds",
+  "pickFilter": "APWorld",
+  "dropHint": "Or drop an .apworld anywhere in the app.",
+  "searchClear": "Clear the search",
+  "noMatch": {
+    "title": "No world matches",
+    "body": "Try another search, or remove some filters."
+  },
+  "clearFilters": "Clear the filters",
+  "tabs": {
+    "label": "World views",
+    "installed": "Installed",
+    "catalog": "Catalog"
+  },
+  "states": {
+    "ok": {
+      "label": "Ready",
+      "help": "Archipelago loads this world when it starts."
+    },
+    "no-manifest": {
+      "label": "No manifest",
+      "help": "It has no archipelago.json file: it works with Archipelago 0.6, but will not load with Archipelago 0.7."
+    },
+    "incompatible": {
+      "label": "Incompatible",
+      "help": "It is not made for your Archipelago version, which will not load it."
+    },
+    "corrupt": {
+      "label": "Corrupt",
+      "help": "The file cannot be read, and Archipelago refuses to start while it is there. Disable or remove it."
+    },
+    "shadowed": {
+      "label": "Shadowed",
+      "help": "Another version of the same game comes first: Archipelago ignores this file."
+    },
+    "core-loose": {
+      "label": "Built in",
+      "help": "Shipped with Archipelago as a folder: this world cannot be replaced."
+    },
+    "disabled": {
+      "label": "Disabled",
+      "help": "Set aside by ArchipelaGOAT: Archipelago does not load it. Enable it again whenever you like."
+    }
+  },
+  "installed": {
+    "loading": "Loading the installed worlds…",
+    "search": "Search the installed worlds",
+    "searchPlaceholder": "Game, file or author",
+    "stateFilter": "Filter by state",
+    "allStates": "All states ({{count}})",
+    "stateOption": "{{label}} ({{count}})",
+    "origin": "Origin",
+    "origins": {
+      "all": "All",
+      "custom": "Added",
+      "core": "Official"
+    },
+    "sections": {
+      "custom": "Added by you",
+      "core": "Shipped with Archipelago"
+    },
+    "versionUnknown": "Unknown version",
+    "openFolder": "Open the folder",
+    "openFolderOf": "Open the folder of {{game}}",
+    "disable": "Disable",
+    "disableGame": "Disable {{game}}",
+    "enable": "Enable",
+    "enableGame": "Enable {{game}}",
+    "remove": "Remove",
+    "removeGame": "Remove {{game}}",
+    "disabled": "{{game}} is disabled",
+    "enabled": "{{game}} is enabled again",
+    "restartHint": "Restart the open Archipelago programs so that they notice.",
+    "corruptBody_one": "An unreadable file keeps Archipelago from starting. Disable or remove it.",
+    "corruptBody_other": "{{count}} unreadable files keep Archipelago from starting. Disable or remove them.",
+    "corruptAction": "Show the corrupt worlds",
+    "emptyTitle": "No world added yet",
+    "emptyBody": "Pick some from the community catalog, or drop an .apworld file anywhere in the app.",
+    "browseCatalog": "Browse the catalog"
+  },
+  "remove": {
+    "eyebrow": "GAME OVER?",
+    "title": "Remove {{game}}?",
+    "body": "{{file}} goes to the ArchipelaGOAT backups: you can get it back by hand if you need it.",
+    "confirm": "Remove",
+    "removing": "Removing…",
+    "done": "{{game}} is removed"
+  },
+  "catalog": {
+    "loading": "Loading the catalog…",
+    "listLabel": "Catalog worlds",
+    "search": "Search the catalog",
+    "searchPlaceholder": "Game, tag or maintainer",
+    "status": "Status on the wiki",
+    "allStatuses": "All statuses",
+    "tag": "Tag",
+    "allTags": "All tags",
+    "rom": "ROM",
+    "roms": {
+      "any": "ROM or no ROM",
+      "none": "No ROM to provide",
+      "needed": "ROM required"
+    },
+    "quickFilters": "Quick filters",
+    "installedOnly": "Installed",
+    "updatesOnly": "Updates",
+    "popTracker": "PopTracker",
+    "afterDark": "18+",
+    "results_one": "{{count}} world",
+    "results_other": "{{count}} worlds",
+    "fetchedAt": "Updated {{date}}",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "more": "Show more ({{count}} left)",
+    "install": "Install",
+    "installGame": "Install {{game}}",
+    "update": "Update",
+    "updateGame": "Update {{game}}",
+    "updateFromTo": "{{from}} → {{to}}",
+    "installedPill": "Installed · {{version}}",
+    "unavailable": "No compatible version",
+    "by": "by {{name}}",
+    "version": "v{{version}}",
+    "romHelp": "Generating a game needs your own ROM of it. ArchipelaGOAT never provides one.",
+    "popTrackerHelp": "A PopTracker pack exists to track your progress.",
+    "afterDarkHelp": "Adult content.",
+    "wikiPage": "Wiki page",
+    "wikiPageOf": "Wiki page of {{game}}",
+    "setup": "Setup guide",
+    "setupOf": "Setup guide of {{game}}",
+    "homepage": "Project page",
+    "homepageOf": "Project page of {{game}}",
+    "staleTitle": "Catalog out of date",
+    "staleCopy": "Here is the copy from {{date}}.",
+    "staleNoCopy": "No copy is available yet.",
+    "emptyTitle": "The catalog is empty",
+    "emptyBody": "Nothing to show for now. Try again in a moment.",
+    "credits": "Catalog sources",
+    "creditsWiki": "Statuses, maintainers and categories: <wiki>Archipelago wiki</wiki>, licensed CC BY-NC-SA 4.0.",
+    "creditsIndex": "World list and checksums: <index>ionium-ap/Archipelago-index</index>."
+  }
+}

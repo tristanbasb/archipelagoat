@@ -1,0 +1,144 @@
+/* The worlds screen, and what its two tabs share: toolbar, search field and list sections. */
+
+.worlds-screen__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.worlds-screen__hint {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+/* ---- Toolbar ------------------------------------------------------------------------------- */
+
+.worlds-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.worlds-toolbar__search {
+  flex: 1 1 240px;
+}
+
+.worlds-toolbar__select {
+  flex: 0 1 196px;
+}
+
+.worlds-toolbar__select--wide {
+  flex-basis: 236px;
+}
+
+.worlds-toolbar__select .select {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worlds-search__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+  transition: color var(--dur) var(--ease-out);
+}
+
+.worlds-search .input-frame:focus-within .worlds-search__icon {
+  color: var(--neon-yellow);
+}
+
+/* The field has its own clear button. */
+.worlds-search .input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.worlds-search__clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: calc(var(--sp-1) * -1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  transition: color var(--dur) var(--ease-out);
+}
+
+.worlds-search__clear:hover {
+  color: var(--text);
+}
+
+.worlds-search__clear:focus-visible {
+  outline-offset: 0;
+}
+
+.worlds-search__clear svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Loading placeholders breathe in pixel steps. */
+@keyframes worlds-breathe {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 0.8;
+  }
+}
+
+/* ---- Sections ------------------------------------------------------------------------------ */
+
+.worlds-section {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+/* The title, its count, then a rule fading to the right. */
+.worlds-section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.worlds-section__head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line-strong), transparent);
+}
+
+.worlds-section__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text);
+  font-size: var(--fs-14);
+}
+
+.worlds-section__title::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--neon-cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.worlds-section__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--bg-3);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
