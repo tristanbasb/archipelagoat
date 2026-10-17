@@ -61,7 +61,7 @@ let listCalls: number
 let order: string[]
 let outcomes: Map<string, Outcome>
 let stages: Map<string, string[]>
-let installed: ApInstall[]
+let installed: (ApInstall | null)[]
 let worldsChanged: number
 
 function apPaths(base: string): ApPaths {

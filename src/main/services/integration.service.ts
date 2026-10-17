@@ -107,7 +107,7 @@ export function createIntegration(ctx: CoreContext, opts: IntegrationOptions = {
   }
 
   ctx.bus.on('ap:installed', (install) => {
-    if (os !== 'linux' || install.kind !== 'linux-managed') return
+    if (os !== 'linux' || install?.kind !== 'linux-managed') return
     void serial(async () => {
       if (!config.get().integration.linuxDesktop || (await isLinuxIntegrationInstalled(dataHome))) return
       await installLinux()

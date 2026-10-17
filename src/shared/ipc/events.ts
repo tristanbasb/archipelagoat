@@ -27,7 +27,11 @@ export type EventPayloads = {
   'app:quitRequested': QuitRequest
   'config:changed': AppConfig
   'worlds:changed': null
-  'ap:installed': ApInstall
+  /**
+   * The install the app uses changed: installed or updated by the app, or installed, updated or
+   * removed outside it (null when none is left).
+   */
+  'ap:installed': ApInstall | null
 }
 
 // Compile-time guard: EventPayloads has exactly the names of EVENT_NAMES, no more, no less.

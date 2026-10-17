@@ -655,6 +655,51 @@ describe('locator', () => {
     expect(exec.scripts).toHaveLength(4)
   })
 
+  it('looks again in the background once its answer is old, and announces an install made outside the app', async () => {
+    const withAp = memFs('win32', { files: winLauncher(programData) })
+    const empty = memFs('win32', {})
+    let current: LocatorFs = empty
+    const fs: LocatorFs = {
+      exists: (p) => current.exists(p),
+      readText: (p) => current.readText(p),
+      list: (d) => current.list(d),
+      isWritableDir: (d) => current.isWritableDir(d),
+    }
+    let clock = 0
+    const core = coreFor('win32')
+    const announced: (ApInstall | null)[] = []
+    core.ctx.bus.on('ap:installed', (install) => void announced.push(install))
+    const locator = createLocator(core.ctx, { fs, env: {}, now: () => clock })
+    expect(await locator.detect()).toBeNull()
+
+    // Installed with the official Setup while the app is open.
+    current = withAp
+    clock = 4_000
+    expect(await locator.detect()).toBeNull()
+    // Nothing found 5 s ago: still answered at once, and looked for again.
+    clock = 5_000
+    expect(await locator.detect()).toBeNull()
+    await vi.waitFor(() => expect(announced).toHaveLength(1))
+    expect(announced[0]?.root).toBe(programData)
+    expect((await locator.detect())?.root).toBe(programData)
+
+    // Uninstalled outside the app: an install found is trusted for 30 s.
+    current = empty
+    clock = 34_000
+    expect((await locator.detect())?.root).toBe(programData)
+    clock = 35_000
+    expect((await locator.detect())?.root).toBe(programData)
+    await vi.waitFor(() => expect(announced).toHaveLength(2))
+    expect(announced[1]).toBeNull()
+    expect(await locator.detect()).toBeNull()
+
+    // The same answer again is not announced.
+    clock = 41_000
+    await locator.detect()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(announced).toHaveLength(2)
+  })
+
   it('a failed detection is not cached', async () => {
     let fail = true
     const fs = memFs('linux', {})

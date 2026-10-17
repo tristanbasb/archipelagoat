@@ -52,10 +52,30 @@ export interface LocatorOptions {
   fs?: LocatorFs
   /** XDG_DATA_HOME, XDG_CACHE_HOME, LOCALAPPDATA, ProgramData; process.env by default. */
   env?: NodeJS.ProcessEnv
+  /** Default: Date.now. */
+  now?: () => number
+}
+
+/** How long an answer is trusted before `detect()` looks again, in the background. */
+const FOUND_TTL_MS = 30_000
+/** Nothing found: looked for again sooner (an install made outside the app while it is open). */
+const MISSING_TTL_MS = 5_000
+
+/** The same install, as the app sees it: folder, kind, version. */
+function sameInstall(a: ApInstall | null, b: ApInstall | null): boolean {
+  if (a === null || b === null) return a === b
+  return (
+    a.root === b.root && a.kind === b.kind && a.version === b.version && a.appImagePath === b.appImagePath
+  )
 }
 
 export interface Locator {
-  /** The install the app uses, or null; cached until `invalidate()`. */
+  /**
+   * The install the app uses, or null. Cached; past 30 s (5 s while nothing is found) the cached
+   * answer is still returned at once while the detection runs again in the background: when it finds
+   * another install (installed, updated or removed outside the app), the cache follows and
+   * `ap:installed` is emitted with it (null when none is left). `invalidate()` drops the cache.
+   */
   detect(): Promise<ApInstall | null>
   /** The install in `root`; AP_NOT_INSTALLED when `root` holds no ArchipelagoLauncher. */
   fromRoot(root: string, kind?: ApInstallKind): Promise<ApInstall>
@@ -206,7 +226,11 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
   const paths = lib(os)
   const fs = opts.fs ?? nodeLocatorFs
   const env = opts.env ?? process.env
+  const now = opts.now ?? Date.now
   let cached: Promise<ApInstall | null> | null = null
+  /** When the cached answer was found, and what it is (once found). */
+  let checked: { at: number; install: ApInstall | null } | null = null
+  let refreshing: Promise<void> | null = null
 
   const pathsFor = (localPath: string, localWritable: boolean, cwd: string): ApPaths =>
     resolveApPaths(
@@ -347,14 +371,45 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
     return os === 'win32' ? findWindows() : findLinux()
   }
 
+  /** Looks again in the background; a different install replaces the cached one and is announced. */
+  function refresh(previous: Promise<ApInstall | null>, old: ApInstall | null): void {
+    refreshing = find().then(
+      (install) => {
+        // Invalidated meanwhile: the newer detection wins.
+        if (cached !== previous) return
+        checked = { at: now(), install }
+        if (sameInstall(old, install)) return
+        log.info('locator: the install changed outside the app', { from: old?.root, to: install?.root })
+        cached = Promise.resolve(install)
+        ctx.bus.emit('ap:installed', install)
+      },
+      (error: unknown) => log.warn('locator: detecting again failed', error),
+    )
+    void refreshing.finally(() => {
+      refreshing = null
+    })
+  }
+
   return {
     detect() {
       if (!cached) {
-        const pending: Promise<ApInstall | null> = find().catch((error: unknown) => {
-          if (cached === pending) cached = null
-          throw error
-        })
+        const pending: Promise<ApInstall | null> = find().then(
+          (install) => {
+            if (cached === pending) checked = { at: now(), install }
+            return install
+          },
+          (error: unknown) => {
+            if (cached === pending) cached = null
+            throw error
+          },
+        )
         cached = pending
+        checked = null
+        return pending
+      }
+      if (checked && !refreshing) {
+        const ttl = checked.install === null ? MISSING_TTL_MS : FOUND_TTL_MS
+        if (now() - checked.at >= ttl) refresh(cached, checked.install)
       }
       return cached
     },
@@ -370,6 +425,7 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
 
     invalidate() {
       cached = null
+      checked = null
     },
   }
 }
