@@ -76,11 +76,34 @@ it('organizer local: create session → add fixture yamls → validate → gener
     hosting: { mode: 'local', port: started.port },
   })
 
+  // The app's item tracker logs in as the first slot; the server then counts Alice as connected.
+  await vi.waitFor(
+    async () => expect(await core.call('server:get', { sessionId })).toMatchObject({ tracker: 'Alice' }),
+    { timeout: 10_000, interval: 100 },
+  )
+  // The fake holds what it prints until its next log line, as the frozen ArchipelagoServer does: the
+  // answer still comes at once.
   await core.call('server:command', { sessionId, command: '/players' })
   await vi.waitFor(
     async () => {
       const { log } = await core.call('server:history', { sessionId })
-      expect(log).toContain('0 players of 2 connected :: Team #1: (Alice) (Bob)')
+      expect(log).toContain('1 players of 2 connected :: Team #1: Alice (Bob)')
+    },
+    { timeout: 2000, interval: 50 },
+  )
+
+  // Each item event gets the class the tracker tells (progression, useful, trap, filler).
+  await core.call('server:command', { sessionId, command: '/fake_items' })
+  await vi.waitFor(
+    async () => {
+      const { events } = await core.call('server:history', { sessionId })
+      expect(events.map(({ item, itemClass }) => `${item}: ${itemClass}`)).toEqual([
+        'Umbrella: progression',
+        'Rare Candy: useful',
+        'Baby Trap: trap',
+        '10 Pons: filler',
+        'Stone Badge: progression',
+      ])
     },
     { timeout: 10_000, interval: 100 },
   )

@@ -64,13 +64,35 @@ test('organizer flow through UI with fake AP: add yaml via queued dialog, genera
 
   await hostLocally(page, t, sessionId)
 
-  // The console takes a command and shows the server's answer.
+  // The item tracker logs in as the first slot: the feed says so under its colors.
+  await expect(page.getByText(t('screens.host.feed.tracker', { slot: 'Alice' }))).toBeVisible()
+
+  // The console takes a command and shows the server's answer, which the fake holds until its next
+  // log line as the frozen ArchipelagoServer does; the server counts the tracker as Alice.
   const input = page.getByLabel(t('screens.host.console.input'))
   await input.fill('/players')
   await input.press('Enter')
   await expect(
-    page.locator('.console-panel').getByText('0 players of 2 connected', { exact: false }),
-  ).toBeVisible()
+    page.locator('.console-panel').getByText('1 players of 2 connected :: Team #1: Alice (Bob)'),
+  ).toBeVisible({ timeout: 3000 })
+
+  // The players find one item of each class: the feed shows each in Archipelago's color.
+  await input.fill('/fake_items')
+  await input.press('Enter')
+  const feed = page.getByRole('log', { name: t('screens.host.feed.title') })
+  // Each line is found by its location, which only it names (10 Pons is found by Bob for himself).
+  for (const [location, tone] of [
+    ['Route 104 - Hidden Item', 'progression'],
+    ['Mafia Town - Umbrella Chest', 'useful'],
+    ['Petalburg Woods - Item', 'trap'],
+    ['Mafia Town - Pons Box', 'filler'],
+  ] as const) {
+    await expect(feed.getByText(`(${location})`, { exact: false })).toHaveAttribute('data-tone', tone)
+  }
+  await expect(feed.getByText('(Route 104 - Hidden Item)', { exact: false })).toHaveCSS(
+    'color',
+    'rgb(175, 153, 239)',
+  )
 
   // Stopping sends /exit: the server saves the game next to the multidata, then stops.
   await stopServer(page, t)

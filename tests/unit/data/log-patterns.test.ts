@@ -2,8 +2,10 @@ import {
   FILL_STEP_RE,
   FINAL_ARCHIVE_RE,
   GENERATE_STAGES,
+  SERVER_CONNECTION_RE,
   SERVER_EVENT_PATTERNS,
   SERVER_HOSTING_RE,
+  SERVER_PLAYER_NOTICE_RE,
   SERVER_READY_RE,
 } from '@shared/data/log-patterns'
 import { GENERATE_STAGE_IDS } from '@shared/codes'
@@ -162,6 +164,30 @@ describe('the real output of Archipelago 0.6.8 (docs/verification/2026-10-16-rea
       'server listening on 0.0.0.0:38281',
     ])
     expect(server.findIndex((line) => SERVER_READY_RE.test(line))).toBe(hosting + 1)
+  })
+
+  it('logs each connection websockets opens and closes, and the notice a client gets right after its join', () => {
+    const ends = server.map((line) => SERVER_CONNECTION_RE.exec(line)?.groups?.end).filter(Boolean)
+    expect(ends).toEqual(['open', 'closed'])
+    const join = server.findIndex((line) => line.includes(' has joined. '))
+    expect(SERVER_PLAYER_NOTICE_RE.exec(server[join + 1] ?? '')?.groups).toEqual({
+      player: 'Goat1',
+      team: '1',
+    })
+    expect(server.filter((line) => SERVER_PLAYER_NOTICE_RE.test(line))).toHaveLength(1)
+  })
+})
+
+describe('connection and notice patterns', () => {
+  it('take a whole line, with or without its timestamp', () => {
+    expect(SERVER_CONNECTION_RE.exec('[2026-10-17 19:48:16] connection closed')?.groups?.end).toBe('closed')
+    expect(SERVER_CONNECTION_RE.test('Notice (all): Alice: connection open')).toBe(false)
+    expect(SERVER_CONNECTION_RE.test('A client connection was refused due to: {...}.')).toBe(false)
+    expect(SERVER_PLAYER_NOTICE_RE.exec('Notice (Player Zoé (2) in team 2): Hint: x')?.groups).toEqual({
+      player: 'Zoé (2)',
+      team: '2',
+    })
+    expect(SERVER_PLAYER_NOTICE_RE.test('Notice (all): Alice: Notice (Player Bob in team 1): x')).toBe(false)
   })
 })
 

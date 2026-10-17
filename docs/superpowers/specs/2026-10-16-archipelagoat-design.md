@@ -305,12 +305,13 @@ Point unique pour lancer un programme AP ou BizHawk.
 - Lancement : `ArchipelagoServer <zip absolu> --port <P> --savefile <ws>/output/<seed>.apsave` + **toutes** les options de mode passées explicitement (`--release_mode`, `--collect_mode`, `--remaining_mode`, `--countdown_mode`, `--hint_cost`, `--location_check_points`, `--auto_shutdown`), `cwd = sessionDir`, **`stdin: 'pipe'` gardé ouvert**.
 - Avant chaque démarrage, le `host.yaml` de session est réécrit avec les règles et mots de passe courants. Les **mots de passe passent par ce fichier et jamais en argument** (sinon ils seraient visibles dans la liste des processus). `disable_item_cheat` vient aussi de ce fichier (flag `store_true`).
 - **Prêt** = ligne `server listening on` ; repli : `Hosting game at` + sonde TCP sur le port (timeout 30 s). Port occupé → erreur dédiée.
-- **Adresses à partager** : localhost, IPv4 LAN (interfaces réseau), IP publique (lookup par l'app, avec mention « nécessite une redirection de port »).
+- **Adresses à partager** : localhost, IPv4 LAN (interfaces réseau), IP publique (lookup par l'app, avec mention « nécessite une redirection de port »). Les réseaux des machines virtuelles et conteneurs de ce PC (Hyper-V/WSL, Docker, VirtualBox, VMware, libvirt…) sont écartés ; les adresses de VPN (Tailscale et `100.64.0.0/10`, ZeroTier, Hamachi…) sont listées à part, « seulement pour les joueurs du même VPN », et n'entrent dans le message à partager que s'il n'y a pas d'autre adresse (v1.1).
 - **Console** : envoi de commandes sur stdin (`/players`, `/status`, `/send`, `/release`, `/collect`, `/countdown`, `/hint`, `/option`, `/save`) ; les commandes à plusieurs mots sont quotées.
 - **Flux d'événements** : parse `has joined`, `has left the game`, `sent <item> to <receiver> (<location>)`, `has completed their goal`, `Team #1 has completed all of their games!` (brief §1.7). Mots de passe masqués dans toute ligne affichée.
 - **Arrêt** : `/exit\n` puis attente ; arrêt forcé après 15 s seulement, avec avertissement de perte possible (~60 s de progression).
 - **Reprise** : même zip + même `--savefile` ; avertir qu'une sauvegarde existante prime sur les nouvelles options.
-- Si le buffering de stdout rend la console trop lente (à vérifier en test réel), le plan prévoit un pseudo-terminal en v1.1 ; en v1 on accepte un léger délai.
+- **Console en temps réel (v1.1)** : le build figé d'ArchipelagoServer 0.6.8 ignore `PYTHONUNBUFFERED` ; ce que ses commandes affichent par `print()` reste dans le tampon de stdout jusqu'à la prochaine ligne de log, sans limite sur un serveur calme (test réel). 250 ms après chaque commande, l'app ouvre une connexion WebSocket sur le serveur puis la referme dès son RoomInfo, sans se connecter à un slot : websockets journalise `connection open` puis `connection closed`, et chaque ligne de log vide stdout. Une telle connexion n'est annoncée à aucun joueur et ne demande pas de mot de passe. Ces lignes sont retirées de la console. (Écartés : un pseudo-terminal, qui demande un hôte ConPTY sous Windows et rend une sortie VT à démêler ; `!admin`, qui exige un `server_password`, que la sauvegarde fige, et annonce chaque commande à tous les joueurs.)
+- **Suivi des objets (v1.1)** : une fois le serveur prêt, l'app s'y connecte comme Tracker (tags `Tracker` et `ArchipelaGOAT`, jeu vide, `items_handling` 0, sans `slot_data`) sous le nom du premier slot, avec le mot de passe de la partie. Les paquets PrintJSON `ItemSend` donnent la classe de chaque objet par ses drapeaux (progression, utile, piège, filler, comme `NetUtils.py`) ; elle est rattachée à la ligne de log du même envoi (équipe, expéditeur, destinataire, dans l'ordre), qui l'attend 1,5 s au plus. Ses annonces d'arrivée et de départ, et les avis qui suivent son arrivée, ne sont ni des événements ni des lignes de console. Le serveur compte cette connexion pour ce slot dans `/players` et `/status` : l'écran le dit sous le flux. Nouvelle tentative après une connexion perdue (1 s, 3 s, 10 s), jamais après un refus.
 
 ### 3.12 `play/*` — rejoindre, patchs, ROMs, BizHawk
 
@@ -423,11 +424,11 @@ Rules { preset: 'casual'|'async'|'race'|'custom', spoiler, race, hintCost, relea
    2. **Vérification** : erreurs/alertes par YAML avec actions (installer le monde manquant, renommer un doublon, fournir une ROM, corriger dans le Studio).
    3. **Règles** : presets + avancé (indices, release/collect/remaining/countdown, mots de passe, spoiler, course, plando, item cheat).
    4. **Génération** : barre de progression par étapes, log repliable, erreur traduite + action.
-   5. **Hébergement** : choix archipelago.gg (recommandé pour jouer sur Internet) ou local (LAN, ou Internet avec redirection de port).
+   5. **Hébergement** : choix archipelago.gg (recommandé pour jouer sur Internet) ou local (LAN, ou Internet avec redirection de port). Sous Windows, avant le premier hébergement local, prévenir que le Pare-feu Windows va demander d'autoriser Archipelago Server ; l'écran « Partie en cours » le rappelle sous l'adresse du réseau local.
 6. **Partie en cours** (local ou web)
    - Statut, adresse à copier, message prêt à coller (adresse, slots, mot de passe, lien de room).
    - Joueurs (connecté / absent / but atteint).
-   - Flux d'objets aux couleurs officielles d'AP : progression `#AF99EF`, utile `#6D8BE8`, piège `#FA8072`, filler `#00EEEE`.
+   - Flux d'objets aux couleurs officielles d'AP : progression `#AF99EF`, utile `#6D8BE8`, piège `#FA8072`, filler `#00EEEE` (classe donnée par le suivi des objets, §3.11, avec une légende ; sans lui, un envoi reste dans le ton neutre). Les autres lignes : tes messages (console, `[Server]`) en `#EE00EE`, ceux des joueurs en cyan, les arrivées en vert, les buts en jaune.
    - Console avec historique et raccourcis.
    - Fichiers de patch par joueur (ouvrir le dossier, copier).
    - Actions : sauvegarder, arrêter, réveiller (web).
@@ -607,7 +608,6 @@ Aucun de ces tests n'est lancé sans un « oui » explicite.
 - **Schéma d'options** (§3.10) : pas de type `counter` distinct ; ces options sont éditées comme `dict`.
 - **Statuts de session** (§3.13) : pas de statut `validated` ; la validation est recalculée à la demande.
 - **Mots de passe du serveur** (§3.11) : transmis par le `host.yaml` de session, jamais en argument de ligne de commande.
-- **Couleurs du flux d'objets** (§4.2.6) : la sortie du serveur n'indique pas la classe d'un objet (progression, utile, piège, filler) ; ces couleurs demandent un client Tracker en WebSocket, prévu en v1.1. En v1, le flux colore chaque ligne selon qui parle : tes propres messages (console, `[Server]`) en `#EE00EE` (soi-même), les messages des joueurs en cyan, les arrivées en vert, les buts en jaune ; les envois d'objets (expéditeur → destinataire) restent dans le ton neutre du texte. Les tons `--ap-*` sont gardés pour la v1.1.
 
 ## 10. Critères d'acceptation v1
 

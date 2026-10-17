@@ -645,9 +645,18 @@ describe('fake ArchipelagoServer', () => {
     expect(await canConnect(port)).toBe(true)
     expect(readRecord(recordFile).cwd).toBe(root)
 
+    // Like the frozen ArchipelagoServer, it holds what it prints until its next log line.
     proc.write('/players')
+    await delay(300)
+    expect(lines.lines.filter(({ line }) => /players of/.test(line))).toEqual([])
+    proc.write('bonjour')
     expect(await lines.next(/players of \d+ connected/)).toBe(
       '0 players of 2 connected :: Team #1: (Alice) (Bob)',
+    )
+    expect(await lines.next(/^Notice \(all\): /)).toBe('Notice (all): [Server]: bonjour')
+    const after = lines.of('stdout')
+    expect(after.indexOf('Notice (all): [Server]: bonjour')).toBe(
+      after.indexOf('0 players of 2 connected :: Team #1: (Alice) (Bob)') + 1,
     )
     proc.write('/exit')
     expect(await within(proc.exited, 5000)).toEqual({ code: 0, signal: null })

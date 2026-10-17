@@ -73,6 +73,17 @@ export const SERVER_HOSTING_RE = line(
 )
 
 /**
+ * websockets (13.1, requirements.txt:2) logs every connection that opens or closes, whoever makes it:
+ * a player's client, or the app's own connections (server-link.ts).
+ */
+export const SERVER_CONNECTION_RE = line(String.raw`connection (?<end>open|closed)\s*$`)
+
+/** `Notice (Player <name> in team <n>): <text>`: a message the server sends one client (MultiServer.py:500-504). */
+export const SERVER_PLAYER_NOTICE_RE = line(
+  String.raw`Notice \(Player (?<player>.+?) in team (?<team>\d+)\): `,
+)
+
+/**
  * Lines of a running server that are events, with the named groups each one gives. They are tried in
  * order and the first match wins: `chat` is the last because it only looks for `Notice (all): <who>: <text>`.
  * Join, leave, goal and chat lines are `Notice (all): ...` broadcasts (MultiServer.py:476), the item

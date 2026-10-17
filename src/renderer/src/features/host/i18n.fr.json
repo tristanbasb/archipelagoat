@@ -115,7 +115,15 @@
     "itemSelf": "{{player}} a trouvé son objet {{item}}",
     "goal": "{{player}} a atteint son objectif",
     "allGoals": "Toute l’équipe a fini ses jeux. Bravo !",
-    "chat": "{{player}} : {{message}}"
+    "chat": "{{player}} : {{message}}",
+    "legend": "Couleurs des objets",
+    "classes": {
+      "progression": "Progression",
+      "useful": "Utile",
+      "trap": "Piège",
+      "filler": "Remplissage"
+    },
+    "tracker": "Ces couleurs viennent d’un suivi connecté au serveur sous le nom de {{slot}} : /players et /status le comptent comme connecté."
   },
   "console": {
     "title": "Console du serveur",

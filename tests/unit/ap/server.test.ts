@@ -14,6 +14,7 @@ import {
   type ServerManager,
   type ServerManagerDeps,
 } from '@main/core/ap/server'
+import type { SocketFactory, SocketHandlers } from '@main/core/ap/server-link'
 import { createApSettings, type ApSettings } from '@main/core/ap/settings'
 import { createSessionStore, type SessionStore } from '@main/core/sessions/store'
 import { MASK } from '@main/core/system/redact'
@@ -217,6 +218,85 @@ function fakeSpawn(): { spawn: NonNullable<ServerManagerDeps['spawn']>; procs: F
   return { spawn, procs }
 }
 
+/** A connection the test plays the server of. */
+interface FakeSocket {
+  url: string
+  /** The packets the app sent, in order. */
+  sent: Record<string, unknown>[]
+  closed: boolean
+  handlers: SocketHandlers
+  /** The server answers the handshake and sends its RoomInfo. */
+  open(): void
+  receive(...packets: Record<string, unknown>[]): void
+  /** The connection ends (the app's close, or the server's). */
+  end(): void
+}
+
+/** Connections the test plays the server of, instead of real WebSockets. */
+function fakeSockets(): { socket: SocketFactory; sockets: FakeSocket[] } {
+  const sockets: FakeSocket[] = []
+  const socket: SocketFactory = (url, handlers) => {
+    const fake: FakeSocket = {
+      url,
+      sent: [],
+      closed: false,
+      handlers,
+      open() {
+        handlers.open()
+        fake.receive({ cmd: 'RoomInfo', password: false })
+      },
+      receive: (...packets) => handlers.message(JSON.stringify(packets)),
+      end() {
+        if (fake.closed) return
+        fake.closed = true
+        handlers.close()
+      },
+    }
+    sockets.push(fake)
+    return {
+      send: (text) => void fake.sent.push(...(JSON.parse(text) as Record<string, unknown>[])),
+      close: () => queueMicrotask(() => fake.end()),
+    }
+  }
+  return { socket, sockets }
+}
+
+/** Connections that never reach a server. */
+const offline: SocketFactory = (_url, handlers) => {
+  queueMicrotask(() => handlers.close())
+  return { send: () => undefined, close: () => undefined }
+}
+
+const ALICE_AND_BOB: Generation['slots'] = [
+  { slot: 1, name: 'Alice', game: 'Pokemon Emerald', patchFile: null },
+  { slot: 2, name: 'Bob', game: 'A Hat in Time', patchFile: null },
+]
+
+/** What a server says to a client that logged in, its slots being Alice (1) and Bob (2). */
+const CONNECTED = {
+  cmd: 'Connected',
+  team: 0,
+  slot: 1,
+  slot_info: {
+    '1': { name: 'Alice', game: 'Pokemon Emerald', type: 1, group_members: [], class: 'NetworkSlot' },
+    '2': { name: 'Bob', game: 'A Hat in Time', type: 1, group_members: [], class: 'NetworkSlot' },
+  },
+}
+
+const TRACKER_JOIN =
+  "Notice (all): Alice (Team #1) tracking Pokemon Emerald has joined. Client(0.6.8), ['Tracker', 'ArchipelaGOAT']."
+const TUTORIAL =
+  'Now that you are connected, you can use !help to list commands to run via the server. If your client supports it, you may have additional local commands you can list with /help.'
+
+/** A PrintJSON ItemSend (MultiServer.py:1362-1380): slot `player` found an item of `receiving`. */
+const itemSend = (player: number, receiving: number, flags: number): Record<string, unknown> => ({
+  cmd: 'PrintJSON',
+  type: 'ItemSend',
+  receiving,
+  item: { item: 77, location: 88, player, flags, class: 'NetworkItem' },
+  data: [],
+})
+
 /** The `--port` a driven process was given. */
 const portOf = (proc: FakeProc): number => Number(proc.opts.args[proc.opts.args.indexOf('--port') + 1])
 
@@ -392,6 +472,8 @@ describe('local server (fake ArchipelagoServer)', () => {
     const manager = makeManager()
     const session = await generatedSession()
     await manager.start(session.id)
+    // The item tracker logs in as the first slot, and the server counts it there.
+    await vi.waitFor(() => expect(manager.get(session.id)?.tracker).toBe('Alice'))
     const answer = new Promise<string>((resolve) =>
       core.ctx.bus.on('server:log', ({ sessionId, line }) => {
         if (sessionId === session.id && line.includes('players of')) resolve(line)
@@ -400,8 +482,84 @@ describe('local server (fake ArchipelagoServer)', () => {
 
     manager.command(session.id, '/players')
 
-    expect(await answer).toBe('0 players of 2 connected :: Team #1: (Alice) (Bob)')
-    expect(manager.history(session.id).log).toContain('0 players of 2 connected :: Team #1: (Alice) (Bob)')
+    expect(await answer).toBe('1 players of 2 connected :: Team #1: Alice (Bob)')
+    const { log, events } = manager.history(session.id)
+    expect(log).toContain('1 players of 2 connected :: Team #1: Alice (Bob)')
+    // The lines about the app's own connections stay out of the log and of the events.
+    expect(
+      log.filter((line) => /connection (?:open|closed)|ArchipelaGOAT|Notice \(Player /.test(line)),
+    ).toEqual([])
+    expect(events).toEqual([])
+  })
+
+  it('answers a console command at once, although the server holds what it prints until it logs', async () => {
+    // Without the app's connections, the answer waits for the next log line, as on the real run.
+    fakeEnv = { FAKE_MODE: 'no-websocket' }
+    const manager = makeManager()
+    const session = await generatedSession()
+    await manager.start(session.id)
+    manager.command(session.id, '/players')
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    expect(manager.history(session.id).log.filter((line) => line.includes('players of'))).toEqual([])
+    // Any log line lets it out: here a message to everyone.
+    manager.command(session.id, 'bonjour')
+    await vi.waitFor(() =>
+      expect(manager.history(session.id).log.slice(-2)).toEqual([
+        '0 players of 2 connected :: Team #1: (Alice) (Bob)',
+        'Notice (all): [Server]: bonjour',
+      ]),
+    )
+    await manager.stop(session.id)
+
+    // With them, it comes within a second of the command.
+    fakeEnv = {}
+    await manager.start(session.id)
+    await vi.waitFor(() => expect(manager.get(session.id)?.tracker).toBe('Alice'))
+    const sent = Date.now()
+    manager.command(session.id, '/players')
+    await vi.waitFor(
+      () =>
+        expect(manager.history(session.id).log).toContain('1 players of 2 connected :: Team #1: Alice (Bob)'),
+      { timeout: 1000 },
+    )
+    expect(Date.now() - sent).toBeLessThan(1000)
+  })
+
+  it('gives each item event the class the item tracker tells, in the order of the lines', async () => {
+    const manager = makeManager()
+    const session = await generatedSession()
+    await manager.start(session.id)
+    await vi.waitFor(() => expect(manager.get(session.id)?.tracker).toBe('Alice'))
+    const bus = recordBus()
+
+    manager.command(session.id, '/fake_items')
+
+    await vi.waitFor(() => expect(bus.events).toHaveLength(5))
+    expect(
+      bus.events.map(({ player, item, receiver, itemClass }) => ({ player, item, receiver, itemClass })),
+    ).toEqual([
+      { player: 'Alice', item: 'Umbrella', receiver: 'Bob', itemClass: 'progression' },
+      { player: 'Bob', item: 'Rare Candy', receiver: 'Alice', itemClass: 'useful' },
+      { player: 'Alice', item: 'Baby Trap', receiver: 'Bob', itemClass: 'trap' },
+      { player: 'Bob', item: '10 Pons', receiver: 'Bob', itemClass: 'filler' },
+      // Progression and useful: progression, as Archipelago's clients color it.
+      { player: 'Bob', item: 'Stone Badge', receiver: 'Alice', itemClass: 'progression' },
+    ])
+    expect(manager.history(session.id).events).toEqual(bus.events)
+
+    // Stopped, the tracker leaves first, and its leave stays out of the feed too.
+    await manager.stop(session.id)
+    expect(manager.get(session.id)).not.toHaveProperty('tracker')
+    expect(manager.history(session.id).events).toHaveLength(5)
+    expect(manager.history(session.id).log.some((line) => line.includes('ArchipelaGOAT'))).toBe(false)
+  })
+
+  it('logs the tracker in with the game password of the session', async () => {
+    const manager = makeManager()
+    const session = await generatedSession()
+    await store.setSecrets(session.id, { password: 'hunter2' })
+    await manager.start(session.id)
+    await vi.waitFor(() => expect(manager.get(session.id)?.tracker).toBe('Alice'))
   })
 
   it('stop sends /exit and fake writes the savefile', async () => {
@@ -678,7 +836,8 @@ describe('local server (driven process)', () => {
 
   it('while lines come, the TCP probe waits for the Hosting line', async () => {
     const { spawn, procs } = fakeSpawn()
-    const manager = makeManager({ spawn, timeouts: { probeMs: 50, stopMs: 5000 } })
+    // The listener below would never answer the tracker's handshake.
+    const manager = makeManager({ spawn, socket: offline, timeouts: { probeMs: 50, stopMs: 5000 } })
     const session = await generatedSession()
     const starting = manager.start(session.id)
     await vi.waitFor(() => expect(procs).toHaveLength(1))
@@ -1005,6 +1164,201 @@ describe('local server (driven process)', () => {
   })
 })
 
+describe("the app's own connections (driven process, fake sockets)", () => {
+  /** A ready server whose tracker logged in as Alice, of a game of Alice and Bob. */
+  async function trackedServer(timeouts: ServerManagerDeps['timeouts'] = {}) {
+    const { spawn, procs } = fakeSpawn()
+    const { socket, sockets } = fakeSockets()
+    const manager = makeManager({ spawn, socket, timeouts: { probeMs: 60_000, stopMs: 5000, ...timeouts } })
+    const created = await store.create('Suivie')
+    const session = await store.setGeneration(created.id, generation(created.workspace, ALICE_AND_BOB))
+    const bus = recordBus()
+    const { state, proc } = await startFake(manager, procs, session.id)
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    const tracker = sockets[0]!
+    // What the server logs about the tracker's login (MultiServer.py:1044-1067).
+    tracker.open()
+    proc.line('connection open')
+    tracker.receive(CONNECTED)
+    proc.line(TRACKER_JOIN)
+    proc.line(`Notice (Player Alice in team 1): ${TUTORIAL}`)
+    await vi.waitFor(() => expect(manager.get(session.id)?.tracker).toBe('Alice'))
+    expect(bus.logs.slice(-1)).toEqual([`server listening on 0.0.0.0:${state.port}`])
+    return { manager, session, state, proc, tracker, sockets, bus }
+  }
+
+  it('logs the tracker in as the first slot, with no game, no items and its tags', async () => {
+    const { tracker, state } = await trackedServer()
+    expect(tracker.url).toBe(`ws://127.0.0.1:${state.port}`)
+    expect(tracker.sent).toEqual([
+      {
+        cmd: 'Connect',
+        password: null,
+        game: '',
+        name: 'Alice',
+        uuid: expect.any(String) as unknown,
+        version: { major: 0, minor: 6, build: 8, class: 'Version' },
+        items_handling: 0,
+        tags: ['Tracker', 'ArchipelaGOAT'],
+        slot_data: false,
+      },
+    ])
+  })
+
+  it('an item waits for its class, which may come before or after its line, or not at all', async () => {
+    const { proc, tracker, bus } = await trackedServer({ classifyMs: 300 })
+
+    // The line first, then the packet.
+    proc.line('(Team #1) Alice sent Hookshot to Bob (Spiral Cave)')
+    expect(bus.events).toEqual([])
+    tracker.receive(itemSend(1, 2, 0b001))
+    expect(bus.events.at(-1)).toMatchObject({ item: 'Hookshot', itemClass: 'progression' })
+
+    // The packet first, then the line.
+    tracker.receive(itemSend(2, 1, 0b100))
+    proc.line('(Team #1) Bob sent Ice Trap to Alice (Ice Palace)')
+    expect(bus.events.at(-1)).toMatchObject({ item: 'Ice Trap', itemClass: 'trap' })
+
+    // A line whose packet never comes goes out plain, and what came after it waits behind it.
+    proc.line('(Team #1) Bob sent Bow to Alice (Spiral Cave)')
+    proc.line('Notice (all): Alice: bonjour')
+    expect(bus.events).toHaveLength(2)
+    await vi.waitFor(() => expect(bus.events).toHaveLength(4))
+    expect(bus.events.slice(2).map(({ kind, item, itemClass }) => ({ kind, item, itemClass }))).toEqual([
+      { kind: 'item', item: 'Bow', itemClass: undefined },
+      { kind: 'chat', item: undefined, itemClass: undefined },
+    ])
+    // The log never waits.
+    expect(bus.logs.slice(-2)).toEqual([
+      '(Team #1) Bob sent Bow to Alice (Spiral Cave)',
+      'Notice (all): Alice: bonjour',
+    ])
+  })
+
+  it('matches the sends of one sender and receiver in turn, each team on its own', async () => {
+    const { proc, tracker, bus } = await trackedServer()
+    proc.line('(Team #1) Alice sent Hookshot to Bob (Spiral Cave)')
+    proc.line('(Team #1) Alice sent 20 Rupees to Bob (Lost Woods)')
+    // The tracker is in team 1: a send of team 2 gets no packet.
+    proc.line('(Team #2) Alice sent Bow to Bob (Spiral Cave)')
+    tracker.receive(itemSend(1, 2, 0b001), itemSend(1, 2, 0))
+    expect(bus.events.map(({ item, itemClass }) => ({ item, itemClass }))).toEqual([
+      { item: 'Hookshot', itemClass: 'progression' },
+      { item: '20 Rupees', itemClass: 'filler' },
+    ])
+  })
+
+  it('leaves the lines about its own connections out of the log, and its join out of the feed', async () => {
+    const { manager, session, proc, sockets, bus } = await trackedServer({ pokeMs: 10 })
+    // trackedServer fed the lines of the tracker's login: none of them came out.
+    expect(bus.events).toEqual([])
+    // A player's notice to Alice and a player's connection are not the tracker's.
+    proc.line('Notice (Player Alice in team 1): Hint: your Bow is at Spiral Cave.')
+    proc.line('connection open')
+    expect(bus.logs.slice(-2)).toEqual([
+      'Notice (Player Alice in team 1): Hint: your Bow is at Spiral Cave.',
+      'connection open',
+    ])
+
+    // A console command, then the connection that flushes its answer.
+    manager.command(session.id, '/players')
+    expect(proc.writes).toEqual(['/players'])
+    await vi.waitFor(() => expect(sockets).toHaveLength(2))
+    const poke = sockets[1]!
+    expect(poke.url).toBe(sockets[0]!.url)
+    proc.line('1 players of 2 connected :: Team #1: Alice (Bob)')
+    proc.line('connection open')
+    poke.open()
+    // It closes once the server answered, without logging in.
+    await vi.waitFor(() => expect(poke.closed).toBe(true))
+    expect(poke.sent).toEqual([])
+    proc.line('connection closed')
+    expect(bus.logs.slice(-1)).toEqual(['1 players of 2 connected :: Team #1: Alice (Bob)'])
+
+    // A real player's join and leave are events, as before.
+    proc.line("Notice (all): Bob (Team #1) playing A Hat in Time has joined. Client(0.6.8), ['AP'].")
+    proc.line(`Notice (Player Bob in team 1): ${TUTORIAL}`)
+    // The real Alice joins, and gets the notice the tracker got: it stays.
+    proc.line("Notice (all): Alice (Team #1) playing Pokemon Emerald has joined. Client(0.6.8), ['AP'].")
+    proc.line(`Notice (Player Alice in team 1): ${TUTORIAL}`)
+    expect(bus.events.map(({ kind, player }) => ({ kind, player }))).toEqual([
+      { kind: 'join', player: 'Bob' },
+      { kind: 'join', player: 'Alice' },
+    ])
+    expect(bus.logs.slice(-2)).toEqual([
+      "Notice (all): Alice (Team #1) playing Pokemon Emerald has joined. Client(0.6.8), ['AP'].",
+      `Notice (Player Alice in team 1): ${TUTORIAL}`,
+    ])
+  })
+
+  it('a connection that never opened owes no line', async () => {
+    const { manager, session, proc, sockets, bus } = await trackedServer({ pokeMs: 10 })
+    manager.command(session.id, '/players')
+    await vi.waitFor(() => expect(sockets).toHaveLength(2))
+    sockets[1]!.end()
+    proc.line('connection open')
+    expect(bus.logs.at(-1)).toBe('connection open')
+  })
+
+  it('without the tracker, items go out at once and plain; a lost tracker comes back', async () => {
+    const { manager, session, proc, tracker, sockets, bus } = await trackedServer({
+      trackerRetryMs: [10, 10],
+    })
+    tracker.end()
+    await vi.waitFor(() => expect(manager.get(session.id)).not.toHaveProperty('tracker'))
+    proc.line('(Team #1) Alice sent Hookshot to Bob (Spiral Cave)')
+    expect(bus.events.map(({ item, itemClass }) => ({ item, itemClass }))).toEqual([
+      { item: 'Hookshot', itemClass: undefined },
+    ])
+
+    await vi.waitFor(() => expect(sockets).toHaveLength(2))
+    sockets[1]!.open()
+    sockets[1]!.receive(CONNECTED)
+    await vi.waitFor(() => expect(manager.get(session.id)?.tracker).toBe('Alice'))
+  })
+
+  it('a refused tracker never comes back, and the items go out plain', async () => {
+    const { spawn, procs } = fakeSpawn()
+    const { socket, sockets } = fakeSockets()
+    const manager = makeManager({ spawn, socket, timeouts: { probeMs: 60_000, trackerRetryMs: [10] } })
+    const created = await store.create('Refusée')
+    const session = await store.setGeneration(created.id, generation(created.workspace, ALICE_AND_BOB))
+    const bus = recordBus()
+    const warn = vi.spyOn(core.ctx.log, 'warn')
+    const { proc } = await startFake(manager, procs, session.id)
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0]!.open()
+    sockets[0]!.receive({ cmd: 'ConnectionRefused', errors: ['InvalidPassword'] })
+    await vi.waitFor(() => expect(sockets[0]!.closed).toBe(true))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(sockets).toHaveLength(1)
+    expect(manager.get(session.id)).not.toHaveProperty('tracker')
+    proc.line('(Team #1) Alice sent Hookshot to Bob (Spiral Cave)')
+    expect(bus.events).toHaveLength(1)
+    expect(warn).toHaveBeenCalledWith('servers: the server refused the item tracker', {
+      errors: ['InvalidPassword'],
+    })
+    warn.mockRestore()
+  })
+
+  it('stop closes the tracker before /exit, sends its items, and says the server stopped once', async () => {
+    const { manager, session, proc, tracker, bus } = await trackedServer({ classifyMs: 60_000 })
+    proc.line('(Team #1) Alice sent Hookshot to Bob (Spiral Cave)')
+    expect(bus.events).toEqual([])
+    bus.states.length = 0
+
+    await manager.stop(session.id)
+
+    expect(tracker.closed).toBe(true)
+    expect(proc.writes).toEqual(['/exit'])
+    expect(bus.events.map(({ item, itemClass }) => ({ item, itemClass }))).toEqual([
+      { item: 'Hookshot', itemClass: undefined },
+    ])
+    expect(bus.states.map((state) => state.status)).toEqual(['stopping', 'stopped'])
+    expect(bus.states.every((state) => !('tracker' in state))).toBe(true)
+  })
+})
+
 describe('orphan servers of a previous run', () => {
   it('marks crashed a local session whose orphan server still runs, and stop kills it', async () => {
     const hosted = await generatedSession('Hébergée')
@@ -1189,10 +1543,13 @@ describe('servers service', () => {
       ok: true,
       value: undefined,
     })
+    // 0 or 1 connected, whether the tracker logged in before the command ran.
     await vi.waitFor(async () =>
       expect(await call('server:history', { sessionId })).toMatchObject({
         value: {
-          log: expect.arrayContaining(['0 players of 2 connected :: Team #1: (Alice) (Bob)']) as unknown,
+          log: expect.arrayContaining([
+            expect.stringMatching(/^[01] players of 2 connected :: Team #1: /),
+          ]) as unknown,
         },
       }),
     )

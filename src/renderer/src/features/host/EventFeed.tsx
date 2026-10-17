@@ -1,9 +1,11 @@
-// The item feed: joins, items sent, goals and chat, one colored line each, newest at the bottom.
+// The item feed: joins, items sent, goals and chat, one colored line each, newest at the bottom. An
+// item takes the color of its class (Archipelago's: progression, useful, trap, filler) when the app's
+// item tracker could tell it; ItemLegend says what the colors mean.
 import type { TFunction } from 'i18next'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GoatError } from '@shared/errors'
-import type { ServerEvent } from '@shared/types'
+import type { ItemClass, ServerEvent } from '@shared/types'
 import { Terminal, type TerminalLine, type TerminalTone } from '../../design/components'
 import { describeError } from '../../lib/errors'
 import { chatMessage, SERVER_SPEAKER } from './live-state'
@@ -26,10 +28,9 @@ function describeEvent(event: ServerEvent, t: TFunction): TerminalLine {
           player === receiver
             ? t(`${KEY}.itemSelf`, { player, item })
             : t(`${KEY}.item`, { player, item, receiver })
-        // AP's item colors (progression, useful, trap, filler) need the item class, which the
-        // server log does not print (Tracker WebSocket, v1.1; spec §9.1): every item line, sent
-        // to another player or found for oneself, keeps the plain tone.
-        return { text: location ? `${sent} (${location})` : sent, tone: 'default' }
+        // The class comes from the item tracker (the log line does not print it): without it, the
+        // plain tone.
+        return { text: location ? `${sent} (${location})` : sent, tone: event.itemClass ?? 'default' }
       }
       break
     case 'goal':
@@ -81,4 +82,29 @@ export function EventFeed({ events, error, className }: EventFeedProps): React.J
   }, [events, error, t, i18n.language])
 
   return <Terminal label={t(`${KEY}.title`)} lines={lines} className={className} />
+}
+
+const ITEM_CLASSES: readonly ItemClass[] = ['progression', 'useful', 'trap', 'filler']
+
+export interface ItemLegendProps {
+  /** The slot the item tracker is logged in as. */
+  tracker: string
+  className?: string
+}
+
+/** What the item colors mean, and where they come from: a tracker the server counts as a player. */
+export function ItemLegend({ tracker, className }: ItemLegendProps): React.JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <div className={className}>
+      <ul className="item-legend" aria-label={t(`${KEY}.legend`)}>
+        {ITEM_CLASSES.map((itemClass) => (
+          <li key={itemClass} className="item-legend__class" data-tone={itemClass}>
+            {t(`${KEY}.classes.${itemClass}`)}
+          </li>
+        ))}
+      </ul>
+      <p className="item-legend__note">{t(`${KEY}.tracker`, { slot: tracker })}</p>
+    </div>
+  )
 }

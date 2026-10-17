@@ -115,7 +115,15 @@
     "itemSelf": "{{player}} found their own {{item}}",
     "goal": "{{player}} reached their goal",
     "allGoals": "The whole team finished their games. Well done!",
-    "chat": "{{player}}: {{message}}"
+    "chat": "{{player}}: {{message}}",
+    "legend": "Item colors",
+    "classes": {
+      "progression": "Progression",
+      "useful": "Useful",
+      "trap": "Trap",
+      "filler": "Filler"
+    },
+    "tracker": "These colors come from a tracker connected to the server as {{slot}}: /players and /status count it as connected."
   },
   "console": {
     "title": "Server console",

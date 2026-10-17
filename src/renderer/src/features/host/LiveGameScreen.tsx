@@ -34,7 +34,7 @@ import { describeError } from '../../lib/errors'
 import { ScreenHeader } from '../../layout/ScreenHeader'
 import { ConnectionCard } from './ConnectionCard'
 import { ConsolePanel } from './ConsolePanel'
-import { EventFeed } from './EventFeed'
+import { EventFeed, ItemLegend } from './EventFeed'
 import { presence, roomAwake, roomLogLines } from './live-state'
 import { PlayersPanel } from './PlayersPanel'
 import { SlotFiles } from './SlotFiles'
@@ -296,7 +296,10 @@ function LocalGame({ session }: { session: Session }): React.JSX.Element {
         </div>
         <div className="live-game__duo">
           <div className="live-game__feed">
-            <EventFeed events={feed.data?.events} error={feed.error} className="live-game__feed-terminal" />
+            <div className="live-game__feed-box">
+              <EventFeed events={feed.data?.events} error={feed.error} className="live-game__feed-terminal" />
+            </div>
+            {state?.tracker !== undefined && <ItemLegend tracker={state.tracker} />}
           </div>
           <ConsolePanel
             title={t(`${KEY}.console.title`)}

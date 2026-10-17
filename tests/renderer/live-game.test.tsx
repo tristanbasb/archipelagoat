@@ -269,7 +269,7 @@ describe('LiveGameScreen', () => {
     expect(line).toHaveTextContent(
       /^\[\d\d:\d\d:\d\d\] Alice a envoyé Hookshot à Bob \(Kakariko Well - Top\)$/,
     )
-    // The server log does not say the item class: the line keeps the plain tone.
+    // Without the item tracker, nothing says the item class: the line keeps the plain tone.
     expect(line).toHaveAttribute('data-tone', 'default')
     expect(within(feed).queryByText('En attente des premiers événements…')).not.toBeInTheDocument()
 
@@ -278,7 +278,6 @@ describe('LiveGameScreen', () => {
       event: event('item', { player: 'Bob', receiver: 'Bob', item: 'Morph Ball', location: 'Brinstar' }),
     })
     await waitFor(() => expect(feed).toHaveTextContent('Bob a trouvé son objet Morph Ball (Brinstar)'))
-    // Every item line keeps the same tone, whoever sends it to whom (spec §9.1).
     expect(within(feed).getByText(/Morph Ball/)).toHaveAttribute('data-tone', 'default')
 
     // What the host types in the console reaches everyone as [Server]: that is "yourself".
@@ -288,6 +287,48 @@ describe('LiveGameScreen', () => {
     })
     expect(await within(feed).findByText(/on y va/)).toHaveAttribute('data-tone', 'self')
     expect(feed).toHaveTextContent('[Server] : on y va')
+  })
+
+  it('feed colors each item with its class, and the legend names the tracker the server counts', async () => {
+    const { goat } = await renderLive({
+      'session:get': () => LOCAL,
+      'server:get': () => serverState(),
+      'server:history': () => ({
+        events: [
+          event('item', { player: 'Alice', receiver: 'Bob', item: 'Hookshot', itemClass: 'progression' }),
+          event('item', { player: 'Bob', receiver: 'Alice', item: 'Magic Upgrade', itemClass: 'useful' }),
+          event('item', { player: 'Alice', receiver: 'Bob', item: 'Ice Trap', itemClass: 'trap' }),
+          event('item', { player: 'Bob', receiver: 'Bob', item: '20 Rupees', itemClass: 'filler' }),
+        ],
+        log: [],
+      }),
+    })
+    const feed = await screen.findByRole('log', { name: 'Flux d’objets' })
+    for (const [item, tone] of [
+      ['Hookshot', 'progression'],
+      ['Magic Upgrade', 'useful'],
+      ['Ice Trap', 'trap'],
+      ['20 Rupees', 'filler'],
+    ]) {
+      expect(await within(feed).findByText(new RegExp(item ?? ''))).toHaveAttribute('data-tone', tone)
+    }
+    // No tracker yet: no legend.
+    expect(screen.queryByRole('list', { name: 'Couleurs des objets' })).not.toBeInTheDocument()
+
+    goat.emit('server:state', serverState({ tracker: 'Alice' }))
+    const legend = await screen.findByRole('list', { name: 'Couleurs des objets' })
+    expect(
+      within(legend)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Progression', 'Utile', 'Piège', 'Remplissage'])
+    expect(within(legend).getByText('Piège')).toHaveAttribute('data-tone', 'trap')
+    expect(
+      screen.getByText(/Ces couleurs viennent d’un suivi connecté au serveur sous le nom de Alice/),
+    ).toHaveTextContent(/\/players et \/status le comptent comme connecté\.$/)
+
+    goat.emit('server:state', serverState())
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Couleurs des objets' })).toBeNull())
   })
 
   it('console sends command and keeps history', async () => {

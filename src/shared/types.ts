@@ -373,7 +373,15 @@ export interface ServerState {
   startedAt: string
   resumedFromSave: boolean
   error: AppErrorData | null
+  /**
+   * The slot the app's item tracker is logged in as, while it is: the server counts that connection
+   * in /players and /status.
+   */
+  tracker?: string
 }
+
+/** The class Archipelago colors an item with (progression, useful, trap or filler). */
+export type ItemClass = 'progression' | 'useful' | 'trap' | 'filler'
 
 export interface ServerEvent {
   ts: string
@@ -383,6 +391,8 @@ export interface ServerEvent {
   receiver?: string
   item?: string
   location?: string
+  /** For an item: its class, when the app's item tracker could tell it. */
+  itemClass?: ItemClass
 }
 
 export interface WebRoom {

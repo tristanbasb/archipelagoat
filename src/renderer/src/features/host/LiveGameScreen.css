@@ -25,16 +25,68 @@
   --terminal-height: 320px;
 }
 
-/* The feed takes the height of the console column (its terminal and the quick commands). */
+/* The feed takes the height of the console column (its terminal and the quick commands), its legend
+   under it. */
 .live-game__feed {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
   min-height: 320px;
 }
 
-.live-game__feed > .live-game__feed-terminal {
+.live-game__feed-box {
+  position: relative;
+  flex: 1;
+  min-height: 220px;
+}
+
+.live-game__feed-box > .live-game__feed-terminal {
   --terminal-height: none;
   position: absolute;
   inset: 0;
+}
+
+/* The item classes in their colors, as the feed lines show them. */
+.item-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-12);
+}
+
+.item-legend__class {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.item-legend__class::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+}
+
+.item-legend__class[data-tone='progression'] {
+  color: var(--ap-progression);
+}
+.item-legend__class[data-tone='useful'] {
+  color: var(--ap-useful);
+}
+.item-legend__class[data-tone='trap'] {
+  color: var(--ap-trap);
+}
+.item-legend__class[data-tone='filler'] {
+  color: var(--ap-filler);
+}
+
+.item-legend__note {
+  margin-top: var(--sp-1);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
 }
 
 @container live-game (max-width: 860px) {

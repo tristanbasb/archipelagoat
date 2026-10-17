@@ -7,6 +7,12 @@
 // and goals as events (server:event), both kept in rings of 500 for a screen that opens later
 // (server:history). Servers that a crash of the app left running are found again at startup. A server
 // never starts while its session generates, nor over its archipelago.gg room unless asked to.
+//
+// The app also connects to its ready servers (server-link.ts). A console command is followed by a
+// connection that opens and closes: the two lines websockets logs about it flush what the command
+// printed, which the frozen server would otherwise hold back until its next log line. And an item
+// tracker logs in, whose ItemSend packets give each item event its class, the log line waiting for it
+// at most 1.5 s. The lines about these connections stay out of the log and the events.
 import { access } from 'node:fs/promises'
 import { networkInterfaces, type NetworkInterfaceInfo } from 'node:os'
 import path from 'node:path'
@@ -18,11 +24,18 @@ import { fetchPublicIp, findFreePort, listAddresses, MAX_PORT, probePort } from 
 import { redact } from '@main/core/system/redact'
 import { AP_EXES, DEFAULT_PORT } from '@shared/data/ap-constants'
 import { matchApError } from '@shared/data/error-catalog'
-import { SERVER_EVENT_PATTERNS, SERVER_HOSTING_RE, SERVER_READY_RE } from '@shared/data/log-patterns'
+import {
+  SERVER_CONNECTION_RE,
+  SERVER_EVENT_PATTERNS,
+  SERVER_HOSTING_RE,
+  SERVER_PLAYER_NOTICE_RE,
+  SERVER_READY_RE,
+} from '@shared/data/log-patterns'
 import { AppError, type AppErrorData } from '@shared/errors'
 import type {
   ApInstall,
   Generation,
+  ItemClass,
   RomNeed,
   Rules,
   ServerEvent,
@@ -33,6 +46,14 @@ import { disabledWorldsDir, findCorruptWorld } from '../worlds/inventory'
 import type { Locator } from './locator'
 import { spawnAp, type ApExit, type ApProcess, type SpawnApOptions } from './process'
 import { findOrphans, stopOrphan, type Orphan, type OrphanStop } from './processes'
+import {
+  connectTracker,
+  LINK_TAG,
+  pokeServer,
+  type ItemSend,
+  type SocketFactory,
+  type Tracker,
+} from './server-link'
 import type { ApSettings } from './settings'
 
 /** The events and the lines the history keeps. */
@@ -45,6 +66,25 @@ const PROBE_INTERVAL_MS = 500
 /** The last lines an error is looked for in, and shown in its detail. */
 const ERROR_LINES = 20
 const SERVER = AP_EXES.server
+/**
+ * How long after a console command the app makes the server log a line (see `schedulePoke`): long
+ * enough for the server to run the command first, its console reading stdin every 50 ms
+ * (MultiServer.py:2684-2685).
+ */
+const POKE_DELAY_MS = 250
+/** How long an item event waits for the tracker to tell its class before it goes out without. */
+const CLASSIFY_WAIT_MS = 1500
+/**
+ * The notices the server sends a client right after its join line (MultiServer.py:1060-1067): the
+ * tutorial, and a warning for clients without compression.
+ */
+const JOIN_NOTICES: readonly string[] = [
+  'Now that you are connected, ',
+  'Warning: your client does not support compressed websocket connections!',
+]
+/** The end of the join and leave notices of the app's tracker: `Client(0.6.8), ['Tracker', 'ArchipelaGOAT'].` */
+const OWN_TRACKER_RE = new RegExp(String.raw`, \[[^\]]*'${LINK_TAG}'[^\]]*\]\.\s*$`)
+const ITEM_RE = SERVER_EVENT_PATTERNS.find((pattern) => pattern.kind === 'item')?.re
 
 export interface ServerManagerDeps {
   sessions: Pick<SessionStore, 'get' | 'getSecrets' | 'setHosting' | 'setFinished'> & {
@@ -66,14 +106,26 @@ export interface ServerManagerDeps {
   corruptWorld?: (install: ApInstall) => Promise<string | null>
   /** Default: spawnAp. */
   spawn?: (ctx: CoreContext, opts: SpawnApOptions) => ApProcess
+  /** The app's own connections to its servers (server-link.ts). Default: WebSocket. */
+  socket?: SocketFactory
   /** Default: the network interfaces of the machine. */
   networkInterfaces?: () => NodeJS.Dict<NetworkInterfaceInfo[]>
   /** Default: fetchPublicIp(ctx.http). */
   publicIp?: () => Promise<string | null>
   /** The ports a server may take. Default: 38281 to 38381. */
   ports?: { start: number; max: number }
-  /** Defaults: ready 30 s, stop 15 s, probe every 500 ms. */
-  timeouts?: { readyMs?: number; stopMs?: number; probeMs?: number }
+  /**
+   * Defaults: ready 30 s, stop 15 s, probe every 500 ms, the line after a command 250 ms later, an item
+   * waits 1.5 s for its class, the tracker tries again 1, 3 then 10 s after a lost connection.
+   */
+  timeouts?: {
+    readyMs?: number
+    stopMs?: number
+    probeMs?: number
+    pokeMs?: number
+    classifyMs?: number
+    trackerRetryMs?: readonly number[]
+  }
   now?: () => Date
 }
 
@@ -97,7 +149,10 @@ export interface ServerManager {
    * of a previous run (AP_RUNNING when it cannot). Nothing to do for a server that does not run.
    */
   stop(sessionId: string, opts?: { force?: boolean }): Promise<void>
-  /** Writes one console line to a ready server. NOT_FOUND when none is, INVALID_INPUT for a line break. */
+  /**
+   * Writes one console line to a ready server, whose answer is then flushed out of its stdout.
+   * NOT_FOUND when none is ready, INVALID_INPUT for a line break.
+   */
   command(sessionId: string, cmd: string): void
   /** The state of the session's server in this run of the app; null when it never had one. */
   get(sessionId: string): ServerState | null
@@ -175,12 +230,39 @@ export function quoteConsoleArg(s: string): string {
   return `"${s.replace(/["\\]/g, '\\$&')}"`
 }
 
+/** Where the app's own connections reach a server, and as whom its tracker logs in. */
+interface LinkInfo {
+  url: string
+  /** null without a slot to log in as. */
+  slot: string | null
+  password: string | null
+  version: string | null
+}
+
+/** An event on its way out, `key` set while an item waits for its class. */
+interface Outgoing {
+  event: ServerEvent
+  key: string | null
+  timer: NodeJS.Timeout | undefined
+}
+
 interface Run {
   readonly id: string
   state: ServerState
   readonly history: ServerHistory
   /** The session's passwords, masked in every line. */
   readonly secrets: string[]
+  /** null for an orphan, which is not ours. */
+  readonly link: LinkInfo | null
+  tracker: Tracker | null
+  /** The `connection open` and `connection closed` lines the app's own connections still owe. */
+  ownConnections: { open: number; closed: number }
+  /** The last line was the tracker's join: the notices the server sends it next follow. */
+  afterTrackerJoin: boolean
+  /** The events in the order of their lines. */
+  outbox: Outgoing[]
+  /** Item classes that came before the line of their item. */
+  early: { key: string; itemClass: ItemClass; at: number }[]
   /** null once the process is gone (and for an orphan, which is not ours). */
   proc: ApProcess | null
   /** Settles once the exit of the process was handled. */
@@ -223,6 +305,21 @@ async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boo
   }
 }
 
+/** A state without the tracker, or with it logged in as `slot`. */
+function withTracker(state: ServerState, slot: string | null): ServerState {
+  const next = { ...state }
+  delete next.tracker
+  return slot === null ? next : { ...next, tracker: slot }
+}
+
+/**
+ * What a send is matched on: its team (as the log numbers it), sender and receiver. A batch of sends is
+ * logged and broadcast in the same order (MultiServer.py:1229-1251), so the sends of one key match in
+ * turn.
+ */
+const sendKey = (team: number | string, sender: string, receiver: string): string =>
+  `${team}\u0000${sender}\u0000${receiver}`
+
 const toAppError = (data: AppErrorData): AppError =>
   new AppError(data.code, data.params, data.detail === undefined ? {} : { detail: data.detail })
 
@@ -239,6 +336,9 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
   const readyMs = deps.timeouts?.readyMs ?? READY_TIMEOUT_MS
   const stopMs = deps.timeouts?.stopMs ?? STOP_TIMEOUT_MS
   const probeMs = deps.timeouts?.probeMs ?? PROBE_INTERVAL_MS
+  const pokeMs = deps.timeouts?.pokeMs ?? POKE_DELAY_MS
+  const classifyMs = deps.timeouts?.classifyMs ?? CLASSIFY_WAIT_MS
+  const trackerRetryMs = deps.timeouts?.trackerRetryMs
   const now = deps.now ?? ((): Date => new Date())
 
   /** The last server of each session in this run of the app. */
@@ -250,7 +350,12 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
   let reconciling: Promise<void> = Promise.resolve()
   let closing = false
 
-  function newRun(id: string, state: ServerState, secrets: string[], orphanPid: number | null = null): Run {
+  function newRun(
+    id: string,
+    state: ServerState,
+    secrets: string[],
+    { orphanPid = null, link = null }: { orphanPid?: number | null; link?: LinkInfo | null } = {},
+  ): Run {
     const ready = Promise.withResolvers<void>()
     // Only `start` waits for it, and a run of an orphan never gets ready.
     ready.promise.catch(() => undefined)
@@ -259,6 +364,12 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       state,
       history: { events: [], log: [] },
       secrets,
+      link,
+      tracker: null,
+      ownConnections: { open: 0, closed: 0 },
+      afterTrackerJoin: false,
+      outbox: [],
+      early: [],
       proc: null,
       done: Promise.resolve(),
       ready,
@@ -335,6 +446,159 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     clearTimers(run)
     setState(run, { status: 'ready' })
     run.ready.resolve()
+    startTracker(run)
+  }
+
+  // --- the app's own connections (server-link.ts) ---------------------------------------------------
+
+  function expectConnection(run: Run): void {
+    run.ownConnections.open++
+    run.ownConnections.closed++
+  }
+
+  function unexpectConnection(run: Run): void {
+    run.ownConnections.open = Math.max(0, run.ownConnections.open - 1)
+    run.ownConnections.closed = Math.max(0, run.ownConnections.closed - 1)
+  }
+
+  /**
+   * Whether `line` is about the app's own connections: the `connection open` and `connection closed` they
+   * owe (any such line will do, they are all alike), and the join and leave notices of the tracker with
+   * the notices the server sends it right after its join.
+   */
+  function isOwnLine(run: Run, line: string): boolean {
+    const end = SERVER_CONNECTION_RE.exec(line)?.groups?.end
+    if (end === 'open' || end === 'closed') {
+      if (run.ownConnections[end] === 0) return false
+      run.ownConnections[end]--
+      return true
+    }
+    const notice = run.afterTrackerJoin ? SERVER_PLAYER_NOTICE_RE.exec(line) : null
+    if (notice && notice.groups?.player === run.link?.slot) {
+      const text = line.slice(notice.index + notice[0].length)
+      if (JOIN_NOTICES.some((start) => text.startsWith(start))) return true
+    }
+    run.afterTrackerJoin = false
+    if (!OWN_TRACKER_RE.test(line)) return false
+    const kind = parseServerLine(line)?.kind
+    run.afterTrackerJoin = kind === 'join'
+    return kind === 'join' || kind === 'leave'
+  }
+
+  /**
+   * After a console command: a connection that opens and closes makes the server log two lines, which
+   * flush what the command printed (see server-link.ts).
+   */
+  function schedulePoke(run: Run): void {
+    const timer = setTimeout(() => {
+      if (!current(run) || run.state.status !== 'ready' || !run.link) return
+      void pokeServer(run.link.url, {
+        socket: deps.socket,
+        onConnecting: () => expectConnection(run),
+        onNeverOpened: () => unexpectConnection(run),
+      })
+    }, pokeMs)
+    timer.unref()
+  }
+
+  function startTracker(run: Run): void {
+    const { link } = run
+    if (!link || link.slot === null || run.tracker) return
+    run.tracker = connectTracker({
+      url: link.url,
+      slot: link.slot,
+      password: link.password,
+      version: link.version,
+      log: ctx.log,
+      socket: deps.socket,
+      retryDelaysMs: trackerRetryMs,
+      onConnecting: () => expectConnection(run),
+      onNeverOpened: () => unexpectConnection(run),
+      onStatus: (connected) => onTrackerStatus(run, connected),
+      onItem: (send) => onItem(run, send),
+    })
+  }
+
+  /** Closes the tracker: the next state the run sends says so. */
+  function closeTracker(run: Run): void {
+    run.tracker?.close()
+    run.tracker = null
+    run.state = withTracker(run.state, null)
+    settleAll(run)
+  }
+
+  function onTrackerStatus(run: Run, connected: boolean): void {
+    if (!connected) settleAll(run)
+    if (run.tracker === null || !isLive(run.state.status)) return
+    const next = withTracker(run.state, connected ? (run.link?.slot ?? null) : null)
+    if (next.tracker === run.state.tracker) return
+    run.state = next
+    if (current(run)) ctx.bus.emit('server:state', run.state)
+  }
+
+  // --- events, items waiting for their class --------------------------------------------------------
+
+  /** Sends the events at the head of the outbox that wait for nothing more. */
+  function flushOutbox(run: Run): void {
+    for (let next = run.outbox[0]; next !== undefined && next.key === null; next = run.outbox[0]) {
+      run.outbox.shift()
+      push(run.history.events, next.event)
+      if (current(run)) ctx.bus.emit('server:event', { sessionId: run.id, event: next.event })
+    }
+  }
+
+  function settle(run: Run, entry: Outgoing, itemClass?: ItemClass): void {
+    clearTimeout(entry.timer)
+    if (itemClass !== undefined) entry.event = { ...entry.event, itemClass }
+    entry.key = null
+    flushOutbox(run)
+  }
+
+  /** Nothing more will tell a class: every event goes out. */
+  function settleAll(run: Run): void {
+    for (const entry of run.outbox) {
+      clearTimeout(entry.timer)
+      entry.key = null
+    }
+    run.early = []
+    flushOutbox(run)
+  }
+
+  function pruneEarly(run: Run): void {
+    const oldest = Date.now() - classifyMs
+    run.early = run.early.filter((early) => early.at >= oldest)
+  }
+
+  /**
+   * An event, in the order of its line. While the tracker is logged in, an item waits for its class:
+   * the ItemSend packet comes on another connection, a little after (or before) the line.
+   */
+  function queueEvent(run: Run, event: ServerEvent, line: string): void {
+    const entry: Outgoing = { event, key: null, timer: undefined }
+    const team = event.kind === 'item' ? ITEM_RE?.exec(line)?.groups?.team : undefined
+    if (team !== undefined && event.player && event.receiver && run.tracker?.connected === true) {
+      const key = sendKey(team, event.player, event.receiver)
+      pruneEarly(run)
+      const at = run.early.findIndex((candidate) => candidate.key === key)
+      const [early] = at >= 0 ? run.early.splice(at, 1) : []
+      if (early) {
+        entry.event = { ...event, itemClass: early.itemClass }
+      } else {
+        entry.key = key
+        entry.timer = setTimeout(() => settle(run, entry), classifyMs)
+        entry.timer.unref()
+      }
+    }
+    run.outbox.push(entry)
+    flushOutbox(run)
+  }
+
+  function onItem(run: Run, send: ItemSend): void {
+    const key = sendKey(send.team, send.sender, send.receiver)
+    const waiting = run.outbox.find((entry) => entry.key === key)
+    if (waiting) return settle(run, waiting, send.itemClass)
+    pruneEarly(run)
+    run.early.push({ key, itemClass: send.itemClass, at: Date.now() })
   }
 
   /** (Re)starts the countdown of a start: every line the server prints is a sign of life. */
@@ -367,15 +631,12 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
   }
 
   function onLine(run: Run, line: string): void {
-    if (!current(run)) return
+    if (!current(run) || isOwnLine(run, line)) return
     const shown = redact(line, run.secrets)
     push(run.history.log, shown)
     ctx.bus.emit('server:log', { sessionId: run.id, line: shown })
     const event = parseServerLine(shown, now())
-    if (event) {
-      push(run.history.events, event)
-      ctx.bus.emit('server:event', { sessionId: run.id, event })
-    }
+    if (event) queueEvent(run, event, shown)
     if (run.state.status !== 'starting') return
     run.linesSeen++
     if (SERVER_READY_RE.test(line)) return markReady(run)
@@ -388,7 +649,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
    * only then does the state go out, so that a screen reading the session on it sees the game over.
    */
   async function ended(run: Run, patch: Pick<ServerState, 'status' | 'error'>): Promise<void> {
-    run.state = { ...run.state, ...patch }
+    run.state = withTracker({ ...run.state, ...patch }, null)
     try {
       await deps.sessions.setFinished(run.id)
     } catch (error) {
@@ -399,6 +660,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
 
   async function onExit(run: Run, exit: ApExit): Promise<void> {
     clearTimers(run)
+    closeTracker(run)
     run.proc = null
     if (run.stopRequested) {
       const error: AppErrorData | null = run.killed
@@ -470,6 +732,8 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       return Promise.resolve()
     run.stopRequested = true
     clearTimers(run)
+    // Its leave notice comes before the server's last lines.
+    closeTracker(run)
     setState(run, { status: 'stopping' })
     run.stopping = shutDown(run, opts.force === true)
     return run.stopping
@@ -520,6 +784,8 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     await writeSessionHostYaml(deps.settings, workspace, entries, ctx.platform.os)
     const savefile = saveFileOf(generation.zipPath)
     const resumedFromSave = await exists(savefile)
+    // The tracker logs in as the first slot: any slot will do, and the server counts it there.
+    const trackerSlot = generation.slots.toSorted((a, b) => a.slot - b.slot)[0]?.name ?? null
 
     /** Chooses a free port, then registers and spawns the run of the server, which reserves it. */
     const spawnOnFreePort = async (): Promise<Run> => {
@@ -538,6 +804,14 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
           error: null,
         },
         [secrets.password, secrets.serverPassword].filter((s): s is string => s !== null && s !== ''),
+        {
+          link: {
+            url: `ws://127.0.0.1:${port}`,
+            slot: trackerSlot,
+            password: secrets.password || null,
+            version: install.version,
+          },
+        },
       )
       const opts: SpawnApOptions = {
         exe: deps.locator.exe(install, SERVER),
@@ -619,6 +893,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       if (/[\r\n]/.test(cmd))
         throw new AppError('INVALID_INPUT', undefined, { detail: 'one line per command' })
       run.proc.write(cmd.trim())
+      schedulePoke(run)
     },
 
     get: (id) => runs.get(id)?.state ?? null,
@@ -671,7 +946,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
             resumedFromSave: false,
             error: { code: 'SERVER_START_FAILED', params: { orphanPid: pid, phase: 'orphan' } },
           }
-          const run = newRun(sessionId, state, [], pid)
+          const run = newRun(sessionId, state, [], { orphanPid: pid })
           runs.set(sessionId, run)
           ctx.bus.emit('server:state', state)
         }
