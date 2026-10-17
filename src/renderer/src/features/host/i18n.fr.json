@@ -17,6 +17,7 @@
     "stopping": "Arrêt du serveur…",
     "stopped": "Serveur arrêté",
     "crashed": "Serveur planté",
+    "orphan": "Serveur d’une session précédente",
     "webAwake": "Room éveillée",
     "webAsleep": "Room endormie"
   },

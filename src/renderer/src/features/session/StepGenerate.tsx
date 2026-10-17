@@ -1,6 +1,8 @@
 // Step 4: the generation. A big start button, then the stages as a life bar with the live log
 // folded under it (and a calm hint when Archipelago says nothing for a long while); a failure reads
 // as a translated error with its fix and the full log, a success as the slot list under pixel confetti.
+// Generating a session that already has a seed asks first: the new seed replaces it, its patches and
+// the game hosted on it (a local save, an archipelago.gg room), which the app can no longer reach.
 import {
   IconAdjustments,
   IconBroadcast,
@@ -22,6 +24,7 @@ import { GENERATE_STAGE_IDS, type ErrorCode } from '@shared/codes'
 import type { AppErrorData } from '@shared/errors'
 import type { Generation, Session, TaskLog } from '@shared/types'
 import {
+  ConfirmDialog,
   EmptyState,
   ErrorPanel,
   NeonButton,
@@ -95,6 +98,7 @@ export function StepGenerate({ session, run, onRun, goTo }: StepGenerateProps): 
     onSuccess: ({ taskId }) => onRun({ taskId, startedAt: Date.now(), celebrated: false }),
   })
   const cancel = useIpcMutation('tasks:cancel', { onError: showError })
+  const [confirmReplace, setConfirmReplace] = useState(false)
 
   const failure: AppErrorData | null = generate.error ?? (run && task.status === 'failed' ? task.error : null)
   const view: View = generate.isPending
@@ -123,10 +127,16 @@ export function StepGenerate({ session, run, onRun, goTo }: StepGenerateProps): 
     if (justFinished) sfx.play('success')
   }, [justFinished])
 
-  const start = (): void => {
+  const run_ = (replace: boolean): void => {
     onRun(null)
     generate.reset()
-    generate.mutate({ id: session.id })
+    generate.mutate(replace ? { id: session.id, replace: true } : { id: session.id })
+  }
+  // Main refuses to replace a game in progress unconfirmed: a stale screen asks here too.
+  const inProgress = failure?.code === 'GENERATION_PREFLIGHT' && failure.params?.reason === 'game-in-progress'
+  const start = (): void => {
+    if (session.generation !== null || inProgress) setConfirmReplace(true)
+    else run_(false)
   }
 
   return (
@@ -190,6 +200,25 @@ export function StepGenerate({ session, run, onRun, goTo }: StepGenerateProps): 
           </details>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmReplace}
+        tone="yellow"
+        eyebrow={t('screens.session.generate.replaceEyebrow')}
+        title={t('screens.session.generate.replaceTitle')}
+        confirmLabel={t('screens.session.generate.replaceConfirm')}
+        confirmIcon={<IconRefresh />}
+        cancelLabel={t('common.cancel')}
+        closeLabel={t('common.closeDialog')}
+        onCancel={() => setConfirmReplace(false)}
+        onConfirm={() => {
+          setConfirmReplace(false)
+          run_(true)
+        }}
+      >
+        <p>{t('screens.session.generate.replaceBody')}</p>
+        {session.hosting?.mode === 'local' && <p>{t('screens.session.generate.replaceLocal')}</p>}
+        {session.hosting?.mode === 'web' && <p>{t('screens.session.generate.replaceWeb')}</p>}
+      </ConfirmDialog>
       {justFinished && (
         <PixelConfetti onDone={() => onRun((current) => current && { ...current, celebrated: true })} />
       )}
@@ -319,9 +348,11 @@ function Failed({ error, sessionId, onRetry, goTo }: FailedProps): React.JSX.Ele
     },
   })
   const described = describeError(error, t)
-  // A local server of the session runs: it is stopped from the live game screen, not fixed at a step.
+  // A local server of the session runs: it is stopped from the live game screen, not fixed at a step;
+  // a game in progress is replaced through the confirmation of Retry.
   const serving = error.code === 'GENERATION_PREFLIGHT' && error.params?.reason === 'hosting'
-  const backTo = serving ? undefined : STEP_FOR_ERROR[error.code]
+  const inProgress = error.code === 'GENERATION_PREFLIGHT' && error.params?.reason === 'game-in-progress'
+  const backTo = serving || inProgress ? undefined : STEP_FOR_ERROR[error.code]
   const { action, logPath } = described
   return (
     <ErrorPanel

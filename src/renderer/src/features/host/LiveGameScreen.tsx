@@ -156,6 +156,7 @@ function LocalGame({ session }: { session: Session }): React.JSX.Element {
 
   const state = server.data ?? null
   const status: ServerStatus = state?.status ?? 'stopped'
+  const orphan = state?.error?.params?.orphanPid !== undefined
   const running = status === 'starting' || status === 'ready'
   // Players stay connected until the server is gone.
   const connected = status === 'ready' || status === 'stopping'
@@ -197,6 +198,14 @@ function LocalGame({ session }: { session: Session }): React.JSX.Element {
           </NeonButton>
         }
       />
+    )
+  } else if (state && status === 'crashed' && orphan) {
+    // A server an earlier run of the app left running still serves its players: its addresses hold.
+    connection = (
+      <div className="live-game__orphan">
+        <CrashPanel state={state} onRestart={restart} onStop={() => setConfirmStop(true)} />
+        <ConnectionCard session={session} target={{ kind: 'local', state }} tone="yellow" />
+      </div>
     )
   } else if (state && status === 'crashed') {
     connection = <CrashPanel state={state} onRestart={restart} onStop={() => setConfirmStop(true)} />
@@ -247,7 +256,12 @@ function LocalGame({ session }: { session: Session }): React.JSX.Element {
         actions={
           <>
             {!server.isPending && (
-              <StatusPill status={STATUS_PILL[status]} label={t(`${KEY}.status.${status}`)} />
+              <StatusPill
+                status={orphan && status === 'crashed' ? 'warn' : STATUS_PILL[status]}
+                label={
+                  orphan && status === 'crashed' ? t(`${KEY}.status.orphan`) : t(`${KEY}.status.${status}`)
+                }
+              />
             )}
             {status === 'ready' && (
               <NeonButton variant="secondary" icon={<IconDeviceFloppy />} onClick={() => send('/save')}>
@@ -326,9 +340,12 @@ function CrashPanel({
       detailLabel={t('common.technicalDetails')}
       actions={
         <>
-          <NeonButton variant="secondary" size="sm" icon={<IconPlayerPlay />} onClick={onRestart}>
-            {t(`${KEY}.restart`)}
-          </NeonButton>
+          {/* An orphan holds the game's save and port: it is stopped first, then started again. */}
+          {!orphan && (
+            <NeonButton variant="secondary" size="sm" icon={<IconPlayerPlay />} onClick={onRestart}>
+              {t(`${KEY}.restart`)}
+            </NeonButton>
+          )}
           {orphan && (
             <NeonButton variant="danger" size="sm" icon={<IconPlayerStopFilled />} onClick={onStop}>
               {t(`${KEY}.stop.button`)}

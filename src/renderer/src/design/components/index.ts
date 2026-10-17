@@ -1,6 +1,7 @@
 // The Arcade néon components. They hold no copy: every visible or spoken text is a prop.
 export { Badge, type BadgeProps } from './Badge'
 export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox'
+export { ConfirmDialog, type ConfirmDialogProps } from './ConfirmDialog'
 export { CopyField, type CopyFieldProps } from './CopyField'
 export { CRTOverlay } from './CRTOverlay'
 export { Dropzone, type DropzoneProps } from './Dropzone'

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import type { GoatApi } from '@shared/goat-api'
-import { Dropzone, Modal, ToastProvider, Tooltip, useToast } from '@renderer/design/components'
+import { ConfirmDialog, Dropzone, Modal, ToastProvider, Tooltip, useToast } from '@renderer/design/components'
 import { EffectsProvider } from '@renderer/design/useEffectsPrefs'
 
 describe('Modal', () => {
@@ -84,6 +84,58 @@ describe('Modal', () => {
     await user.click(screen.getByRole('button', { name: 'Ouvrir' }))
     const root = container.querySelector('[data-fx-root]')
     expect(root).toContainElement(screen.getByRole('dialog'))
+  })
+})
+
+describe('ConfirmDialog', () => {
+  function Harness({ onConfirm }: { onConfirm: () => void }): React.JSX.Element {
+    const [open, setOpen] = useState(true)
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          Rouvrir
+        </button>
+        <ConfirmDialog
+          open={open}
+          title="Retirer ce fichier ?"
+          confirmLabel="Retirer"
+          cancelLabel="Annuler"
+          closeLabel="Fermer"
+          onConfirm={() => {
+            onConfirm()
+            setOpen(false)
+          }}
+          onCancel={() => setOpen(false)}
+        >
+          <p>Une copie est gardée.</p>
+        </ConfirmDialog>
+      </>
+    )
+  }
+
+  it('answers once per opening, whatever the clicks during its exit', async () => {
+    const onConfirm = vi.fn()
+    render(<Harness onConfirm={onConfirm} />)
+    const dialog = screen.getByRole('dialog', { name: 'Retirer ce fichier ?' })
+    expect(dialog).toHaveTextContent('Une copie est gardée.')
+    const confirm = screen.getByRole('button', { name: 'Retirer' })
+    fireEvent.click(confirm)
+    fireEvent.click(confirm)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    // Opened again, it answers again.
+    fireEvent.click(screen.getByRole('button', { name: 'Rouvrir' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Retirer' }))
+    expect(onConfirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancels without confirming', async () => {
+    const onConfirm = vi.fn()
+    render(<Harness onConfirm={onConfirm} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 })
 

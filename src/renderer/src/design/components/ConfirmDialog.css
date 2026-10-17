@@ -1,0 +1,21 @@
+.confirm-dialog {
+  display: grid;
+  gap: var(--sp-3);
+  font-size: var(--fs-14);
+  line-height: 1.5;
+}
+
+.confirm-dialog p {
+  margin: 0;
+}
+
+.confirm-dialog__note {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.confirm-dialog__link {
+  overflow-wrap: anywhere;
+  color: var(--neon-cyan);
+  font-family: var(--font-mono);
+}

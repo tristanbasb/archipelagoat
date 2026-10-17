@@ -68,6 +68,12 @@
     "noDocs": "No player in this file.",
     "remove": "Remove {{name}}",
     "removed": "Removed from the game: {{name}}",
+    "removeEyebrow": "REMOVE",
+    "removeTitle": "Remove {{name}}?",
+    "removeBody": "This file leaves the game: its players will not be in the generation.",
+    "removePlayers": "Players in this file: {{names}}",
+    "removeKept": "A copy is kept in the app’s backups folder.",
+    "removeConfirm": "Remove",
     "fileOk": "Ready",
     "fileWarnings_one": "{{count}} warning",
     "fileWarnings_other": "{{count}} warnings",
@@ -240,6 +246,12 @@
     "idleBody": "Archipelago reads the YAML files, spreads the items across every world and prepares one file per player. It takes from a few seconds to a few minutes.",
     "start": "Start the generation",
     "regenerate": "Generate again",
+    "replaceEyebrow": "NEW SEED?",
+    "replaceTitle": "Generate a new seed?",
+    "replaceBody": "The current seed and its patch files will be replaced: every player will need their new patch.",
+    "replaceLocal": "The game hosted on this PC and its save can no longer be resumed from the app (the files stay on disk).",
+    "replaceWeb": "This game’s archipelago.gg room stays on the site, but the app will no longer follow it.",
+    "replaceConfirm": "Generate again",
     "players_one": "{{count}} player",
     "players_other": "{{count}} players",
     "games_one": "{{count}} game",
@@ -295,6 +307,10 @@
       "pointConnect": "Players connect to archipelago.gg, on a port the site gives",
       "pointSleep": "The room sleeps when nobody plays; one click wakes it up",
       "action": "Host on archipelago.gg",
+      "hasRoom": "This game already has its room: one click wakes it up and opens it again, with no new upload.",
+      "wake": "Wake and open the room",
+      "waking": "Waking the room up…",
+      "newRoom": "Open a new room",
       "stages": {
         "upload": "Sending to archipelago.gg…",
         "room": "Opening the room…",
@@ -312,6 +328,13 @@
       "pointConsole": "You keep control of the server console",
       "action": "Start the local server",
       "starting": "Starting the server…"
+    },
+    "replaceWeb": {
+      "eyebrow": "LAN",
+      "title": "Host on this PC instead?",
+      "body": "The game is hosted on archipelago.gg. If you start the local server, the app forgets this room: it stays on the site with its players, but you can no longer follow it, wake it up or open it as owner from here.",
+      "keep": "Keep its link if players are already in it:",
+      "confirm": "Start the local server"
     }
   },
   "consent": {
@@ -323,6 +346,7 @@
     "passwordsNone": "This game has no password.",
     "public": "Anyone who has the link can reach the room.",
     "eachTime": "This question comes back every time you host on the site.",
+    "newRoom": "A new room will be opened: the old one stays on the site, but the app will no longer follow it.",
     "ack": "I understand",
     "confirm": "Send and host"
   }

@@ -11,6 +11,8 @@ export interface WebConsentDialogProps {
   open: boolean
   /** The game has a players' or an admin password. */
   hasPassword: boolean
+  /** A new room beside the one the session has: that one is left behind. */
+  newRoom?: boolean
   acknowledged: boolean
   onAcknowledge: (checked: boolean) => void
   onConfirm: () => void
@@ -20,6 +22,7 @@ export interface WebConsentDialogProps {
 export function WebConsentDialog({
   open,
   hasPassword,
+  newRoom = false,
   acknowledged,
   onAcknowledge,
   onConfirm,
@@ -69,6 +72,12 @@ export function WebConsentDialog({
             <IconLockOpen className="consent__icon" aria-hidden="true" />
             <span>{t('screens.session.consent.eachTime')}</span>
           </li>
+          {newRoom && (
+            <li className="tone-yellow">
+              <IconLink className="consent__icon" aria-hidden="true" />
+              <span>{t('screens.session.consent.newRoom')}</span>
+            </li>
+          )}
         </ul>
         <label className="consent__ack pixel-border tone-yellow" htmlFor={ackId}>
           <input

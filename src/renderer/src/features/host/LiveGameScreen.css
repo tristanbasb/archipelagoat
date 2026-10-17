@@ -124,3 +124,11 @@
 :where(.fx-off, .fx-no-glow) .live-game__banner > svg {
   filter: none;
 }
+
+/* An orphan server: why it is there, and the addresses it still serves. */
+.live-game__orphan {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-4);
+  min-width: 0;
+}

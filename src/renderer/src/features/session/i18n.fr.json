@@ -68,6 +68,12 @@
     "noDocs": "Aucun joueur dans ce fichier.",
     "remove": "Retirer {{name}}",
     "removed": "Retiré de la partie\u00a0: {{name}}",
+    "removeEyebrow": "RETIRER",
+    "removeTitle": "Retirer {{name}}\u00a0?",
+    "removeBody": "Ce fichier quitte la partie\u00a0: ses joueurs ne seront pas dans la génération.",
+    "removePlayers": "Joueurs de ce fichier\u00a0: {{names}}",
+    "removeKept": "Une copie est gardée dans le dossier des sauvegardes de l’app.",
+    "removeConfirm": "Retirer",
     "fileOk": "Prêt",
     "fileWarnings_one": "{{count}} alerte",
     "fileWarnings_other": "{{count}} alertes",
@@ -240,6 +246,12 @@
     "idleBody": "Archipelago va lire les YAML, répartir les objets entre tous les mondes et préparer un fichier par joueur. Ça prend de quelques secondes à quelques minutes.",
     "start": "Lancer la génération",
     "regenerate": "Générer à nouveau",
+    "replaceEyebrow": "NOUVELLE SEED\u00a0?",
+    "replaceTitle": "Générer une nouvelle seed\u00a0?",
+    "replaceBody": "La seed actuelle et ses fichiers de patch seront remplacés\u00a0: chaque joueur devra récupérer son nouveau patch.",
+    "replaceLocal": "La partie hébergée sur ce PC et sa sauvegarde ne pourront plus être reprises depuis l’app (les fichiers restent sur le disque).",
+    "replaceWeb": "La room archipelago.gg de cette partie reste sur le site, mais l’app ne la suivra plus.",
+    "replaceConfirm": "Générer à nouveau",
     "players_one": "{{count}} joueur",
     "players_other": "{{count}} joueurs",
     "games_one": "{{count}} jeu",
@@ -295,6 +307,10 @@
       "pointConnect": "Les joueurs se connectent à archipelago.gg, sur un port donné par le site",
       "pointSleep": "La room s’endort quand personne ne joue\u00a0; un clic la réveille",
       "action": "Héberger sur archipelago.gg",
+      "hasRoom": "Cette partie a déjà sa room\u00a0: un clic la réveille et la rouvre, sans nouvel envoi.",
+      "wake": "Réveiller et ouvrir la room",
+      "waking": "Réveil de la room…",
+      "newRoom": "Ouvrir une nouvelle room",
       "stages": {
         "upload": "Envoi sur archipelago.gg…",
         "room": "Création de la room…",
@@ -312,6 +328,13 @@
       "pointConsole": "Tu gardes la main sur la console du serveur",
       "action": "Lancer le serveur local",
       "starting": "Démarrage du serveur…"
+    },
+    "replaceWeb": {
+      "eyebrow": "LAN",
+      "title": "Héberger sur ce PC à la place\u00a0?",
+      "body": "La partie est hébergée sur archipelago.gg. Si tu lances le serveur local, l’app oublie cette room\u00a0: elle reste sur le site avec ses joueurs, mais tu ne pourras plus la suivre, la réveiller ni l’ouvrir en propriétaire d’ici.",
+      "keep": "Garde son lien si des joueurs y sont déjà\u00a0:",
+      "confirm": "Lancer le serveur local"
     }
   },
   "consent": {
@@ -323,6 +346,7 @@
     "passwordsNone": "Cette partie n’a pas de mot de passe.",
     "public": "La room est accessible à quiconque a le lien.",
     "eachTime": "Cette question revient à chaque hébergement sur le site.",
+    "newRoom": "Une nouvelle room sera ouverte\u00a0: l’ancienne reste sur le site, mais l’app ne la suivra plus.",
     "ack": "J’ai compris",
     "confirm": "Envoyer et héberger"
   }

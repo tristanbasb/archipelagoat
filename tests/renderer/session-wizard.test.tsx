@@ -837,6 +837,176 @@ describe('session wizard', () => {
     expect(within(alert).getByText(body)).toBeInTheDocument()
   })
 
+  it('step 1 asks before removing a file, and says a copy is kept', async () => {
+    let current = session()
+    const { goat, user } = await openWizard('/session/s1?step=1', {
+      handlers: {
+        'session:get': () => current,
+        'session:removeFile': ({ fileId }) => {
+          current = { ...current, players: current.players.filter((file) => file.id !== fileId) }
+          return current
+        },
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Retirer Link.yaml' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Retirer Link.yaml\u00a0?' })
+    expect(within(dialog).getByText(/^Joueurs de ce fichier\s: Link$/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Une copie est gardée/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(goat.inputsOf('session:removeFile')).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Retirer Link.yaml' }))
+    dialog = await screen.findByRole('dialog', { name: 'Retirer Link.yaml\u00a0?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Retirer' }))
+    await waitFor(() => expect(goat.inputsOf('session:removeFile')).toEqual([{ id: 's1', fileId: 'f1' }]))
+    const players = screen.getByRole('list', { name: 'Fichiers des joueurs' })
+    await waitFor(() => expect(within(players).queryByText('Link.yaml')).toBeNull())
+  })
+
+  it('step 4 asks before a new seed replaces a hosted game, and confirms it to main', async () => {
+    const hosting = { mode: 'local', port: 38281, savefile: `${WORKSPACE}\\output\\48213977.apsave` } as const
+    const { goat, user } = await openWizard('/session/s1?step=4', {
+      handlers: {
+        'session:get': () => session({ status: 'finished', generation: GENERATION, hosting }),
+        'session:generate': () => ({ taskId: 'g1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Générer à nouveau' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Générer une nouvelle seed\u00a0?' })
+    expect(within(dialog).getByText(/ne pourront plus être reprises/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(goat.inputsOf('session:generate')).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Générer à nouveau' }))
+    dialog = await screen.findByRole('dialog', { name: 'Générer une nouvelle seed\u00a0?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Générer à nouveau' }))
+    await waitFor(() => expect(goat.inputsOf('session:generate')).toEqual([{ id: 's1', replace: true }]))
+  })
+
+  it('step 4 says a web room is left behind when a new seed replaces it', async () => {
+    const hosting = {
+      mode: 'web',
+      seedId: 'seed1',
+      roomId: 'r1',
+      roomUrl: 'https://archipelago.gg/room/r1',
+      port: 38281,
+    } as const
+    const { user } = await openWizard('/session/s1?step=4', {
+      handlers: { 'session:get': () => session({ status: 'hosting', generation: GENERATION, hosting }) },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Générer à nouveau' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Générer une nouvelle seed\u00a0?' })
+    expect(within(dialog).getByText(/reste sur le site, mais l’app ne la suivra plus/)).toBeInTheDocument()
+  })
+
+  it('step 5 wakes the room the game already has, and opens a new room only on request', async () => {
+    const hosting = {
+      mode: 'web',
+      seedId: 'seed1',
+      roomId: 'r1',
+      roomUrl: 'https://archipelago.gg/room/r1',
+      port: null,
+    } as const
+    const room: WebRoom = {
+      roomId: 'r1',
+      seedId: 'seed1',
+      roomUrl: 'https://archipelago.gg/room/r1',
+      host: 'archipelago.gg',
+      port: 38283,
+      lastActivity: null,
+      timeoutS: 7200,
+      players: [],
+      downloads: [],
+      trackerUrl: null,
+    }
+    const { goat, user } = await openWizard('/session/s1?step=5', {
+      handlers: {
+        'session:get': () => session({ status: 'hosting', generation: GENERATION, hosting }),
+        'webhost:wake': () => room,
+        'webhost:host': () => ({ taskId: 'h1' }),
+      },
+    })
+    expect(await screen.findByText(/Cette partie a déjà sa room/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Héberger sur archipelago.gg' })).toBeNull()
+
+    // A new room: through the consent, which says the old one is left behind.
+    await user.click(screen.getByRole('button', { name: 'Ouvrir une nouvelle room' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Héberger sur archipelago.gg\u00a0?' })
+    expect(within(dialog).getByText(/Une nouvelle room sera ouverte/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('checkbox', { name: 'J’ai compris' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Envoyer et héberger' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('webhost:host')).toEqual([{ sessionId: 's1', consent: true, newRoom: true }]),
+    )
+    goat.emit('task:failed', { taskId: 'h1', kind: 'webhost-host', error: goatError('WEBHOST_UNAVAILABLE') })
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+    // The room it has: woken up, no upload.
+    await user.click(screen.getByRole('button', { name: 'Réveiller et ouvrir la room' }))
+    await waitFor(() => expect(goat.inputsOf('webhost:wake')).toEqual([{ roomId: 'r1' }]))
+    await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
+    expect(goat.inputsOf('webhost:host')).toHaveLength(1)
+  })
+
+  it('step 5 asks before a local server replaces the archipelago.gg room, showing its link', async () => {
+    const hosting = {
+      mode: 'web',
+      seedId: 'seed1',
+      roomId: 'r1',
+      roomUrl: 'https://archipelago.gg/room/r1',
+      port: 38281,
+    } as const
+    const { goat, user } = await openWizard('/session/s1?step=5', {
+      handlers: {
+        'session:get': () => session({ status: 'hosting', generation: GENERATION, hosting }),
+        'server:start': ({ sessionId }) => ({
+          sessionId,
+          status: 'ready',
+          port: 38281,
+          addresses: [{ kind: 'localhost', host: '127.0.0.1', port: 38281 }],
+          startedAt: NOW,
+          resumedFromSave: false,
+          error: null,
+        }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Lancer le serveur local' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Héberger sur ce PC à la place\u00a0?' })
+    expect(within(dialog).getByText('https://archipelago.gg/room/r1')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(goat.inputsOf('server:start')).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Lancer le serveur local' }))
+    dialog = await screen.findByRole('dialog', { name: 'Héberger sur ce PC à la place\u00a0?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Lancer le serveur local' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('server:start')).toEqual([{ sessionId: 's1', replaceWeb: true }]),
+    )
+    await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
+  })
+
+  it('step 5 sends one hosting when the consent is confirmed twice in a row', async () => {
+    const { goat, user } = await openWizard('/session/s1?step=5', {
+      handlers: {
+        'session:get': () => session({ status: 'generated', generation: GENERATION }),
+        'webhost:host': () => ({ taskId: 'h1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Héberger sur archipelago.gg' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Héberger sur archipelago.gg\u00a0?' })
+    await user.click(within(dialog).getByRole('checkbox', { name: 'J’ai compris' }))
+    const send = within(dialog).getByRole('button', { name: 'Envoyer et héberger' })
+    // Two presses before the dialog is gone (Enter held down, a double click).
+    fireEvent.click(send)
+    fireEvent.click(send)
+    await waitFor(() => expect(goat.inputsOf('webhost:host')).toHaveLength(1))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    expect(goat.inputsOf('webhost:host')).toHaveLength(1)
+  })
+
   it('shows a not-found state for an unknown session', async () => {
     await openWizard('/session/nope', {
       handlers: {

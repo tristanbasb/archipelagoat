@@ -17,6 +17,7 @@
     "stopping": "Server stopping…",
     "stopped": "Server stopped",
     "crashed": "Server crashed",
+    "orphan": "Server from an earlier session",
     "webAwake": "Room awake",
     "webAsleep": "Room asleep"
   },

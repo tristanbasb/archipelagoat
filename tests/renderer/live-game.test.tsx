@@ -350,11 +350,17 @@ describe('LiveGameScreen', () => {
       'server:get': () =>
         serverState({
           status: 'crashed',
-          error: { code: 'SERVER_START_FAILED', params: { orphanPid: 4242 } },
+          error: { code: 'SERVER_START_FAILED', params: { orphanPid: 4242, phase: 'orphan' } },
         }),
       'server:stop': () => undefined,
     })
     const alert = await screen.findByRole('alert')
+    // It still runs and serves its players: not a failed start, and its addresses stay on screen.
+    expect(within(alert).getByText('Le serveur d’une session précédente tourne encore')).toBeInTheDocument()
+    expect(alert).not.toHaveTextContent('n’a pas pu démarrer')
+    expect(within(alert).queryByRole('button', { name: 'Relancer depuis l’assistant' })).toBeNull()
+    expect(screen.getByText('Serveur d’une session précédente')).toBeInTheDocument()
+    expect(screen.getByText('192.168.1.20:38281')).toBeInTheDocument()
     await user.click(within(alert).getByRole('button', { name: 'Arrêter le serveur' }))
     const dialog = await screen.findByRole('dialog', { name: 'Arrêter le serveur\u00a0?' })
     await user.click(within(dialog).getByRole('button', { name: 'Arrêter' }))

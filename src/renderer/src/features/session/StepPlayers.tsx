@@ -1,5 +1,6 @@
 // Step 1: the players' YAML files. Files dropped on the zone or browsed go through session:addFiles;
 // a YAML dropped anywhere else on the window is imported by the shell, which refreshes this list.
+// Removing a file asks first (it may exist nowhere else: a Studio draft); main keeps it in backups/.
 import { IconFileCode, IconFileOff, IconFileText, IconTrash, IconUserPlus, IconX } from '@tabler/icons-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -8,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import type { PlayerFile, Session } from '@shared/types'
 import {
   Badge,
+  ConfirmDialog,
   Dropzone,
   EmptyState,
   NeonButton,
@@ -37,6 +39,8 @@ export function StepPlayers({ session, onNext }: StepPlayersProps): React.JSX.El
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [ignored, setIgnored] = useState<string[]>([])
+  /** The file whose removal waits for a confirmation. */
+  const [removing, setRemoving] = useState<PlayerFile | null>(null)
 
   const store = (updated: Session): void => {
     queryClient.setQueryData(['session:get', { id: session.id }], updated)
@@ -168,24 +172,51 @@ export function StepPlayers({ session, onNext }: StepPlayersProps): React.JSX.El
                   file={file}
                   firstSlot={slots[index] ?? 1}
                   removing={remove.isPending && remove.variables.fileId === file.id}
-                  onRemove={() =>
-                    remove.mutate(
-                      { id: session.id, fileId: file.id },
-                      {
-                        onSuccess: () =>
-                          toast.push({
-                            tone: 'info',
-                            title: t('screens.session.players.removed', { name: file.originalName }),
-                          }),
-                      },
-                    )
-                  }
+                  onRemove={() => setRemoving(file)}
                 />
               ))}
             </ul>
           )}
         </PixelPanel>
       </div>
+      <ConfirmDialog
+        open={removing !== null}
+        tone="pink"
+        eyebrow={t('screens.session.players.removeEyebrow')}
+        title={t('screens.session.players.removeTitle', { name: removing?.originalName ?? '' })}
+        confirmLabel={t('screens.session.players.removeConfirm')}
+        confirmVariant="danger"
+        confirmIcon={<IconTrash />}
+        cancelLabel={t('common.cancel')}
+        closeLabel={t('common.closeDialog')}
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => {
+          const file = removing
+          setRemoving(null)
+          if (!file) return
+          remove.mutate(
+            { id: session.id, fileId: file.id },
+            {
+              onSuccess: () =>
+                toast.push({
+                  tone: 'info',
+                  title: t('screens.session.players.removed', { name: file.originalName }),
+                  body: t('screens.session.players.removeKept'),
+                }),
+            },
+          )
+        }}
+      >
+        <p>{t('screens.session.players.removeBody')}</p>
+        {removing !== null && removing.docs.length > 0 && (
+          <p>
+            {t('screens.session.players.removePlayers', {
+              names: removing.docs.map((doc) => doc.name ?? t('screens.session.players.noName')).join(', '),
+            })}
+          </p>
+        )}
+        <p className="confirm-dialog__note">{t('screens.session.players.removeKept')}</p>
+      </ConfirmDialog>
       <StepNav
         onNext={onNext}
         nextDisabled={files.length === 0}
