@@ -4,13 +4,14 @@
   "version": "0.1.0",
   "private": true,
   "description": "Unofficial Archipelago companion: installs Archipelago and sets up multiworld games end to end",
+  "homepage": "https://archipelagoat.invalid",
   "main": "./out/main/index.js",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build && node scripts/check-preload.mjs",
+    "build": "npm run licenses && electron-vite build && node scripts/check-preload.mjs",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false && tsc --noEmit -p tsconfig.test.json --composite false",
     "lint": "eslint .",
@@ -18,20 +19,12 @@
     "test": "vitest run --project unit --project renderer --coverage",
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:linux": "npm run build && electron-builder --linux",
+    "licenses": "node scripts/licenses.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never",
     "dist:linux:docker": "node scripts/build-linux-docker.mjs",
-    "icons": "node scripts/make-icons.mjs"
-  },
-  "build": {
-    "appId": "com.archipelagoat.app",
-    "productName": "ArchipelaGOAT",
-    "directories": {
-      "output": "release/${version}"
-    },
-    "files": [
-      "out/**/*"
-    ]
+    "checksums": "node scripts/checksums.mjs"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",

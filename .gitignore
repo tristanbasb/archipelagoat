@@ -6,3 +6,5 @@ test-results/
 playwright-report/
 *.log
 .superpowers/
+# Written by `npm run build` (scripts/licenses.mjs) from package-lock.json
+resources/licenses.json

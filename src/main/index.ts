@@ -217,8 +217,12 @@ async function main(): Promise<void> {
   })
 }
 
-// 3. Single instance: a second launch hands its argv to the first one (second-instance) and quits.
-if (!app.requestSingleInstanceLock()) {
+if (process.argv.includes('--version')) {
+  // `--version` prints the version and quits with nothing started: the packaged smoke runs ask the
+  // builds for it (the AppImage cannot be started otherwise in a container).
+  process.stdout.write(`${app.getVersion()}\n`, () => app.exit(0))
+} else if (!app.requestSingleInstanceLock()) {
+  // 3. Single instance: a second launch hands its argv to the first one (second-instance) and quits.
   app.quit()
 } else {
   main().catch((error: unknown) => crashed('startup', error))

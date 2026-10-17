@@ -1,4 +1,5 @@
-// The built app end to end: every screen in French and in English (screenshots in tests/e2e/screenshots),
+// The built app end to end: every screen in French and in English (screenshots in test-results/screenshots,
+// or in the committed tests/e2e/screenshots with GOAT_E2E_UPDATE_SCREENSHOTS=1),
 // a cold start from an archipelago:// link, the keyboard on the home and the wizard, reduced motion,
 // and the boot sequence that only plays once.
 import { readFileSync } from 'node:fs'

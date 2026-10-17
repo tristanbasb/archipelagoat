@@ -1,0 +1,50 @@
+# Builds the installers on a v* tag and publishes them to a draft GitHub release (spec §8): the NSIS
+# installer and the portable exe on Windows, the AppImage, the deb and the tar.gz on Linux. A maintainer
+# reviews the draft and publishes it by hand.
+#
+# The github provider is given here only: electron-builder resolves it from the checkout's remote,
+# which a local build does not have (electron-builder.yml). With it, the builds also get the
+# app-update.yml that turns the updater on (src/main/services/updater.service.ts).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Package and publish (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win --publish always -c.publish.provider=github -c.publish.releaseType=draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package and publish (Linux)
+        if: runner.os == 'Linux'
+        run: npx electron-builder --linux --publish always -c.publish.provider=github -c.publish.releaseType=draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

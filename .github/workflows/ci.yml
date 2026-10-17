@@ -1,0 +1,76 @@
+# Lint, typecheck and tests on Linux and Windows (spec §8). The E2E runs start the built app with
+# Electron's own binary, which Electron 44 no longer downloads at install time.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Download the Electron binary
+        run: node node_modules/electron/install.js
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and renderer tests
+        run: npm test
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Build
+        run: npm run build
+
+      # Ubuntu 24.04 keeps unprivileged user namespaces, which Chromium's sandbox needs, behind
+      # AppArmor; Xvfb gives the app a screen.
+      - name: E2E tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          xvfb-run -a npm run test:e2e
+
+      - name: E2E tests (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:e2e
+
+      - name: Keep the test results of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7

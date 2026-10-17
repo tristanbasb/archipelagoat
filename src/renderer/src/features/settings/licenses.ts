@@ -1,6 +1,6 @@
 // The licenses of the bundled dependencies, for the About panel. resources/licenses.json is written
-// by the packaging script (Task 35), so a development build has none: the import is optional and
-// `BUNDLED_LICENSES` is null then.
+// by scripts/licenses.mjs, which `npm run build` runs first; the dev server alone may have none: the
+// import is optional and `BUNDLED_LICENSES` is null then.
 
 export interface LicenseEntry {
   name: string

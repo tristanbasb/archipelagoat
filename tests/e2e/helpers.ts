@@ -1,6 +1,7 @@
-// What the E2E runs share: launching the built app (out/) under Playwright with its own folders, a fake
-// Archipelago install, a mock archipelago.gg and a queue of dialog answers; the app's texts in both
-// languages; and the checks every screen goes through (console errors, CSP violations, raw keys).
+// What the E2E runs share: launching the built app (out/, or a packaged build) under Playwright with its
+// own folders, a fake Archipelago install, a mock archipelago.gg and a queue of dialog answers; the app's
+// texts in both languages; and the checks every screen goes through (console errors, CSP violations, raw
+// keys).
 //
 // Playwright compiles this file to CommonJS: the ES modules of tests/fake-ap load through `import()`
 // (inside createFakeApInstall and repoRoot), never through a static import.
@@ -10,12 +11,14 @@ import { join, resolve } from 'node:path'
 import {
   _electron as electron,
   expect,
+  type BrowserContext,
   type ElectronApplication,
   type Locator,
   type Page,
 } from '@playwright/test'
 import { createFakeApInstall, type DialogAnswer } from '../integration/harness'
 import type { MockWebhost } from '../mock-webhost/server'
+import { screenshotDir } from './screenshot-dir'
 
 export type Lang = 'fr' | 'en'
 
@@ -99,6 +102,11 @@ export interface LaunchOptions {
   bootSeen?: boolean
   /** GOAT_WEBHOST_URL: the mock archipelago.gg. */
   webhostUrl?: string
+  /**
+   * A packaged build's executable (win-unpacked, an installed copy, linux-unpacked…) instead of
+   * `electron .`; `argv` then holds all of its arguments.
+   */
+  executablePath?: string
 }
 
 export interface LaunchedApp {
@@ -113,8 +121,11 @@ export interface LaunchedApp {
   close(): Promise<void>
 }
 
-/** A port nothing listens on: the proxy of the main process, so that its requests fail at once. */
-async function closedPort(): Promise<number> {
+/**
+ * A port nothing listens on: the proxy of the main process (so that its requests fail at once), or a
+ * port for the app to listen on.
+ */
+export async function freePort(): Promise<number> {
   const server = createServer()
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done))
   const address = server.address()
@@ -127,7 +138,7 @@ async function closedPort(): Promise<number> {
  * A launch's own folder, in the git-ignored test-results/ rather than the system's temp folder: the
  * paths the screens show (and the screenshots keep) then hold no user name.
  */
-async function freshDirs(opts: LaunchOptions): Promise<AppDirs> {
+export async function freshDirs(opts: Pick<LaunchOptions, 'lang' | 'fakeAp' | 'bootSeen'>): Promise<AppDirs> {
   const parent = join(await repoRoot(), 'test-results', 'e2e-apps')
   mkdirSync(parent, { recursive: true })
   const root = mkdtempSync(join(parent, 'app-'))
@@ -148,13 +159,16 @@ async function freshDirs(opts: LaunchOptions): Promise<AppDirs> {
 }
 
 /**
- * Starts the built app (`electron .`, so the version is the package's) with the GOAT_* test variables.
- * The main process has no Internet: its requests go to a proxy that refuses them, loopback excepted
- * (the mock site, the fake servers), so every run sees the same offline world whatever the machine.
+ * The environment of a test launch: the GOAT_* test variables for `dirs` (which a packaged build
+ * honours with GOAT_E2E=1 only), its own temporary folder, and no Internet for the main process: its
+ * requests go to a proxy that refuses them, loopback excepted (the mock site, the fake servers), so
+ * every run sees the same offline world whatever the machine.
  */
-export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
-  const dirs = opts.dirs ?? (await freshDirs(opts))
-  const proxy = `http://127.0.0.1:${await closedPort()}`
+export async function appEnv(
+  dirs: AppDirs,
+  opts: Pick<LaunchOptions, 'webhostUrl'> = {},
+): Promise<Record<string, string>> {
+  const proxy = `http://127.0.0.1:${await freePort()}`
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(process.env)) {
     if (
@@ -183,10 +197,14 @@ export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
   })
   if (dirs.fakeAp) env.GOAT_FAKE_AP_DIR = dirs.fakeAp
   if (opts.webhostUrl) env.GOAT_WEBHOST_URL = opts.webhostUrl
+  return env
+}
 
-  const app = await electron.launch({ args: ['.', ...(opts.argv ?? [])], cwd: await repoRoot(), env })
-  const problems: string[] = []
-  const context = app.context()
+/**
+ * Collects into `problems` the console errors, uncaught page errors and CSP violations of the pages
+ * of `context` loaded from now on.
+ */
+export async function watchProblems(context: BrowserContext, problems: string[]): Promise<void> {
   context.on('console', (message) => {
     if (message.type() === 'error') problems.push(`console: ${message.text()}`)
   })
@@ -201,6 +219,23 @@ export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
       report?.(`${event.violatedDirective} ${event.blockedURI}`)
     })
   })
+}
+
+/**
+ * Starts the built app with the test environment of appEnv: `electron .` (so the version is the
+ * package's), or the packaged build at `opts.executablePath`.
+ */
+export async function launchApp(opts: LaunchOptions): Promise<LaunchedApp> {
+  const dirs = opts.dirs ?? (await freshDirs(opts))
+  const env = await appEnv(dirs, opts)
+  const app = await electron.launch(
+    opts.executablePath
+      ? // A packaged build starts slower (the asar, a cold disk cache) and must not depend on its cwd.
+        { executablePath: opts.executablePath, args: opts.argv ?? [], cwd: dirs.root, env, timeout: 120_000 }
+      : { args: ['.', ...(opts.argv ?? [])], cwd: await repoRoot(), env },
+  )
+  const problems: string[] = []
+  await watchProblems(app.context(), problems)
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
 
@@ -295,8 +330,10 @@ async function settle(page: Page): Promise<void> {
 }
 
 /**
- * Writes tests/e2e/screenshots/<lang>/<name>.png: animations stopped, the caret hidden, the pointer
- * out of the way, and `mask` covered (what belongs to the machine, such as its network addresses).
+ * Writes <name>.png into screenshotDir: test-results/screenshots/<lang>/, or the committed
+ * tests/e2e/screenshots/<lang>/ with GOAT_E2E_UPDATE_SCREENSHOTS=1. Animations stopped, the caret
+ * hidden, the pointer out of the way, and `mask` covered (what belongs to the machine, such as its
+ * network addresses).
  */
 export async function screenshot(
   page: Page,
@@ -306,7 +343,7 @@ export async function screenshot(
 ): Promise<void> {
   await settle(page)
   await page.mouse.move(0, 0)
-  const path = join(await repoRoot(), 'tests', 'e2e', 'screenshots', lang, `${name}.png`)
+  const path = join(screenshotDir(await repoRoot(), lang), `${name}.png`)
   await page.screenshot({
     path,
     animations: 'disabled',
