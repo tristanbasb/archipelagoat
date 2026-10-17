@@ -220,6 +220,34 @@ describe('GitHub requests', () => {
       expect(server.requests).toHaveLength(3) // the first answer is no longer fresh
     })
 
+    it('keeps an answer that GitHub confirmed with a 304, so a warm disk cache costs one request', async () => {
+      serveLatest()
+      await fetchLatestApRelease(makeHttp(), { force: false }) // a first run: 200, the ETag is now on disk
+
+      const restarted = makeHttp() // the next start of the app
+      const first = await fetchLatestApRelease(restarted, { force: false })
+      const second = await fetchLatestApRelease(restarted, { force: false })
+      expect(second).toEqual(first)
+      expect(server.requests).toHaveLength(2) // one 200, then one 304 and no more
+      expect(server.requests[1]?.headers['if-none-match']).toBe('"rel-1"')
+    })
+
+    it('restarts the freshness window when a forced check is confirmed by a 304', async () => {
+      serveLatest()
+      const http = makeHttp()
+      const now = Date.now()
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+      await fetchLatestApRelease(http, { force: false })
+
+      clock.mockReturnValue(now + 9 * 60_000)
+      await fetchLatestApRelease(http, { force: true }) // 304
+      expect(server.requests).toHaveLength(2)
+
+      clock.mockReturnValue(now + 15 * 60_000) // 6 minutes after the forced check, 15 after the first
+      await fetchLatestApRelease(http, { force: false })
+      expect(server.requests).toHaveLength(2)
+    })
+
     it('keeps the answers of two Http clients apart', async () => {
       serveLatest()
       await fetchLatestApRelease(makeHttp(), { force: false })

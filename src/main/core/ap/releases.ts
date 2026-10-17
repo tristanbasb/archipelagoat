@@ -92,17 +92,18 @@ const latest = new WeakMap<Http, { at: number; release: ApRelease }>()
 /**
  * The latest stable release of Archipelago (`/releases/latest`: no prerelease). The answer is kept in
  * memory for ten minutes, so that screens asking one after the other cost one request; `force` asks
- * again. An answer that Http served from its disk cache (offline) is not kept, so that the next call
- * tries the network again.
+ * again. An answer that GitHub confirmed (a 200, or a 304 on the ETag of the disk cache) is kept and
+ * restarts the ten minutes; one that Http served from its disk cache because the network failed
+ * (`stale`) is not, so that the next call tries the network again.
  */
 export async function fetchLatestApRelease(http: Http, opts: { force?: boolean } = {}): Promise<ApRelease> {
   const kept = latest.get(http)
   if (!opts.force && kept && Date.now() - kept.at < FRESH_MS) return kept.release
 
   const url = `${API}/repos/${AP_REPO}/releases/latest`
-  const { data, fromCache } = await http.getJson<unknown>(url)
+  const { data, stale } = await http.getJson<unknown>(url)
   const release = unexpectedAnswer(url, () => parseRelease(data))
-  if (!fromCache) latest.set(http, { at: Date.now(), release })
+  if (!stale) latest.set(http, { at: Date.now(), release })
   return release
 }
 

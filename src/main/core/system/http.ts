@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { AppError } from '@shared/errors'
-import type { Http, HttpGetOptions } from '../context'
+import type { Http, HttpAnswer, HttpGetOptions } from '../context'
 import type { Logger } from '../logger'
 import { writeFileAtomic } from './fsx'
 
@@ -244,15 +244,15 @@ export function createHttp(opts: HttpOptions): Http {
 
   /**
    * GET with the ETag cache. A 304 serves the cached body; a network failure serves it too when there
-   * is one. Any other failure (an HTTP status, a body that does not parse) is thrown: a server that
-   * answered is not a network that failed.
+   * is one, and then the answer is marked `stale`. Any other failure (an HTTP status, a body that
+   * does not parse) is thrown: a server that answered is not a network that failed.
    */
   async function cachedGet<T>(
     url: string,
     getOpts: HttpGetOptions,
     parse: Parse<T>,
     defaults: Record<string, string>,
-  ): Promise<{ data: T; fromCache: boolean }> {
+  ): Promise<HttpAnswer<T>> {
     const target = parseHttpUrl(url)
     const key = getOpts.cacheKey ?? url
     const cached = await cache.lookup(key, url)
@@ -273,7 +273,7 @@ export function createHttp(opts: HttpOptions): Http {
       const failure = toNetworkError(error, { timedOut: deadline.timedOut })
       if (cached && failure.code === 'NETWORK_OFFLINE') {
         log.warn('network failure, serving the cached answer', { url, reason: failure.detail })
-        return { data: parse(cached.body, 200), fromCache: true }
+        return { data: parse(cached.body, 200), fromCache: true, stale: true }
       }
       throw failure
     } finally {

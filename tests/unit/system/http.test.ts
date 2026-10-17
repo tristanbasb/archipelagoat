@@ -115,7 +115,9 @@ describe('the ETag cache', () => {
     server.handle((req, res) =>
       req.headers['if-none-match'] === '"v1"' ? reply(res, 304) : reply(res, 200, json({ n: 99 })),
     )
-    expect(await http.getJson(`${server.url}/data`)).toEqual({ data: { n: 1 }, fromCache: true })
+    const confirmed = await http.getJson(`${server.url}/data`)
+    expect(confirmed).toEqual({ data: { n: 1 }, fromCache: true })
+    expect(confirmed.stale).toBeUndefined() // the server answered: a 304 is as fresh as a 200
     expect(server.requests[1]?.headers['if-none-match']).toBe('"v1"')
   })
 
@@ -135,8 +137,16 @@ describe('the ETag cache', () => {
     await makeHttp().getJson(`${server.url}/data`)
 
     server.handle(dropConnection)
-    expect(await makeHttp().getJson(`${server.url}/data`)).toEqual({ data: { n: 1 }, fromCache: true })
-    expect(await makeHttp().getText(`${server.url}/data`)).toEqual({ data: '{"n":1}', fromCache: true })
+    expect(await makeHttp().getJson(`${server.url}/data`)).toEqual({
+      data: { n: 1 },
+      fromCache: true,
+      stale: true,
+    })
+    expect(await makeHttp().getText(`${server.url}/data`)).toEqual({
+      data: '{"n":1}',
+      fromCache: true,
+      stale: true,
+    })
   })
 
   it('caches an answer that has no ETag, for the offline case only', async () => {
@@ -149,7 +159,9 @@ describe('the ETag cache', () => {
     expect(server.requests[1]?.headers['if-none-match']).toBeUndefined()
 
     server.handle(dropConnection)
-    expect((await http.getJson(`${server.url}/data`)).fromCache).toBe(true)
+    const offline = await http.getJson(`${server.url}/data`)
+    expect(offline.fromCache).toBe(true)
+    expect(offline.stale).toBe(true)
   })
 
   it('throws NETWORK_OFFLINE when the network fails and nothing is cached', async () => {
@@ -311,6 +323,7 @@ describe('timeouts and cancellation', () => {
     expect(await http.getText(`${server.url}/x`, { timeoutMs: 80 })).toEqual({
       data: 'cached',
       fromCache: true,
+      stale: true,
     })
   })
 
