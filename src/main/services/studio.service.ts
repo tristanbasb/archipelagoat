@@ -6,18 +6,19 @@ import type { Locator } from '@main/core/ap/locator'
 import type { ApSettings } from '@main/core/ap/settings'
 import type { Templates } from '@main/core/ap/templates'
 import type { CoreContext } from '@main/core/context'
+import { buildValidationContext } from '@main/core/sessions/validate-session'
 import { writeFileAtomic } from '@main/core/system/fsx'
 import { assertUserPath } from '@main/core/system/user-path'
-import { disabledWorldsDir, scanWorlds } from '@main/core/worlds/inventory'
 import { decodeYamlBytes, loadYaml11 } from '@main/core/yaml/load'
-import { gamesIn, validateLoadedYaml, type ValidationContext } from '@main/core/yaml/validate'
+import { gamesIn, validateLoadedYaml } from '@main/core/yaml/validate'
 import { parsePlayerYaml, renderPlayerDoc, type RenderResult } from '@main/core/yaml/writer'
 import { AppError } from '@shared/errors'
-import type { ApInstall, EditorDoc, GameSchema, Issue, PlayerDoc, WorldState } from '@shared/types'
-// The `locator`, `settings` and `templates` entries of Services, used below.
+import type { EditorDoc, GameSchema, Issue, PlayerDoc } from '@shared/types'
+// The `locator`, `settings`, `templates` and `worlds` entries of Services, used below.
 import type {} from './locator.service'
 import type {} from './settings.service'
 import type {} from './templates.service'
+import type { Worlds } from './worlds.service'
 import { defineService } from './registry'
 
 declare module '@main/services/registry' {
@@ -44,6 +45,7 @@ export interface Studio {
 
 export interface StudioDeps {
   locator: Pick<Locator, 'detect'>
+  worlds: Pick<Worlds, 'installedGames'>
   templates: Pick<Templates, 'getSchema'>
   settings: Pick<ApSettings, 'get'>
 }
@@ -53,10 +55,6 @@ const SAVE_EXTENSIONS = ['yaml', 'yml']
 const DEFAULT_FILE_NAME = 'Player.yaml'
 /** A player file is a few kilobytes: a file this big is not one. */
 const MAX_OPEN_BYTES = 8 * 1024 * 1024
-/** The states of a world Archipelago does not load: its game is not installed. */
-const NOT_LOADED: ReadonlySet<WorldState> = new Set(['disabled', 'corrupt', 'incompatible'])
-/** generator.plando_options when the settings file has none (settings.py, GeneratorOptions). */
-const DEFAULT_PLANDO = 'bosses, connections, texts'
 
 const dotted = (extensions: string[]): string[] => extensions.map((ext) => `.${ext}`)
 
@@ -80,64 +78,6 @@ export function createStudio(ctx: CoreContext, deps: StudioDeps): Studio {
     }
   }
 
-  async function setting(path: string[]): Promise<unknown> {
-    return deps.settings.get(path).catch(() => undefined)
-  }
-
-  /** Game → version of the world Archipelago loads for it (a shadowed one only when it is alone). */
-  async function installedGames(install: ApInstall | null): Promise<ValidationContext['installedGames']> {
-    const games: ValidationContext['installedGames'] = new Map()
-    if (!install) return games
-    const worlds = await scanWorlds(
-      install.paths,
-      disabledWorldsDir(ctx.platform.paths.dataRoot),
-      install.version,
-    )
-    const loaded = worlds.filter(
-      (world) => world.game !== null && !world.states.some((s) => NOT_LOADED.has(s)),
-    )
-    const winnersFirst = [
-      ...loaded.filter((world) => !world.states.includes('shadowed')),
-      ...loaded.filter((world) => world.states.includes('shadowed')),
-    ]
-    for (const world of winnersFirst) {
-      if (world.game !== null && !games.has(world.game)) {
-        games.set(world.game, { worldVersion: world.manifest?.worldVersion ?? null })
-      }
-    }
-    return games
-  }
-
-  async function validationContext(games: string[]): Promise<ValidationContext> {
-    const install = await deps.locator.detect()
-    const installed = await installedGames(install)
-    const schemas = new Map<string, GameSchema>()
-    await Promise.all(
-      games
-        .filter((game) => installed.has(game))
-        .map(async (game) => {
-          const schema = await schemaOf(game)
-          if (schema) schemas.set(game, schema)
-        }),
-    )
-    const [allowQuantity, plando] = install
-      ? await Promise.all([
-          setting(['generator', 'allow_quantity']),
-          setting(['generator', 'plando_options']),
-        ])
-      : [false, DEFAULT_PLANDO]
-    return {
-      installedGames: installed,
-      apVersion: install?.version ?? '',
-      schemaFor: (game) => schemas.get(game),
-      allowQuantity: allowQuantity === true || allowQuantity === 1,
-      plandoEnabled: (typeof plando === 'string' ? plando : DEFAULT_PLANDO)
-        .split(',')
-        .map((module) => module.trim().toLowerCase())
-        .filter((module) => module !== ''),
-    }
-  }
-
   return {
     parse: (text) => parsePlayerYaml(text),
 
@@ -148,7 +88,8 @@ export function createStudio(ctx: CoreContext, deps: StudioDeps): Studio {
     async validate(text, fileName = DEFAULT_FILE_NAME) {
       const loaded = loadYaml11(text)
       const games = loaded.issues.length > 0 ? [] : gamesIn(loaded.docs)
-      return validateLoadedYaml(loaded, fileName, await validationContext(games))
+      const context = await buildValidationContext({ ...deps, log: ctx.log }, games, null)
+      return validateLoadedYaml(loaded, fileName, context)
     },
 
     async open(given) {
@@ -204,6 +145,7 @@ defineService(
     // Resolved on use: parsing, rendering and saving never start the locator or the templates.
     createStudio(ctx, {
       locator: { detect: () => get('locator').detect() },
+      worlds: { installedGames: () => get('worlds').installedGames() },
       templates: { getSchema: (game) => get('templates').getSchema(game) },
       settings: { get: (path) => get('settings').get(path) },
     }),

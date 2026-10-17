@@ -8,6 +8,7 @@ import { registerHandlers } from '@main/ipc'
 import { createIpcRegistry } from '@main/ipc/registry'
 import { createServices } from '@main/services'
 import { createStudio, type Studio, type StudioDeps } from '@main/services/studio.service'
+import { createWorlds } from '@main/services/worlds.service'
 import { AppError } from '@shared/errors'
 import type { ApInstall, ApPaths, EditorDoc, GameSchema } from '@shared/types'
 import { createTestContext, type TestCore } from '../../helpers/core'
@@ -39,8 +40,14 @@ function apPaths(base: string): ApPaths {
 }
 
 function studio(): Studio {
+  const locator = { detect: () => Promise.resolve(detected) }
   const deps: StudioDeps = {
-    locator: { detect: () => Promise.resolve(detected) },
+    locator,
+    worlds: createWorlds(core.ctx, {
+      locator,
+      lookupCatalog: () => null,
+      listProcesses: () => Promise.resolve([]),
+    }),
     templates: {
       getSchema: (game) => {
         const found = schemas.find((schema) => schema.game === game)
