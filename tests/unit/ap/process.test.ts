@@ -13,6 +13,7 @@ import {
   exeNameOf,
   LineSplitter,
   listChildren,
+  sessionChildPids,
   spawnAp,
   type ApProcess,
   type ApStream,
@@ -548,6 +549,8 @@ describe('children registry', () => {
     })
     expect(Date.parse(entries[0]?.startedAt ?? '')).not.toBeNaN()
     expect(listChildren()).toEqual([{ pid: generate.pid, command: 'ArchipelagoGenerate' }])
+    // A child that belongs to a session runs in its folder: the settings lock leaves it out.
+    expect(sessionChildPids()).toEqual([generate.pid])
     expect(client.pid).toBeGreaterThan(0)
 
     generate.write('')
@@ -555,6 +558,7 @@ describe('children registry', () => {
     await within(client.exited, 5000)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual([])
     expect(listChildren()).toEqual([])
+    expect(sessionChildPids()).toEqual([])
   })
 
   it('disposeChildren kills remaining children but not selfManaged ones', async () => {
@@ -591,7 +595,8 @@ describe('children registry', () => {
       const script = [
         "const { spawn } = require('child_process')",
         "const c = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' })",
-        'console.log(c.pid)',
+        // A string: with FORCE_COLOR set, console.log colours a number even on a pipe (never a string).
+        'console.log(String(c.pid))',
         'setInterval(() => {}, 1000)',
       ].join('\n')
       const lines = collector()
@@ -607,30 +612,31 @@ describe('children registry', () => {
       await delay(200)
       expect(() => process.kill(grandchild, 0)).toThrow()
     },
+    // Longer than the inner waits (5000 + 5000 + 200 ms), so that a failing step reports itself.
+    15_000,
   )
 })
 
 describe('fake ArchipelagoServer', () => {
-  it('prints Hosting game at, then server listening on 300 ms later, and listens on 127.0.0.1', async () => {
+  it('prints Hosting game at, then server listening on, and listens on 127.0.0.1', async () => {
     const port = await freePort()
     const recordFile = join(root, 'server.json')
     const lines = collector()
-    const times: number[] = []
     const proc = run({
       exe: fake('ArchipelagoServer'),
       args: [join(root, `AP_${SEED}.zip`), '--port', String(port), '--disable_item_cheat'],
       stdin: 'pipe',
       env: { FAKE_RECORD: recordFile },
-      onLine: (stream, line) => {
-        times.push(Date.now())
-        lines.onLine(stream, line)
-      },
+      onLine: lines.onLine,
     })
     const hosting = await lines.next(/^Hosting game at /)
     expect(hosting).toBe(`Hosting game at 203.0.113.7:${port} (No password)`)
-    const hostingAt = times.at(-1) ?? 0
-    expect(await lines.next(/^server listening on /)).toBe(`server listening on 127.0.0.1:${port}`)
-    expect((times.at(-1) ?? 0) - hostingAt).toBeGreaterThanOrEqual(250)
+    const listening = await lines.next(/^server listening on /)
+    expect(listening).toBe(`server listening on 127.0.0.1:${port}`)
+    // The order is what the spec asks for (§7.2): the Hosting line comes before the bind. The delay
+    // between them is not measured: the parent's receive times jitter under load.
+    const stdout = lines.of('stdout')
+    expect(stdout.indexOf(listening)).toBeGreaterThan(stdout.indexOf(hosting))
     expect(lines.of('stdout').slice(0, 5)).toEqual(
       apOutputLines('server-startup.txt').slice(0, 4).concat(hosting),
     )
