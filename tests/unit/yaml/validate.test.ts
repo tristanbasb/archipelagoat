@@ -26,6 +26,7 @@ const yamlFixture = (name: string): string => decodeYamlBytes(readFileSync(join(
 
 const TUNIC = parseTemplate(read('TUNIC.yaml'))
 const ALTTP = parseTemplate(read('A Link to the Past.yaml'))
+const STARDEW = parseTemplate(read('Stardew Valley.yaml'))
 
 function ctxWith(...schemas: GameSchema[]): ValidationContext {
   return {
@@ -317,8 +318,55 @@ describe('validatePlayerDocs', () => {
     expect(errorsOf(doc(...BASE, 'TUNIC:', '  fool_traps: []'))).toEqual([
       expect.objectContaining({ code: 'option-invalid-value', path: 'TUNIC.fool_traps' }),
     ])
-    // An empty mapping keeps the default.
-    expect(errorsOf(doc(...BASE, 'TUNIC:', '  fool_traps: {}'))).toEqual([])
+  })
+
+  it('an empty mapping rolls None, not the default', () => {
+    // Generate.handle_option calls option.from_any(get_choice(key, game_weights)) with no default, and
+    // get_choice gives None for `{}` (what the weighted editor writes once every weight is removed).
+    const issues = (game: string, line: string, ctx: ValidationContext = CTX): Issue[] =>
+      issuesOf(doc('name: Goat', `game: ${game}`, `${game}:`, `  ${line}`), ctx)
+    const invalidNone = (path: string, severity: Issue['severity']): Issue => ({
+      severity,
+      code: 'option-invalid-value',
+      path,
+      params: { value: 'null' },
+    })
+    // Toggle: int(None) raises TypeError.
+    expect(issues('TUNIC', 'maskless: {}')).toEqual([invalidNone('TUNIC.maskless', 'error')])
+    // Range: int('none') raises ValueError.
+    expect(issues('TUNIC', 'hexagon_goal: {}')).toEqual([invalidNone('TUNIC.hexagon_goal', 'error')])
+    // NamedRange: only a special name `none` takes it, from `{}` as from `~`.
+    expect(issues('TUNIC', 'local_fill: {}')).toEqual([invalidNone('TUNIC.local_fill', 'error')])
+    const stardew = ctxWith(STARDEW)
+    expect(
+      STARDEW.groups.flatMap((group) => group.options).find((o) => o.key === 'quest_locations'),
+    ).toMatchObject({ kind: 'named-range', specialNames: { none: -1 } })
+    expect(issues('Stardew Valley', 'quest_locations: {}', stardew)).toEqual([])
+    expect(issues('Stardew Valley', 'quest_locations: ~', stardew)).toEqual([])
+    expect(issues('Stardew Valley', 'quest_locations: [~, 7]', stardew)).toEqual([])
+    // Choice: from_text('none'), a KeyError unless a choice is named so (or an alias: a warning).
+    expect(issues('TUNIC', 'fool_traps: {}')).toEqual([invalidNone('TUNIC.fool_traps', 'warning')])
+    expect(issues('A Link to the Past', 'dark_room_logic: {}')).toEqual([])
+  })
+
+  it('an empty mapping for the game or the name rolls None as well', () => {
+    // roll_settings: '"game" not specified'.
+    expect(errorsOf(doc('name: Goat', 'game: {}', 'TUNIC: {}'))).toEqual([
+      { severity: 'error', code: 'no-game', path: 'game' },
+    ])
+    expect(errorsOf(doc('name: Goat', 'game: [~, TUNIC]', 'TUNIC: {}'))).toEqual([
+      { severity: 'error', code: 'no-game', path: 'game' },
+    ])
+    // Generate.main: a None name falls back to the file name, which is then checked.
+    const named = (name: string, fileName: string): Issue[] =>
+      check(doc(`name: ${name}`, 'game: TUNIC', 'TUNIC: {}'), CTX, fileName).flatMap((d) => d.issues)
+    expect(named('{}', 'Goat.yaml')).toEqual([])
+    expect(named('{}', 'Archipelago.yaml')).toEqual([
+      { severity: 'error', code: 'name-reserved', path: 'name' },
+    ])
+    expect(named('[~, Bob]', 'Archipelago.yaml')).toEqual([
+      { severity: 'error', code: 'name-reserved', path: 'name' },
+    ])
   })
 
   it('a negative random range is mis-read by Archipelago: warned', () => {

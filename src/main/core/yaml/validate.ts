@@ -100,7 +100,9 @@ function leadingVersion(text: string | null): [number, number, number] | null {
 
 /**
  * What get_choice can pick from `value`: each list entry, each key of weight > 0 (weights go through
- * int()), or the value itself. Null when the pick fails (the issue is pushed).
+ * int()), or the value itself. An empty mapping gives get_choice's default argument; the name, the
+ * game and the game options pass none (Generate.roll_settings, handle_option), so it is Python None,
+ * held as null. Null when the pick fails (the issue is pushed).
  */
 function candidatesOf(value: unknown, path: string, push: Push): Candidate[] | null {
   if (Array.isArray(value)) {
@@ -113,8 +115,7 @@ function candidatesOf(value: unknown, path: string, push: Push): Candidate[] | n
   }
   if (!isRecord(value)) return [{ value, weight: 1 }]
   const entries = Object.entries(value)
-  // An empty mapping: the default value.
-  if (entries.length === 0) return []
+  if (entries.length === 0) return [{ value: null, weight: 1 }]
   const weighted: Candidate[] = []
   for (const [key, raw] of entries) {
     // int() of the weight: numbers, booleans and digit strings.
@@ -152,7 +153,7 @@ function invalid(
   return { severity, code: 'option-invalid-value', path, params: { value: display(value), ...extra } }
 }
 
-/** Toggle.from_any. */
+/** Toggle.from_any: None fails on int(None). */
 function checkToggle(value: unknown, path: string, push: Push): void {
   if (typeof value === 'boolean' || pyNumber(value)) return
   if (
@@ -171,6 +172,7 @@ function checkChoice(option: OptionSchema, value: unknown, path: string, push: P
   let text: string
   if (typeof value === 'string') text = value
   else if (typeof value === 'boolean') text = String(value)
+  // from_text(str(None)): a KeyError unless a choice (or an alias) is named `none`.
   else if (value === null) text = 'none'
   else text = String(display(value))
   const lower = text.toLowerCase()
@@ -195,11 +197,12 @@ function checkRange(option: OptionSchema, value: unknown, path: string, push: Pu
     else if (!inRange(num.n)) push(outOfRange(value))
     return
   }
-  if (typeof value !== 'string' && typeof value !== 'boolean') {
+  if (typeof value !== 'string' && typeof value !== 'boolean' && value !== null) {
     push(invalid(path, value))
     return
   }
-  const text = String(value).toLowerCase()
+  // from_text(str(data)): None reads as `none`, which only a special name of that name takes.
+  const text = value === null ? 'none' : String(value).toLowerCase()
   if (option.kind === 'named-range' && Object.hasOwn(specials, text)) return
   if (text.startsWith('random-range-')) {
     const parts = text.split('-')
@@ -316,18 +319,16 @@ function checkGames(doc: Record<string, unknown>, ctx: ValidationContext, push: 
   }
   const candidates = candidatesOf(doc.game, 'game', push)
   if (!candidates) return []
-  if (candidates.length === 0) {
-    push({ severity: 'error', code: 'no-game', path: 'game' })
-    return []
-  }
   const games = new Map<string, number>()
+  let none = false
   for (const { value, weight } of candidates) {
-    if (typeof value !== 'string') {
+    // None, from `{}` or a null entry: '"game" not specified'.
+    if (value === null) none = true
+    else if (typeof value === 'string') games.set(value, (games.get(value) ?? 0) + weight)
+    else
       push({ severity: 'error', code: 'game-not-installed', path: 'game', params: { game: display(value) } })
-      continue
-    }
-    games.set(value, (games.get(value) ?? 0) + weight)
   }
+  if (none) push({ severity: 'error', code: 'no-game', path: 'game' })
   for (const game of games.keys()) {
     const installed = ctx.installedGames.has(game)
     if (!installed) {
@@ -546,9 +547,11 @@ function nameOf(
     return raw
   }
   if (Array.isArray(raw) || isRecord(raw)) {
-    // A weighted name: whichever is picked must pass.
+    // A weighted name: whichever is picked must pass. None (`{}` or a null entry) is skipped by
+    // Generate.main, which then takes the file name, as when there is no name.
     for (const { value } of candidatesOf(raw, 'name', push) ?? []) {
-      if (typeof value === 'string') checkName(value, resolveName(value, 1, player), push)
+      const name = value === null ? fileStem(fileName) : value
+      if (typeof name === 'string') checkName(name, resolveName(name, 1, player), push)
       else push(invalid('name', value))
     }
     return null
