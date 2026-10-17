@@ -215,7 +215,7 @@
 
 .rom-row__size {
   flex: none;
-  color: var(--text-mute);
+  color: var(--text-dim);
 }
 
 .rom-row__hash {

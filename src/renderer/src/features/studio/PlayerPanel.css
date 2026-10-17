@@ -31,7 +31,7 @@
 
 .player-panel__count {
   flex: none;
-  color: var(--text-mute);
+  color: var(--text-dim);
   font-size: var(--fs-12);
   font-variant-numeric: tabular-nums;
 }

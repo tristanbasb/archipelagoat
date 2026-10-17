@@ -149,7 +149,7 @@
 
 .doctor-check__details dt {
   flex: none;
-  color: var(--text-mute);
+  color: var(--text-dim);
 }
 
 .doctor-check__details dt::after {
@@ -263,7 +263,7 @@
 }
 
 .doctor-health__time {
-  color: var(--text-mute);
+  color: var(--text-dim);
   font-size: var(--fs-12);
 }
 

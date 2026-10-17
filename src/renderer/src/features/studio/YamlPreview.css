@@ -94,7 +94,7 @@
   width: 3.4em;
   margin-right: var(--sp-3);
   padding-right: var(--sp-2);
-  color: var(--text-mute);
+  color: var(--text-dim);
   text-align: right;
   box-shadow: inset -1px 0 0 var(--line);
   user-select: none;
@@ -151,7 +151,7 @@
 }
 
 .yt--comment {
-  color: var(--text-mute);
+  color: var(--text-dim);
   font-style: italic;
 }
 

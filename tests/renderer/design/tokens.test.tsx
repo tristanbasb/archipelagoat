@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { contrastRatio } from '@renderer/design/contrast'
 
@@ -62,6 +62,38 @@ describe('design tokens', () => {
         expect(contrastRatio(token(fg), token(bg)), `--${fg} on --${bg}`).toBeGreaterThanOrEqual(4.5)
       }
     }
+  })
+
+  it('keeps --text-mute (under 4.5:1) off readable text: icons, separators and disabled items only', () => {
+    // Spec §4.3: text reaches 4.5:1. --text-mute does not on any background, so it colors no text.
+    expect(contrastRatio(token('text-mute'), token('bg-1'))).toBeLessThan(4.5)
+    const src = join(process.cwd(), 'src/renderer/src')
+    const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.css'))
+    const muted: string[] = []
+    for (const file of files) {
+      const css = readFileSync(join(src, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+      // The innermost rules: a selector, then declarations without a nested block.
+      for (const [, selector = '', body = ''] of css.matchAll(/([^{};]+)\{([^{}]*)\}/g)) {
+        if (/(?:^|[;\s])color\s*:\s*var\(--text-mute\)/.test(body)) muted.push(selector.trim())
+      }
+    }
+    expect(muted.sort()).toEqual(
+      [
+        // Icons and icon buttons.
+        '.stat-tile__chevron',
+        '.join-history__go',
+        '.join-history__forget',
+        '.slot-card__go',
+        '.roster-file__icon',
+        '.issue-list__go',
+        '.rom-row__dir svg',
+        '.rom-row__remove',
+        // A decorative separator.
+        '.join-history__slot + .join-history__game::before',
+        // A disabled choice.
+        '.select option:disabled',
+      ].sort(),
+    )
   })
 
   it('neon colors used as text reach 4.5:1 on bg-0 and bg-2', () => {

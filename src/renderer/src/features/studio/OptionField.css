@@ -84,7 +84,7 @@
 }
 
 .option-field__key {
-  color: var(--text-mute);
+  color: var(--text-dim);
   font-family: var(--font-mono);
   font-size: var(--fs-12);
 }

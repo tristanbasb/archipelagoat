@@ -230,7 +230,7 @@
 .gallery__type-size {
   display: inline-block;
   width: 40px;
-  color: var(--text-mute);
+  color: var(--text-dim);
   font-size: var(--fs-12);
 }
 
