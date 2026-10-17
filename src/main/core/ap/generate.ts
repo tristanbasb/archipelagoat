@@ -232,6 +232,17 @@ function stemOf(name: string): string {
 }
 
 /**
+ * The player of a mod named `AP-<seed>-P<n>-<rest>`: `<rest>` without the `_<version>` and the
+ * extension Factorio and KH1 add (worlds/factorio/Mod.py:114-115), nor the `-<ddMonYYYY-HHMMSS>` of
+ * KH2 (worlds/kh2/OpenKH.py:84-85). `Goat8-17Oct2026-174651_0.6.8.zip` → `Goat8`.
+ */
+function modOwner(rest: string): string {
+  return stemOf(rest)
+    .replace(/_\d+(?:\.\d+)+$/, '')
+    .replace(/-\d{2}[A-Za-z]{3}\d{4}-\d{6}$/, '')
+}
+
+/**
  * The slots of a spoiler header (BaseClasses.py:1869-1892): `Player <n>: <name>` then `Game: <game>`
  * for each player of a multiworld; a single player has only its `Game:` line.
  */
@@ -286,18 +297,24 @@ async function inspectGenerationZip(zipPath: string): Promise<ZipContents> {
     throw new AppError('GENERATION_FAILED', undefined, { detail: `no .archipelago in ${zipPath}` })
   }
   const base = multidata.slice(0, -'.archipelago'.length)
+  const seedName = base.slice('AP_'.length)
   const spoiler = `${base}_Spoiler.txt`
   const spoilerName = names.includes(spoiler) ? spoiler : null
-  // AP_<seed>_P<n>_<file-safe name, spaces as _>.<ext> (BaseClasses.py:407-409).
+  // AP_<seed>_P<n>_<file-safe name, spaces as _>.<ext> (BaseClasses.py:407-409), or the mod a world
+  // names itself AP-<seed>-P<n>-<file-safe name>… (Factorio, Kingdom Hearts 1 and 2).
   const slotFile = new RegExp(`^${escapeRegExp(base)}_P(\\d+)_(.+)$`)
+  const modFile = new RegExp(`^AP-${escapeRegExp(seedName)}-P(\\d+)-(.+)$`)
   const files = new Map<number, { safeName: string; entries: string[] }>()
   for (const name of names) {
-    const m = slotFile.exec(name)
-    if (!m) continue
-    const slot = Number(m[1])
+    const own = slotFile.exec(name)
+    const mod = own ? null : modFile.exec(name)
+    const found = own ?? mod
+    if (!found) continue
+    const slot = Number(found[1])
     const known = files.get(slot)
     if (known) known.entries.push(name)
-    else files.set(slot, { safeName: stemOf(m[2] ?? ''), entries: [name] })
+    else
+      files.set(slot, { safeName: own ? stemOf(found[2] ?? '') : modOwner(found[2] ?? ''), entries: [name] })
   }
   const header =
     spoilerName === null ? new Map<number, SpoilerSlot>() : await readSpoilerSlots(zipPath, spoilerName)
@@ -308,7 +325,7 @@ async function inspectGenerationZip(zipPath: string): Promise<ZipContents> {
     game: header.get(slot)?.game ?? '',
     patchFile: patchOf(files.get(slot)?.entries ?? []),
   }))
-  return { seedName: base.slice('AP_'.length), spoilerName, slots, files }
+  return { seedName, spoilerName, slots, files }
 }
 
 /**

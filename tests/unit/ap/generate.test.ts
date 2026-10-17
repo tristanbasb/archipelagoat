@@ -422,6 +422,28 @@ describe('readGenerationZip', () => {
     })
   })
 
+  it('reads the slot files of the worlds that name them AP-<seed>-P<n>-<name> (Factorio, Kingdom Hearts 2)', async () => {
+    // The names of the real 0.6.8 generation (docs/verification/2026-10-16-real-run.md): Factorio's
+    // mod (worlds/factorio/Mod.py:114-115, also KH1) and the KH2 mod with its timestamp
+    // (worlds/kh2/OpenKH.py:84-85), both followed by `_<version>`.
+    const seed = '85957999565022565374'
+    const factorio = `AP-${seed}-P2-Goat10_0.6.8.zip`
+    const kh2 = `AP-${seed}-P11-Goat8-17Oct2026-174651_0.6.8.zip`
+    const zip = await makeZip(join(root, 'mods', `AP_${seed}.zip`), {
+      [`AP_${seed}.archipelago`]: Buffer.from([3, 1, 2, 3]),
+      [factorio]: 'factorio mod',
+      [kh2]: 'kh2 mod',
+    })
+    expect(await readGenerationZip(zip)).toEqual({
+      seedName: seed,
+      spoilerName: null,
+      slots: [
+        { slot: 2, name: 'Goat10', game: '', patchFile: factorio },
+        { slot: 11, name: 'Goat8', game: '', patchFile: kh2 },
+      ],
+    })
+  })
+
   it('refuses a zip without multidata', async () => {
     const zip = await makeZip(join(root, 'empty', 'AP_1.zip'), { 'readme.txt': 'nothing' })
     await expect(readGenerationZip(zip)).rejects.toMatchObject({ code: 'GENERATION_FAILED' })
