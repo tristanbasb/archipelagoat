@@ -122,6 +122,7 @@
   },
   "tasks": {
     "running": "Tâches en cours\u00a0: {{count}}",
+    "withStage": "{{kind}} · {{stage}}",
     "kinds": {
       "ap-install": "Installation d’Archipelago",
       "ap-uninstall": "Désinstallation d’Archipelago",
@@ -180,6 +181,8 @@
     "conflicts": "Conflits",
     "replaces": "{{newName}} remplacera {{oldName}}",
     "keeps": "{{oldName}} reste prioritaire sur {{newName}}",
+    "replacesUnknown": "{{newName}} remplacera un monde déjà installé",
+    "keepsUnknown": "Un monde déjà installé reste prioritaire sur {{newName}}",
     "warnings": "Points d’attention",
     "codeTitle": "Un APWorld, c’est du code",
     "codeBody": "Archipelago exécute le code Python de ce monde avec tes droits, sans bac à sable. N’installe que des mondes dont tu connais la source.",
@@ -444,5 +447,18 @@
     "playthrough": "Calcul du parcours",
     "archive": "Création de l’archive",
     "done": "Terminé"
+  },
+  "taskStages": {
+    "download": "Téléchargement",
+    "inspect": "Analyse du fichier",
+    "verify": "Vérification de l’empreinte",
+    "backup": "Sauvegarde des réglages",
+    "quarantine": "Mise de côté des mondes corrompus",
+    "install": "Installation",
+    "detect": "Détection de l’installation",
+    "upload": "Envoi sur archipelago.gg",
+    "room": "Création de la room",
+    "wake": "Réveil de la room",
+    "port": "Attente du port de la room"
   }
 }

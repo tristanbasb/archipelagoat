@@ -1,12 +1,13 @@
 // Service registry. Each task adds its service in its own src/main/services/<name>.service.ts:
 //
-//   declare module '@main/services/registry' { interface Services { locator: Locator } }
-//   defineService('locator', (ctx, get) => createLocator(ctx), { eager: false })
+//   declare module '@main/services/registry' { interface Services { settings: ApSettings } }
+//   defineService('settings', (ctx, get) => createApSettings(ctx, get('locator')), { eager: false })
 //
 // Reserved names: locator, processes, settings, installer, worlds, catalog, templates, studio,
 // sessions, generator, servers, webhost, vault, bizhawk, join, doctor, integration, openRequests,
-// updater. Eager services (instantiated at startup, so their lifecycle hooks are registered):
-// processes (Task 7), servers (Task 16), openRequests and integration (Task 21), updater (Task 35).
+// updater. Eager services (instantiated at startup, so their lifecycle hooks and app:openPath roots
+// are registered): locator (Task 6), processes (Task 7), servers (Task 16), openRequests and
+// integration (Task 21), updater (Task 35).
 import type { CoreContext } from '@main/core/context'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- filled by declaration merging

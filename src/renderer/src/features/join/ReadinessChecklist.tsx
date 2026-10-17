@@ -13,6 +13,7 @@ import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useTask } from '../../hooks/useTask'
 import { useWorldInstall } from '../../hooks/useWorldInstall'
 import { describeError } from '../../lib/errors'
+import { taskLabel } from '../../lib/task-stages'
 import { STEP_FOCUS_PANEL } from './step-focus'
 import { useTaskOutcome } from './task-outcome'
 import './ReadinessChecklist.css'
@@ -240,7 +241,7 @@ export function ReadinessChecklist({ plan, onRefresh }: ReadinessChecklistProps)
                 <ProgressBar
                   className="check-row__progress"
                   percent={progress.percent}
-                  label={t(`tasks.kinds.${progress.kind}`)}
+                  label={taskLabel(progress, t)}
                   segments={24}
                   tone="cyan"
                 />

@@ -5,7 +5,8 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig(
-  globalIgnores(['out/', 'release/', 'coverage/', 'test-results/', 'playwright-report/']),
+  // Build output, reports and git-ignored scratch files (.superpowers/: plans, screenshot harnesses).
+  globalIgnores(['out/', 'release/', 'coverage/', 'test-results/', 'playwright-report/', '.superpowers/']),
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {

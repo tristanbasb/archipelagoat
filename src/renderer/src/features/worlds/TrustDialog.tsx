@@ -11,7 +11,7 @@ import {
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppErrorData } from '@shared/errors'
-import type { TaskProgress, TrustTier, WorldInstallPlan, WorldSource } from '@shared/types'
+import type { TaskProgress, TrustTier, WorldInfo, WorldInstallPlan, WorldSource } from '@shared/types'
 import {
   Badge,
   ErrorPanel,
@@ -23,8 +23,9 @@ import {
 } from '../../design/components'
 import type { Tone } from '../../design/classes'
 import { sfx } from '../../design/sfx'
-import { useIpcMutation } from '../../hooks/useIpc'
+import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { describeError } from '../../lib/errors'
+import { stageLabel } from '../../lib/task-stages'
 import './TrustDialog.css'
 
 export interface TrustDialogProps {
@@ -60,6 +61,19 @@ function sourceValue(source: WorldSource): string {
   return source.id
 }
 
+type Conflict = WorldInstallPlan['conflicts'][number]
+
+/**
+ * How a conflict names the installed world: its file, then its game and version when known. A
+ * world id is a hash of its path, never shown: null when the world is not in the list.
+ */
+function conflictName(conflict: Conflict, worlds: readonly WorldInfo[]): string | null {
+  const world = worlds.find((item) => item.id === conflict.worldId)
+  if (!world) return null
+  const details = [world.game, conflict.version].filter(Boolean).join(' ')
+  return details ? `${world.fileName} (${details})` : world.fileName
+}
+
 export function TrustDialog({
   open,
   plan,
@@ -71,6 +85,8 @@ export function TrustDialog({
   onCancel,
 }: TrustDialogProps): React.JSX.Element {
   const { t } = useTranslation()
+  // The installed worlds name the conflicts; loaded while the new one is inspected.
+  const worlds = useIpcQuery('worlds:list', undefined, { enabled: open })
   // The acknowledgement belongs to one plan: a new plan starts unchecked.
   const [ackedPlan, setAckedPlan] = useState<string | null>(null)
   const acked = plan !== null && ackedPlan === plan.planId
@@ -121,6 +137,7 @@ export function TrustDialog({
       ) : plan ? (
         <PlanReview
           plan={plan}
+          worlds={worlds.data ?? []}
           error={error}
           acked={acked}
           onAck={(checked) => setAckedPlan(checked ? plan.planId : null)}
@@ -129,7 +146,7 @@ export function TrustDialog({
         <div className="trust-dialog__preparing">
           <ProgressBar
             percent={progress?.percent ?? null}
-            label={t('worldInstall.preparing')}
+            label={stageLabel(progress, t) ?? t('worldInstall.preparing')}
             segments={16}
             tone="violet"
           />
@@ -147,12 +164,14 @@ function PrepareError({ error }: { error: AppErrorData }): React.JSX.Element {
 
 interface PlanReviewProps {
   plan: WorldInstallPlan
+  /** The installed worlds, to name the conflicts. */
+  worlds: readonly WorldInfo[]
   error: AppErrorData | null
   acked: boolean
   onAck: (checked: boolean) => void
 }
 
-function PlanReview({ plan, error, acked, onAck }: PlanReviewProps): React.JSX.Element {
+function PlanReview({ plan, worlds, error, acked, onAck }: PlanReviewProps): React.JSX.Element {
   const { t } = useTranslation()
   const ackId = useId()
   const manifest = plan.manifest
@@ -209,15 +228,18 @@ function PlanReview({ plan, error, acked, onAck }: PlanReviewProps): React.JSX.E
           <h3>{t('worldInstall.conflicts')}</h3>
           <ul>
             {plan.conflicts.map((conflict) => {
-              const oldName = [conflict.worldId, conflict.version].filter(Boolean).join(' ')
-              const names = { newName: plan.targetFileName, oldName }
+              const oldName = conflictName(conflict, worlds)
+              const newName = plan.targetFileName
+              const replaces = conflict.winner === 'new'
               return (
                 <li key={conflict.worldId}>
                   <IconAlertTriangle aria-hidden="true" />
                   <span>
-                    {conflict.winner === 'new'
-                      ? t('worldInstall.replaces', names)
-                      : t('worldInstall.keeps', names)}
+                    {oldName === null
+                      ? t(replaces ? 'worldInstall.replacesUnknown' : 'worldInstall.keepsUnknown', {
+                          newName,
+                        })
+                      : t(replaces ? 'worldInstall.replaces' : 'worldInstall.keeps', { newName, oldName })}
                   </span>
                 </li>
               )

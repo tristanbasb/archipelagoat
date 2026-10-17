@@ -11,7 +11,7 @@ import {
   IconUsersGroup,
   IconWorld,
 } from '@tabler/icons-react'
-import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import type { UseQueryResult } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import { useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +38,6 @@ import {
   type Status,
   type Tone,
 } from '../../design/components'
-import { useEvent } from '../../hooks/useEvent'
 import { useIpcQuery } from '../../hooks/useIpc'
 import { ScreenHeader } from '../../layout/ScreenHeader'
 import { describeError } from '../../lib/errors'
@@ -56,7 +55,10 @@ import './HomeScreen.css'
 
 const K = 'screens.home'
 
-/** The home reruns the health check at most once a minute; the diagnostic screen always does. */
+/**
+ * The home reruns the health check at most once a minute; the diagnostic screen always does. An
+ * install or a world change reruns it at once (the shell's useEventInvalidation).
+ */
 const DOCTOR_STALE_MS = 60_000
 
 /** How many recent games the home lists. */
@@ -65,13 +67,7 @@ const RECENT_COUNT = 5
 export function HomeScreen(): React.JSX.Element {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const ap = useIpcQuery('ap:detect', undefined)
-
-  // An install or a new world changes what the health check finds.
-  const refreshDoctor = (): void => void queryClient.invalidateQueries({ queryKey: ['doctor:run'] })
-  useEvent('ap:installed', refreshDoctor)
-  useEvent('worlds:changed', refreshDoctor)
 
   return (
     <div className="home">

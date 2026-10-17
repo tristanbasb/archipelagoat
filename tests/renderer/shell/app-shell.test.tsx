@@ -200,9 +200,35 @@ describe('app shell', () => {
 
     goat.emit('task:progress', { taskId: 't1', kind: 'generate', stage: 'fill', percent: 42 })
     expect(within(bar).getByText('Génération de la partie')).toBeInTheDocument()
+    expect(within(bar).getByText('Placement des objets')).toBeInTheDocument()
     expect(within(bar).getByText('42 %')).toBeInTheDocument()
     goat.emit('task:done', { taskId: 't1', kind: 'generate', result: null })
     expect(within(bar).queryByText('Génération de la partie')).toBeNull()
+  })
+
+  it('names the stage of the running task in the status bar, never its raw code', async () => {
+    const { goat, user } = await renderApp()
+    const bar = screen.getByRole('contentinfo', { name: 'Barre d’état' })
+
+    goat.emit('task:progress', { taskId: 'w1', kind: 'world-prepare', stage: 'download', percent: 10 })
+    expect(within(bar).getByText('Analyse d’un monde')).toBeInTheDocument()
+    expect(within(bar).getByText('Téléchargement')).toBeInTheDocument()
+    goat.emit('task:progress', { taskId: 'w1', kind: 'world-prepare', stage: 'inspect', percent: null })
+    expect(within(bar).getByText('Analyse du fichier')).toBeInTheDocument()
+    goat.emit('task:done', { taskId: 'w1', kind: 'world-prepare', result: null })
+
+    goat.emit('task:progress', { taskId: 'a1', kind: 'ap-install', stage: 'quarantine', percent: 30 })
+    expect(within(bar).getByText('Installation d’Archipelago')).toBeInTheDocument()
+    expect(within(bar).getByText('Mise de côté des mondes corrompus')).toBeInTheDocument()
+    // A stage without a label shows the task alone.
+    goat.emit('task:progress', { taskId: 'a1', kind: 'ap-install', stage: 'mystery-stage', percent: 40 })
+    expect(within(bar).queryByText('Mise de côté des mondes corrompus')).toBeNull()
+    expect(bar).not.toHaveTextContent('mystery-stage')
+
+    goat.emit('task:progress', { taskId: 'a1', kind: 'ap-install', stage: 'verify', percent: 50 })
+    await user.click(within(bar).getByRole('button', { name: 'Langue : français' }))
+    expect(await within(bar).findByText('Installing Archipelago')).toBeInTheDocument()
+    expect(within(bar).getByText('Checking the checksum')).toBeInTheDocument()
   })
 
   it('switches the language from the status bar', async () => {

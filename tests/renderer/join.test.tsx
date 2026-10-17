@@ -274,6 +274,10 @@ describe('join screen', () => {
     // The emulator: install BizHawk, then point Archipelago at it.
     await user.click(within(checklist).getByRole('button', { name: 'Installer BizHawk' }))
     await waitFor(() => expect(goat.inputsOf('bizhawk:install')).toHaveLength(1))
+    goat.emit('task:progress', { taskId: 'bh-1', kind: 'bizhawk-install', stage: 'download', percent: 50 })
+    expect(
+      await within(checklist).findByRole('progressbar', { name: 'Installation de BizHawk · Téléchargement' }),
+    ).toBeInTheDocument()
     goat.emit('task:done', { taskId: 'bh-1', kind: 'bizhawk-install', result: BIZHAWK })
     await waitFor(() => expect(goat.inputsOf('bizhawk:configureAp')).toHaveLength(1))
     await waitFor(() => expect(goat.inputsOf('join:refresh')).toHaveLength(2))

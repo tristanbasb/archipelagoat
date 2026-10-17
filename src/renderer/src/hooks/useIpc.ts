@@ -18,8 +18,10 @@ export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       // A local call that failed fails the same way again: show the error instead of retrying.
-      queries: { retry: false, refetchOnWindowFocus: false, staleTime: 5_000 },
-      mutations: { retry: false },
+      // IPC never needs the network: `always` keeps calls running when the computer goes offline
+      // (the default `online` mode would pause every one of them).
+      queries: { networkMode: 'always', retry: false, refetchOnWindowFocus: false, staleTime: 5_000 },
+      mutations: { networkMode: 'always', retry: false },
     },
   })
 }

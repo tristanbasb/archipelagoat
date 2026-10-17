@@ -1,7 +1,11 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { CHECK_CODES, DOCTOR_CHECK_IDS, ERROR_CODES, GENERATE_STAGE_IDS, ISSUE_CODES } from '@shared/codes'
 import type { TaskKind, TrustTier } from '@shared/types'
 import { resources } from '@renderer/i18n'
 import { ERROR_ACTIONS } from '@renderer/lib/errors'
+import { TASK_STAGES } from '@renderer/lib/task-stages'
 
 type Tree = { [key: string]: Tree | string }
 
@@ -45,6 +49,19 @@ const TASK_KINDS: TaskKind[] = [
 ]
 const TRUST_TIERS: TrustTier[] = ['core', 'indexed-verified', 'wiki-release', 'unknown']
 
+const MAIN_DIR = fileURLToPath(new URL('../../src/main/', import.meta.url))
+
+/** Every stage literal the main process passes to a task's progress(), e.g. progress('inspect', null). */
+function mainStageLiterals(): string[] {
+  const stages = new Set<string>()
+  for (const file of readdirSync(MAIN_DIR, { recursive: true, encoding: 'utf8' })) {
+    if (!file.endsWith('.ts')) continue
+    const code = readFileSync(join(MAIN_DIR, file), 'utf8')
+    for (const match of code.matchAll(/\bprogress\(\s*['"`]([^'"`]+)['"`]/g)) stages.add(match[1] ?? '')
+  }
+  return [...stages].sort()
+}
+
 describe('i18n resources', () => {
   it('fr.json and en.json have identical key sets', () => {
     expect([...fr.keys()].sort()).toEqual([...en.keys()].sort())
@@ -87,10 +104,18 @@ describe('i18n resources', () => {
     for (const id of GENERATE_STAGE_IDS) expectText(`stages.${id}`)
     for (const code of CHECK_CODES) expectText(`checks.${code}`)
     for (const kind of TASK_KINDS) expectText(`tasks.kinds.${kind}`)
+    for (const stage of TASK_STAGES) expectText(`taskStages.${stage}`)
     for (const tier of TRUST_TIERS) {
       expectText(`trust.${tier}.label`)
       expectText(`trust.${tier}.description`)
     }
+  })
+
+  it('labels every task stage the main process reports', () => {
+    const literals = mainStageLiterals()
+    // The world inspection's stages, at least, are found.
+    expect(literals).toEqual(expect.arrayContaining(['download', 'inspect']))
+    for (const stage of literals) expect(TASK_STAGES, `progress('${stage}')`).toContain(stage)
   })
 
   it('has a label for every error action describeError offers', () => {

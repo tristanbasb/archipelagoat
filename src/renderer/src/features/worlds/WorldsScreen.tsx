@@ -1,7 +1,7 @@
 // The worlds screen (spec §4.2.3): the installed APWorlds and the community catalog, in two tabs.
 // Installs go through useWorldInstall (trust screen first); `?install=<path>` (one per file, from
 // a drop or a file opened with the app) queues file installs, one after the other. The lists
-// refresh on `worlds:changed` through the app layout, which invalidates WORLD_QUERIES.
+// refresh on `worlds:changed` through the app shell (useEventInvalidation).
 import { IconFileImport, IconPackages, IconWorldDownload } from '@tabler/icons-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'

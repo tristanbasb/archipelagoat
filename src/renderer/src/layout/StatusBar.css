@@ -85,6 +85,13 @@
   text-overflow: ellipsis;
 }
 
+.status-bar__task-stage {
+  overflow: hidden;
+  max-width: 220px;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+}
+
 .status-bar__meter {
   position: relative;
   width: 64px;

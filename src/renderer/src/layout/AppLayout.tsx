@@ -1,15 +1,13 @@
 // The frame around every screen: title bar, rail, the screen itself, status bar, and the overlays
 // that can appear anywhere (boot, drop, quit, file choice, CRT).
-import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { CRTOverlay, Spinner } from '../design/components'
 import { BootScreen } from '../features/boot/BootScreen'
-import { useEvent } from '../hooks/useEvent'
+import { useEventInvalidation } from '../hooks/useEventInvalidation'
 import { useOpenRequests } from '../hooks/useOpenRequests'
 import { useShortcuts } from '../hooks/useShortcuts'
-import { WORLD_QUERIES } from '../hooks/useWorldInstall'
 import { useConfig } from '../stores/config'
 import { DropOverlay } from './DropOverlay'
 import { FileChoiceDialog } from './FileChoiceDialog'
@@ -29,15 +27,12 @@ export function AppLayout(): React.JSX.Element {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const config = useConfig()
-  const queryClient = useQueryClient()
   const mainRef = useRef<HTMLElement>(null)
   const [bootDone, setBootDone] = useState(false)
 
   useOpenRequests()
+  useEventInvalidation()
   useShortcuts(railShortcuts((to) => void navigate(to)))
-  useEvent('worlds:changed', () => {
-    for (const name of WORLD_QUERIES) void queryClient.invalidateQueries({ queryKey: [name] })
-  })
 
   // A new screen starts at its top.
   useEffect(() => {

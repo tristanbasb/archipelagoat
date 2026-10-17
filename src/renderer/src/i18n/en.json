@@ -122,6 +122,7 @@
   },
   "tasks": {
     "running": "Running tasks: {{count}}",
+    "withStage": "{{kind}} · {{stage}}",
     "kinds": {
       "ap-install": "Installing Archipelago",
       "ap-uninstall": "Uninstalling Archipelago",
@@ -180,6 +181,8 @@
     "conflicts": "Conflicts",
     "replaces": "{{newName}} will replace {{oldName}}",
     "keeps": "{{oldName}} keeps priority over {{newName}}",
+    "replacesUnknown": "{{newName}} will replace an installed world",
+    "keepsUnknown": "An installed world keeps priority over {{newName}}",
     "warnings": "Things to know",
     "codeTitle": "An APWorld is code",
     "codeBody": "Archipelago runs this world’s Python code with your permissions, with no sandbox. Only install worlds whose source you know.",
@@ -444,5 +447,18 @@
     "playthrough": "Computing the playthrough",
     "archive": "Creating the archive",
     "done": "Done"
+  },
+  "taskStages": {
+    "download": "Downloading",
+    "inspect": "Inspecting the file",
+    "verify": "Checking the checksum",
+    "backup": "Backing up the settings",
+    "quarantine": "Setting aside broken worlds",
+    "install": "Installing",
+    "detect": "Checking the install",
+    "upload": "Sending to archipelago.gg",
+    "room": "Opening the room",
+    "wake": "Waking the room up",
+    "port": "Waiting for the room’s port"
   }
 }

@@ -1,6 +1,5 @@
 // The status bar: Archipelago version, server state, running tasks, health check and language.
 import { IconLanguage, IconStethoscope } from '@tabler/icons-react'
-import { useQueryClient } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +9,7 @@ import type { ApInstall, Lang, ServerState, SessionSummary } from '@shared/types
 import { Spinner, StatusPill, type Status } from '../design/components'
 import { useEvent } from '../hooks/useEvent'
 import { useIpcQuery } from '../hooks/useIpc'
+import { stageLabel } from '../lib/task-stages'
 import { useConfig } from '../stores/config'
 import { useTasksStore, type TaskEntry } from '../stores/tasks'
 import './StatusBar.css'
@@ -24,9 +24,8 @@ interface Pill {
 
 function useApPill(): Pill {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
+  // Refreshed on ap:installed by the shell (useEventInvalidation).
   const ap = useIpcQuery('ap:detect', undefined)
-  useEvent('ap:installed', () => void queryClient.invalidateQueries({ queryKey: ['ap:detect'] }))
   const base = { to: '/install', hint: t('shell.status.apHint') }
   if (ap.isPending) return { ...base, status: 'busy', label: t('shell.status.apChecking') }
   if (ap.isError) return { ...base, status: 'idle', label: t('shell.status.apUnavailable') }
@@ -111,6 +110,7 @@ function RunningTasks(): React.JSX.Element | null {
   const [first, ...others] = running
   if (!first) return null
   const percent = first.progress?.percent ?? null
+  const stage = stageLabel(first.progress, t)
   const format = new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 })
   return (
     <span
@@ -119,6 +119,7 @@ function RunningTasks(): React.JSX.Element | null {
     >
       <Spinner size="sm" />
       <span className="status-bar__task-label">{t(`tasks.kinds.${first.kind}`)}</span>
+      {stage && <span className="status-bar__task-stage">{stage}</span>}
       {percent !== null && (
         <>
           <span className="status-bar__meter" aria-hidden="true">
