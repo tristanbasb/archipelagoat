@@ -151,6 +151,24 @@ describe('session store: lifecycle', () => {
     expect(await failure(store.delete(created.id))).toMatchObject({ code: 'NOT_FOUND' })
   })
 
+  it('delete refuses a session the isBusy hook calls busy (its local server runs)', async () => {
+    const busy = new Set<string>()
+    const guarded = createSessionStore(core.ctx, { validationContext: context, isBusy: (id) => busy.has(id) })
+    const { id, workspace } = await guarded.create('Goat')
+    await guarded.setSecrets(id, { password: 'pw' })
+    busy.add(id)
+
+    expect(await failure(guarded.delete(id))).toMatchObject({ code: 'AP_RUNNING' })
+    expect(existsSync(workspace)).toBe(true)
+    expect(await guarded.getSecrets(id)).toEqual({ password: 'pw', serverPassword: null })
+    // An unknown id is still NOT_FOUND.
+    expect(await failure(guarded.delete('s_unknown'))).toMatchObject({ code: 'NOT_FOUND' })
+
+    busy.delete(id)
+    await guarded.delete(id)
+    expect(existsSync(workspace)).toBe(false)
+  })
+
   it('refuses an empty name and answers NOT_FOUND for an unknown or malformed id', async () => {
     expect(await failure(store.create('   '))).toMatchObject({ code: 'INVALID_INPUT' })
     const { id } = await store.create('Goat')
