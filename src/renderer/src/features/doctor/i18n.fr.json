@@ -1,1 +1,49 @@
-{}
+{
+  "eyebrow": "SYSTEM CHECK",
+  "subtitle": "Vérifie que tout est prêt et corrige ce qui coince.",
+  "rerun": "Relancer le diagnostic",
+  "running": "Diagnostic en cours…",
+  "checking": "Vérification…",
+  "scanning": "NOW LOADING",
+  "lastRun": "Dernier passage : {{time}}",
+  "summary": {
+    "eyebrow": "STATUS",
+    "title": "Santé du système",
+    "health": "Vérifications réussies",
+    "score": "{{passed}}/{{total}}",
+    "allClear": "Tout est prêt. Bonne partie !",
+    "attention": "Quelques points méritent ton attention.",
+    "errors": "Erreurs : {{count}}",
+    "warnings": "Alertes : {{count}}",
+    "infos": "Infos : {{count}}"
+  },
+  "problems": {
+    "eyebrow": "CAUTION",
+    "title": "À regarder"
+  },
+  "passing": {
+    "eyebrow": "ALL GREEN",
+    "title": "Tout va bien"
+  },
+  "fix": {
+    "auto": "Corriger",
+    "fixing": "Correction…",
+    "navigate": "Résoudre",
+    "done": "Corrigé : {{title}}",
+    "partial": "Pas encore résolu : {{title}}"
+  },
+  "bundle": {
+    "eyebrow": "SUPPORT",
+    "title": "Bundle de support",
+    "body": "Un zip de tes logs (ArchipelaGOAT et Archipelago) et de ce diagnostic, à joindre quand tu demandes de l’aide.",
+    "privacy": "Les mots de passe sont masqués. Le zip est créé sur ton ordinateur et n’est jamais envoyé.",
+    "create": "Créer un bundle de support",
+    "creating": "Création du bundle…",
+    "path": "Emplacement du bundle",
+    "openFolder": "Ouvrir le dossier"
+  },
+  "empty": {
+    "title": "Aucune vérification",
+    "body": "Le diagnostic n’a rien renvoyé. Relance-le."
+  }
+}
