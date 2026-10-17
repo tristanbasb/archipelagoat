@@ -1,0 +1,295 @@
+.vault-screen {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.vault-screen .screen-header {
+  margin-bottom: var(--sp-2);
+}
+
+/* ---- Legal notice: a strip of caution tape on the left ------------------------------------- */
+
+.vault-legal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5) var(--sp-3) calc(var(--sp-5) + 8px);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 10%, var(--bg-1)) 0%, var(--bg-1) 75%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 26%, transparent);
+  clip-path: var(--clip-corner);
+}
+
+.vault-legal::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 8px;
+  background: repeating-linear-gradient(-45deg, var(--tone) 0 5px, var(--bg-0) 5px 10px);
+  opacity: 0.85;
+}
+
+.vault-legal__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 30%, transparent);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.vault-legal__icon svg {
+  width: 20px;
+  height: 20px;
+  filter: var(--drop-glow);
+}
+
+.vault-legal__text {
+  font-size: var(--fs-13);
+  line-height: 1.6;
+}
+
+.vault-legal__title {
+  color: var(--tone-ink);
+  font-weight: 700;
+}
+
+.vault-legal__body {
+  color: var(--text-dim);
+}
+
+/* ---- Stats and the two columns ------------------------------------------------------------- */
+
+.vault-screen__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+.vault-screen__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: var(--sp-6);
+}
+
+/* ---- The vault panel ----------------------------------------------------------------------- */
+
+.rom-vault .pixel-panel__body {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.rom-vault .pixel-panel__actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rom-vault__loading {
+  padding: var(--sp-6) 0;
+}
+
+.rom-vault__scan {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+}
+
+.rom-vault__scan .progress {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A finished scan: a green line with a close button. */
+.rom-vault__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-3);
+  background: color-mix(in srgb, var(--neon-green) 8%, var(--bg-1));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--neon-green) 30%, transparent);
+  font-size: var(--fs-13);
+  clip-path: var(--clip-corner-sm);
+}
+
+.rom-vault__summary p {
+  flex: 1;
+  min-width: 0;
+}
+
+.rom-vault__summary strong {
+  color: color-mix(in srgb, var(--neon-green) 78%, #ffffff);
+}
+
+.rom-vault__summary span {
+  color: var(--text-dim);
+}
+
+.rom-vault__summary-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--neon-green);
+}
+
+.rom-vault__dismiss {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+}
+
+.rom-vault__dismiss:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.rom-vault__dismiss svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* The call to apply: a violet strip, the count on the left and the button on the right. */
+.rom-vault__apply {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background:
+    linear-gradient(100deg, color-mix(in srgb, var(--tone) 16%, transparent), transparent 70%), var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--tone-line);
+  clip-path: var(--clip-corner);
+}
+
+.rom-vault__apply-text {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.rom-vault__apply-count {
+  color: var(--tone-ink);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  text-shadow: var(--text-glow);
+}
+
+.rom-vault__apply-hint {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.rom-vault__apply .neon-btn {
+  flex: none;
+}
+
+:where(.fx-off, .fx-no-glow) .rom-vault__apply-count {
+  text-shadow: none;
+}
+
+/* ---- Apply result ---------------------------------------------------------------------------- */
+
+.apply-result {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: color-mix(in srgb, var(--bg-0) 55%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: var(--clip-corner);
+}
+
+.apply-result__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.apply-result__title {
+  font-size: var(--fs-14);
+}
+
+.apply-result__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-4);
+}
+
+.apply-result__group {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-2);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--tone-line);
+}
+
+.apply-result__group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+}
+
+.apply-result__group-title svg {
+  width: 16px;
+  height: 16px;
+  color: var(--tone);
+}
+
+.apply-result__list {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apply-result__item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--fs-12);
+}
+
+.apply-result__game {
+  color: var(--text);
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.apply-result__key {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--neon-cyan);
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apply-result__path {
+  overflow: hidden;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apply-result__reason {
+  color: var(--tone-ink);
+  font-weight: 500;
+}
+
+.apply-result__help {
+  color: var(--text-dim);
+  line-height: 1.5;
+}

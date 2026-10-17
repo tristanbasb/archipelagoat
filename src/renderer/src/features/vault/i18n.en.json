@@ -1,1 +1,135 @@
-{}
+{
+  "eyebrow": "STAGE 06",
+  "subtitle": "Your ROMs and BizHawk, ready for Archipelago",
+  "legal": {
+    "title": "ArchipelaGOAT does not provide any ROM.",
+    "body": "Use your own copies. The vault only keeps their path and fingerprint: nothing is copied, nothing is shared."
+  },
+  "stats": {
+    "recognised": "Recognised ROMs",
+    "unknown": "Unrecognised",
+    "covered": "Games covered",
+    "coveredValue": "{{found}} / {{total}}",
+    "bizhawk": "BizHawk",
+    "none": "—"
+  },
+  "vault": {
+    "eyebrow": "ROM VAULT",
+    "title": "ROM vault",
+    "scanFolder": "Scan a folder",
+    "addFiles": "Add files",
+    "pickFolderTitle": "Choose your ROM folder",
+    "pickFilesTitle": "Choose your ROMs",
+    "romFilter": "ROMs",
+    "allFiles": "All files",
+    "loading": "Reading the vault…",
+    "emptyTitle": "Your vault is empty",
+    "emptyBody": "Choose the folder where you keep your ROMs: ArchipelaGOAT recognises the ones Archipelago expects from their MD5 fingerprint.",
+    "emptyAction": "Choose a folder",
+    "removed": "{{name}} was removed from the vault"
+  },
+  "scan": {
+    "running": "Looking for ROMs…",
+    "cancel": "Stop the scan",
+    "done": "Scan finished",
+    "doneBody": "Recognised: {{recognised}} · unrecognised: {{unknown}}",
+    "dismiss": "Hide the scan summary"
+  },
+  "apply": {
+    "ready": "Ready for Archipelago: {{count}}",
+    "hint": "The path of each recognised ROM is written to Archipelago’s settings (host.yaml).",
+    "action": "Apply to Archipelago",
+    "applying": "Applying…",
+    "resultTitle": "Result",
+    "applied": "Applied: {{count}}",
+    "skipped": "Skipped: {{count}}",
+    "dismiss": "Hide the result",
+    "done": "Archipelago is set up",
+    "doneBody": "ROMs applied: {{count}}",
+    "partial": "Some ROMs were skipped",
+    "partialBody": "Applied: {{applied}} · skipped: {{skipped}}"
+  },
+  "list": {
+    "recognised": "Recognised ROMs",
+    "unknown": "Unrecognised ROMs",
+    "recognisedTitle": "Recognised",
+    "unknownTitle": "Unrecognised",
+    "unknownHint": "Their fingerprint matches no ROM Archipelago expects: another region or revision, a modified ROM, or a game that does not need one.",
+    "md5Ok": "MD5 ✓",
+    "md5Verified": "Verified MD5 fingerprint: {{md5}}",
+    "md5Unknown": "Unknown MD5",
+    "md5Value": "MD5 fingerprint: {{md5}}",
+    "remove": "Remove {{name}} from the vault",
+    "removeHint": "Remove from the vault. The file stays on your disk."
+  },
+  "bizhawk": {
+    "eyebrow": "EMULATOR",
+    "title": "BizHawk",
+    "lead": "The emulator Archipelago drives for Game Boy, GBA, NES, SNES and N64 games (Pokémon, Mega Man, Castlevania…).",
+    "loading": "Looking for BizHawk…",
+    "status": {
+      "ready": "Ready",
+      "missing": "Not installed",
+      "prereqs": "Missing prerequisites",
+      "configure": "Needs setup"
+    },
+    "missingBody": "Install version {{version}} in one click, or point to a BizHawk you already have.",
+    "version": "Version",
+    "versionUnknown": "Unknown",
+    "path": "Location",
+    "source": "Source",
+    "managed": "Installed by ArchipelaGOAT",
+    "external": "Existing installation",
+    "archipelago": "Archipelago",
+    "configured": "Set up",
+    "notConfigured": "Not set up yet",
+    "configureHint": "Archipelago will know where BizHawk is and will open the patched ROM in it directly.",
+    "prereqs": "Prerequisites",
+    "prereqOk": "Present",
+    "prereqMissing": "Missing",
+    "prereqKinds": {
+      "mono": "Mono, which runs BizHawk on Linux",
+      "lua": "Lua 5.4, for the Archipelago connection script",
+      "lsb": "lsb_release, used by the BizHawk launcher",
+      "openal": "OpenAL, for sound",
+      "vcredist": "Microsoft Visual C++ x64 runtime",
+      "version": "A supported BizHawk version (2.7 to 2.11)"
+    },
+    "command": "Install command",
+    "commandHint": "Run it in a terminal, then check again.",
+    "linkHint": "Install it from the official page, then check again.",
+    "openPage": "Open the official page",
+    "recheck": "Check again",
+    "install": "Install BizHawk {{version}}",
+    "update": "Update to {{version}}",
+    "installing": "Installing BizHawk…",
+    "cancel": "Cancel the install",
+    "installed": "BizHawk {{version}} is installed",
+    "configure": "Set up Archipelago",
+    "configuredToast": "Archipelago will use this BizHawk",
+    "choose": "Choose an existing BizHawk",
+    "chooseTitle": "Choose the BizHawk folder",
+    "chosen": "BizHawk found",
+    "forget": "Forget this path",
+    "forgotten": "BizHawk path forgotten"
+  },
+  "games": {
+    "eyebrow": "GAME LIST",
+    "title": "Supported games",
+    "lead": "The ROMs Archipelago 0.6.8 recognises, in the exact version it expects.",
+    "loading": "Loading the list…",
+    "count": "In your vault: {{found}} / {{total}}",
+    "generation": "To generate a game",
+    "generationHint": "The host needs it to generate the game.",
+    "play": "To play",
+    "playHint": "Only the player needs it, to patch their game.",
+    "columns": {
+      "game": "Game",
+      "rom": "Expected ROM",
+      "key": "Archipelago setting",
+      "status": "Vault"
+    },
+    "found": "Found",
+    "absent": "Missing"
+  }
+}
