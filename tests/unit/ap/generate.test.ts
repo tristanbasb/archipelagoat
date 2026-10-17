@@ -534,15 +534,46 @@ describe('runGeneration', () => {
     for (const id of [zork, rom, empty]) expect(existsSync(join(wsOf(id).dir, 'host.yaml'))).toBe(false)
   })
 
-  it('refuses while the session is hosting, and without Archipelago', async () => {
+  it.each([
+    [
+      'a room on archipelago.gg',
+      {
+        mode: 'web',
+        seedId: 'seed1',
+        roomId: 'room1',
+        roomUrl: 'https://archipelago.gg/room/room1',
+        port: 38281,
+      },
+    ],
+    ['a local server that stopped', { mode: 'local', port: 38281, savefile: 'AP_old.apsave' }],
+  ] as const)('generates a session hosted by %s again: the session loses its hosting', async (_, hosting) => {
     const id = await aliceAndBob()
-    await store.setHosting(id, { mode: 'local', port: 38281, savefile: join(wsOf(id).output, 'x.apsave') })
-    await expect(runGeneration(core.ctx, deps, id, taskSpy().handle)).rejects.toMatchObject({
-      code: 'GENERATION_PREFLIGHT',
-      params: { reason: 'hosting' },
-    })
+    await store.setHosting(id, hosting)
+    expect((await store.get(id)).status).toBe('hosting')
 
-    await store.setHosting(id, null)
+    const generation = await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
+
+    // A new seed: the old room stays on the site, the session no longer points to it.
+    expect(generation.seedName).toBe(SEED)
+    expect(await store.get(id)).toMatchObject({ status: 'generated', generation, hosting: null })
+  })
+
+  it('keeps the hosting of a local server started while Archipelago generated', async () => {
+    const id = await aliceAndBob()
+    const hosting = { mode: 'local', port: 38281, savefile: join(wsOf(id).output, 'AP_old.apsave') } as const
+    await store.setHosting(id, hosting)
+    // No server at the start; one runs once the generation is over.
+    let checks = 0
+    const serving: GenerateDeps = { ...deps, isServing: () => checks++ > 0 }
+
+    const generation = await within(runGeneration(core.ctx, serving, id, taskSpy().handle), 15_000)
+
+    expect(checks).toBe(2)
+    expect(await store.get(id)).toMatchObject({ status: 'hosting', generation, hosting })
+  })
+
+  it('refuses without Archipelago', async () => {
+    const id = await aliceAndBob()
     const noAp: GenerateDeps = {
       ...deps,
       locator: { detect: () => Promise.resolve(null), exe: (install, name) => locator.exe(install, name) },

@@ -1,6 +1,6 @@
 // Turns any error into translated text: what went wrong (`errors.<CODE>`), how to fix it
 // (`errors.help.<CODE>`) and, when there is one, the screen that fixes it. The `params` fill the
-// text's {{variables}}; a `file` param picks the variant naming it (`errors.<CODE>_file`) when there is one.
+// text's {{variables}} and pick its variant when it has one (see `variantsOf`).
 import type { TFunction } from 'i18next'
 import type { ErrorCode } from '@shared/codes'
 import { isAppErrorData, type AppErrorData } from '@shared/errors'
@@ -56,6 +56,26 @@ export const ERROR_ACTIONS: Partial<Record<ErrorCode, ErrorAction>> = {
   AP_UNKNOWN: DOCTOR,
 }
 
+/** A `reason` or `phase` value that can name a variant: no `.` or `:`, which i18next reads in a key. */
+const VARIANT_NAME = /^[A-Za-z0-9-]+$/
+
+/**
+ * The variants of an error's texts that its params select, the most specific first: the value of a
+ * `reason`, then of a `phase` (`errors.<CODE>_hosting`, `errors.<CODE>_running`), then `_message` for
+ * a message from a site and `_file` for a file name. Each text takes the first of them it has, or
+ * its plain version.
+ */
+function variantsOf(params: Record<string, string | number>): string[] {
+  const named = [params.reason, params.phase].filter(
+    (value): value is string => typeof value === 'string' && VARIANT_NAME.test(value),
+  )
+  const given = (['message', 'file'] as const).filter((name) => {
+    const value = params[name]
+    return typeof value === 'string' && value !== ''
+  })
+  return [...named, ...given]
+}
+
 /**
  * Accepts error data (AppErrorData), the plain GoatError object `window.goat.invoke` rejects with,
  * or anything thrown (which becomes AP_UNKNOWN with its text as the detail). Uses `t` when given, so a component
@@ -64,13 +84,11 @@ export const ERROR_ACTIONS: Partial<Record<ErrorCode, ErrorAction>> = {
 export function describeError(e: unknown, t: TFunction = i18n.t): DescribedError {
   const data: AppErrorData = isAppErrorData(e) ? e : { code: 'AP_UNKNOWN', detail: String(e) }
   const params = data.params ?? {}
-  // A file name selects the `<CODE>_file` text, which says which file; without one, or for a code that
-  // has no such text, the plain text applies (i18next falls back to it).
-  const options =
-    typeof params.file === 'string' && params.file !== '' ? { ...params, context: 'file' } : params
+  // i18next takes the first key of the list that has a text: the plain one comes last.
+  const keys = (base: string): string[] => [...variantsOf(params).map((v) => `${base}_${v}`), base]
   const described: DescribedError = {
-    title: t(`errors.${data.code}`, options),
-    body: t(`errors.help.${data.code}`, options),
+    title: t(keys(`errors.${data.code}`), params),
+    body: t(keys(`errors.help.${data.code}`), params),
   }
   const action = ERROR_ACTIONS[data.code]
   if (action) described.action = action

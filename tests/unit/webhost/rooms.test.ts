@@ -21,6 +21,8 @@ let sessionId: string
 let zipPath: string
 let clock: number
 let sleeps: number[]
+/** The sessions whose local server runs, as the servers service reports them. */
+let serving: Set<string>
 
 beforeEach(async () => {
   root = mkdtempSync(join(tmpdir(), 'goat webhost rooms é-'))
@@ -50,6 +52,7 @@ beforeEach(async () => {
   await sessions.setGeneration(sessionId, generation)
   clock = 0
   sleeps = []
+  serving = new Set()
   await startMock()
 })
 
@@ -71,6 +74,7 @@ function makeClient(): WebhostClient {
 function deps(extra: Partial<HostOnWebDeps> = {}): HostOnWebDeps {
   return {
     sessions,
+    servers: { isBusy: (id) => serving.has(id) },
     client: makeClient(),
     now: () => clock,
     sleep: (ms) => {
@@ -200,6 +204,29 @@ describe('hostOnWeb', () => {
     expect(sleeps).toEqual([1000])
   })
 
+  it('refuses with AP_RUNNING before any request while a local server of the session runs', async () => {
+    const local = { mode: 'local', port: 38281, savefile: join(root, 'AP_1.apsave') } as const
+    await sessions.setHosting(sessionId, local)
+    serving.add(sessionId)
+    const task = fakeTask()
+
+    const error = await failure(hostOnWeb(core.ctx, deps(), sessionId, task))
+
+    expect(error.code).toBe('AP_RUNNING')
+    expect(error.params).toEqual({ reason: 'local-server' })
+    expect(task.stages).toEqual([])
+    expect(mock.state.requests).toEqual([])
+    // The local hosting is kept as it was.
+    expect((await sessions.get(sessionId)).hosting).toEqual(local)
+  })
+
+  it('hosts a session whose local server stopped', async () => {
+    await sessions.setHosting(sessionId, { mode: 'local', port: 38281, savefile: join(root, 'AP_1.apsave') })
+    serving.add('another-session')
+    const room = await hostOnWeb(core.ctx, deps(), sessionId, fakeTask())
+    expect((await sessions.get(sessionId)).hosting).toMatchObject({ mode: 'web', roomId: room.roomId })
+  })
+
   it('fails with NOT_FOUND before any request when the session has no generation', async () => {
     await sessions.setGeneration(sessionId, null)
     expect((await failure(hostOnWeb(core.ctx, deps(), sessionId, fakeTask()))).code).toBe('NOT_FOUND')
@@ -244,7 +271,12 @@ describe('hostOnWeb', () => {
       },
     }
     const error = await failure(
-      hostOnWeb(core.ctx, { sessions, client: watched }, sessionId, fakeTask(controller.signal)),
+      hostOnWeb(
+        core.ctx,
+        { sessions, servers: { isBusy: () => false }, client: watched },
+        sessionId,
+        fakeTask(controller.signal),
+      ),
     )
     expect(error.code).toBe('TASK_CANCELLED')
     expect(Date.now() - abortedAt).toBeLessThan(500)
@@ -257,6 +289,7 @@ describe('createWebhostService', () => {
     core.ctx.config.updateInternal({ webhostUrl: mock.url })
     return createWebhostService(core.ctx, {
       sessions: () => sessions,
+      servers: () => ({ isBusy: (id) => serving.has(id) }),
       now: () => clock,
       sleep: (ms) => {
         sleeps.push(ms)
@@ -292,6 +325,17 @@ describe('createWebhostService', () => {
     const service = makeService()
     const roomId = await hosted(service)
     expect((await sessions.get(sessionId)).hosting).toMatchObject({ mode: 'web', roomId, port: 50123 })
+  })
+
+  it('fails the hosting task of a session whose local server runs', async () => {
+    const service = makeService()
+    serving.add(sessionId)
+    const { taskId } = service.host(sessionId)
+    expect(await waitForTask(taskId)).toMatchObject({
+      kind: 'webhost-host',
+      error: { code: 'AP_RUNNING', params: { reason: 'local-server' } },
+    })
+    expect(mock.state.newRoomCalls).toBe(0)
   })
 
   it('reads a room with the seed of its session, and follows a port that changed', async () => {

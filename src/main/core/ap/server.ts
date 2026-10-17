@@ -360,12 +360,10 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     if (run.state.status === 'starting') return fail(run, exitError(run, exit))
     if (run.state.status !== 'ready') return
     // auto_shutdown, or an /exit typed in the console, ends with 0.
-    setState(
-      run,
-      exit.code === 0
-        ? { status: 'stopped', error: null }
-        : { status: 'crashed', error: exitError(run, exit) },
-    )
+    if (exit.code === 0) return setState(run, { status: 'stopped', error: null })
+    // The error says the server had run: it crashed, it did not fail to start.
+    const error = exitError(run, exit)
+    setState(run, { status: 'crashed', error: { ...error, params: { ...error.params, phase: 'running' } } })
   }
 
   function kill(run: Run): void {

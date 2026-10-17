@@ -8,11 +8,12 @@ import { createIpcRegistry } from '@main/ipc/registry'
 import registerWebhostHandlers from '@main/ipc/webhost'
 import { createServices } from '@main/services'
 import type { ServiceContainer } from '@main/services/registry'
-// The `sessions` and `webhost` entries of Services (the service files are loaded by import.meta.glob).
+// The `servers`, `sessions` and `webhost` entries of Services (the service files are loaded by import.meta.glob).
+import type {} from '@main/services/servers.service'
 import type {} from '@main/services/sessions.service'
 import type {} from '@main/services/webhost.service'
 import type { IpcResult } from '@shared/ipc/contract'
-import type { Session, TaskDone, WebRoom, WebRoomRef } from '@shared/types'
+import type { Session, TaskDone, TaskFailed, WebRoom, WebRoomRef } from '@shared/types'
 import { createTestContext, silentLogger, type TestCore } from '../../helpers/core'
 import { startMockWebhost, type MockWebhost } from '../../mock-webhost/server'
 import { makeZip } from '../sessions/helpers'
@@ -106,7 +107,8 @@ describe('webhost handlers', () => {
 
     afterEach(() => mock.close())
 
-    it('host a generated session on the site set by the config, then read its room', async () => {
+    /** The real services against the mock site, and a generated session. */
+    async function generatedSession() {
       core.ctx.http = createHttp({
         userAgent: apUserAgent('0.1.0-test'),
         cacheDir: join(root, 'cache'),
@@ -136,20 +138,31 @@ describe('webhost handlers', () => {
         durationS: 1,
         logPath: join(session.workspace, 'output', 'generate.log'),
       })
+      return { services, call, session }
+    }
+
+    /** The end of a task: its done event, or its failed one. */
+    function taskEnd(taskId: string): Promise<TaskDone | TaskFailed> {
+      return new Promise((resolve) => {
+        core.ctx.bus.on('task:done', (event) => {
+          if (event.taskId === taskId) resolve(event)
+        })
+        core.ctx.bus.on('task:failed', (event) => {
+          if (event.taskId === taskId) resolve(event)
+        })
+      })
+    }
+
+    it('host a generated session on the site set by the config, then read its room', async () => {
+      const { call, session } = await generatedSession()
 
       const { taskId } = await call<{ taskId: string }>('webhost:host', {
         sessionId: session.id,
         consent: true,
       })
-      const done = await new Promise<TaskDone>((resolve, reject) => {
-        core.ctx.bus.on('task:done', (event) => {
-          if (event.taskId === taskId) resolve(event)
-        })
-        core.ctx.bus.on('task:failed', (event) => {
-          if (event.taskId === taskId) reject(new Error(event.error.code))
-        })
-      })
-      const room = done.result as WebRoom
+      const done = await taskEnd(taskId)
+      expect(done).toHaveProperty('result')
+      const room = (done as TaskDone).result as WebRoom
       expect(room).toMatchObject({ host: '127.0.0.1', port: 50123 })
       expect((await call<Session>('session:get', { id: session.id })).hosting).toMatchObject({
         mode: 'web',
@@ -160,6 +173,22 @@ describe('webhost handlers', () => {
         seedId: room.seedId,
         port: 50123,
       })
+    })
+
+    it('refuse to host a session whose local server the servers service reports', async () => {
+      const { services, call, session } = await generatedSession()
+      const isBusy = vi.spyOn(services.get('servers'), 'isBusy').mockReturnValue(true)
+
+      const { taskId } = await call<{ taskId: string }>('webhost:host', {
+        sessionId: session.id,
+        consent: true,
+      })
+
+      expect(await taskEnd(taskId)).toMatchObject({
+        error: { code: 'AP_RUNNING', params: { reason: 'local-server' } },
+      })
+      expect(isBusy).toHaveBeenCalledWith(session.id)
+      expect(mock.state.requests).toEqual([])
     })
   })
 })

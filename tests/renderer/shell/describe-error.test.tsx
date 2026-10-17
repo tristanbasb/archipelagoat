@@ -80,4 +80,78 @@ describe('describeError', () => {
       expect(described.body).toBe(i18n.t('errors.help.NOT_FOUND'))
     })
   })
+
+  describe('texts chosen by the params', () => {
+    it('quotes the message archipelago.gg gave for a refused upload', async () => {
+      const message = 'Could not load multidata. File may be corrupted or incompatible.'
+      const described = describeError({ code: 'WEBHOST_UPLOAD_FAILED', params: { message } })
+      expect(described.title).toBe('L’envoi vers archipelago.gg a échoué')
+      expect(described.body).toContain(`«\u00a0${message}\u00a0»`)
+      await i18n.changeLanguage('en')
+      expect(describeError({ code: 'WEBHOST_UPLOAD_FAILED', params: { message } }).body).toContain(
+        `“${message}”`,
+      )
+    })
+
+    it.each(['fr', 'en'] as const)(
+      'says a seed too big for archipelago.gg is hosted locally (%s)',
+      async (lang) => {
+        await i18n.changeLanguage(lang)
+        const generic = describeError({ code: 'WEBHOST_UPLOAD_FAILED' })
+        const described = describeError({ code: 'WEBHOST_UPLOAD_FAILED', params: { reason: 'too-large' } })
+        expect(described.title).not.toBe(generic.title)
+        expect(described.body).not.toBe(generic.body)
+        expect(described.title).toBe(
+          lang === 'fr' ? 'Partie trop lourde pour archipelago.gg' : 'The game is too big for archipelago.gg',
+        )
+        expect(described.body).toMatch(lang === 'fr' ? /héberge-la en local/ : /host it locally/)
+      },
+    )
+
+    it('asks to stop the local server before generating again, not to go back to the check', async () => {
+      const described = describeError({ code: 'GENERATION_PREFLIGHT', params: { reason: 'hosting' } })
+      expect(described.title).toBe('Le serveur local de la partie tourne')
+      expect(described.body).toMatch(/Arrête le serveur local/)
+      expect(described.body).not.toMatch(/Vérification/)
+      // The check failures keep their own text.
+      const checks = describeError({ code: 'GENERATION_PREFLIGHT', params: { errors: 2 } })
+      expect(checks.body).toMatch(/étape Vérification/)
+      await i18n.changeLanguage('en')
+      expect(describeError({ code: 'GENERATION_PREFLIGHT', params: { reason: 'hosting' } })).toMatchObject({
+        title: 'The game’s local server is running',
+        body: expect.stringMatching(/^Stop the local server/) as string,
+      })
+    })
+
+    it('asks to stop the local server before hosting on archipelago.gg', async () => {
+      const described = describeError({ code: 'AP_RUNNING', params: { reason: 'local-server' } })
+      expect(described.title).toBe('Le serveur local de la partie tourne')
+      expect(described.body).toMatch(/^Arrête d’abord le serveur local/)
+      await i18n.changeLanguage('en')
+      expect(describeError({ code: 'AP_RUNNING', params: { reason: 'local-server' } }).body).toMatch(
+        /^Stop the local server first/,
+      )
+      // Any other AP_RUNNING keeps its text about the open programs.
+      expect(describeError({ code: 'AP_RUNNING' }).body).toMatch(/^Close the open Archipelago programs/)
+    })
+
+    it('tells a server that crashed while running from one that never started', async () => {
+      expect(describeError({ code: 'SERVER_START_FAILED', params: { phase: 'running' } }).title).toBe(
+        'Le serveur s’est arrêté de façon inattendue',
+      )
+      expect(describeError({ code: 'SERVER_START_FAILED' }).title).toBe('Le serveur n’a pas pu démarrer')
+      await i18n.changeLanguage('en')
+      expect(describeError({ code: 'SERVER_START_FAILED', params: { phase: 'running' } }).title).toBe(
+        'The server stopped unexpectedly',
+      )
+    })
+
+    it('keeps the plain text for a reason or a phase with no text of its own', () => {
+      for (const params of [{ reason: 'traversal' }, { phase: 'late' }, { reason: 'a.b:c' }]) {
+        const described = describeError({ code: 'PATH_FORBIDDEN', params })
+        expect(described.title).toBe(i18n.t('errors.PATH_FORBIDDEN'))
+        expect(described.body).toBe(i18n.t('errors.help.PATH_FORBIDDEN'))
+      }
+    })
+  })
 })

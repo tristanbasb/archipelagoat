@@ -328,6 +328,22 @@ describe('LiveGameScreen', () => {
     expect(await screen.findByText('Écran diagnostic')).toBeInTheDocument()
   })
 
+  it('says a server that crashed while running stopped unexpectedly, not that it failed to start', async () => {
+    await renderLive({
+      'session:get': () => LOCAL,
+      'server:get': () =>
+        serverState({
+          status: 'crashed',
+          error: { code: 'SERVER_START_FAILED', params: { phase: 'running' }, detail: 'exit code 1' },
+        }),
+    })
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getByText('Le serveur s’est arrêté de façon inattendue')).toBeInTheDocument()
+    expect(alert).not.toHaveTextContent('n’a pas pu démarrer')
+    expect(within(alert).getByText(/reprend à sa dernière sauvegarde/)).toBeInTheDocument()
+    expect(within(alert).getByRole('button', { name: 'Relancer depuis l’assistant' })).toBeInTheDocument()
+  })
+
   it('offers to stop the orphan server a previous run left behind', async () => {
     const { goat, user } = await renderLive({
       'session:get': () => LOCAL,

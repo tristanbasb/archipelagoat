@@ -688,6 +688,9 @@ describe('local server (driven process)', () => {
     const error = await failure(starting)
     expect(error.code).toBe('SERVER_START_FAILED')
     expect(error.detail).toContain('FileNotFoundError')
+    // It never ran: a failed start, not a crash of a running server.
+    expect(error.params).toBeUndefined()
+    expect(manager.get(session.id)?.error?.params).toBeUndefined()
   })
 
   it('reports an Archipelago error it recognizes in the output', async () => {
@@ -715,10 +718,11 @@ describe('local server (driven process)', () => {
 
     const second = await startFake(manager, procs, session.id)
     second.proc.exit(3)
+    // It had been ready: the error says it crashed while running.
     await vi.waitFor(() =>
       expect(manager.get(session.id)).toMatchObject({
         status: 'crashed',
-        error: { code: 'SERVER_START_FAILED' },
+        error: { code: 'SERVER_START_FAILED', params: { phase: 'running' } },
       }),
     )
     // A new run starts with an empty history.

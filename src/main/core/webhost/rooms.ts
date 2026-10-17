@@ -5,6 +5,7 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { AppError } from '@shared/errors'
 import type { Hosting, TaskRef, WebRoom, WebRoomRef } from '@shared/types'
+import type { ServerManager } from '../ap/server'
 import type { CoreContext } from '../context'
 import type { SessionStore } from '../sessions/store'
 import type { TaskHandle } from '../tasks'
@@ -100,13 +101,18 @@ export async function waitForPort(
 
 export interface HostOnWebDeps {
   sessions: Pick<SessionStore, 'get' | 'setHosting'>
+  /** The local servers (Task 16): a session whose server runs keeps it as its hosting. */
+  servers: Pick<ServerManager, 'isBusy'>
   client: WebhostClient
   /** Replaces the real waits (tests). */
   sleep?: Sleep
   now?: () => number
 }
 
-/** The `webhost-host` task (after the consent of the dialog): stages upload, room, wake, port. */
+/**
+ * The `webhost-host` task (after the consent of the dialog): stages upload, room, wake, port.
+ * AP_RUNNING `{ reason: 'local-server' }` before anything while a local server of the session runs.
+ */
 export async function hostOnWeb(
   ctx: Pick<CoreContext, 'log'>,
   deps: HostOnWebDeps,
@@ -114,6 +120,7 @@ export async function hostOnWeb(
   task: TaskHandle,
 ): Promise<WebRoom> {
   const { sessions, client } = deps
+  if (deps.servers.isBusy(sessionId)) throw new AppError('AP_RUNNING', { reason: 'local-server' })
   task.progress('upload', 5)
   const session = await sessions.get(sessionId)
   const zipPath = session.generation?.zipPath
@@ -170,6 +177,8 @@ export interface WebhostService {
 export interface WebhostServiceDeps {
   /** Resolved on use. */
   sessions: () => Pick<SessionStore, 'list' | 'get' | 'setHosting'>
+  /** Resolved on use. */
+  servers: () => Pick<ServerManager, 'isBusy'>
   sleep?: Sleep
   now?: () => number
   ownerDelayMs?: number
@@ -214,7 +223,13 @@ export function createWebhostService(ctx: CoreContext, deps: WebhostServiceDeps)
       ctx.tasks.start('webhost-host', (task) =>
         hostOnWeb(
           ctx,
-          { sessions: deps.sessions(), client: client(), sleep: deps.sleep, now: deps.now },
+          {
+            sessions: deps.sessions(),
+            servers: deps.servers(),
+            client: client(),
+            sleep: deps.sleep,
+            now: deps.now,
+          },
           sessionId,
           task,
         ),

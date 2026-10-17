@@ -115,6 +115,29 @@
   animation: gen-blink 0.8s steps(1, end) infinite;
 }
 
+/* A long silence from Archipelago: a calm note, not a warning. */
+.gen-cabinet__stalled {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-3);
+  box-shadow: inset 2px 0 0 var(--neon-violet);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+  text-align: left;
+}
+
+.gen-cabinet__stalled svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--neon-violet);
+}
+
 .gen-cabinet__foot {
   display: flex;
   align-items: center;

@@ -524,6 +524,86 @@ describe('session wizard', () => {
     expect(screen.getByRole('button', { name: 'Suivant' })).toBeDisabled()
   })
 
+  it('step 4 sends to the live screen to stop the local server before generating again', async () => {
+    const { goat, user } = await openWizard('/session/s1?step=4', {
+      handlers: {
+        'session:get': () => session(),
+        'session:generate': () => ({ taskId: 'g1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Lancer la génération' }))
+    await waitFor(() => expect(goat.inputsOf('session:generate')).toHaveLength(1))
+    goat.emit('task:failed', {
+      taskId: 'g1',
+      kind: 'generate',
+      error: goatError('GENERATION_PREFLIGHT', { reason: 'hosting' }),
+    })
+
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getByText('Le serveur local de la partie tourne')).toBeInTheDocument()
+    expect(
+      within(alert).getByText(/Arrête le serveur local depuis l’écran de la partie en cours/),
+    ).toBeInTheDocument()
+    // Nothing to fix at the check step.
+    expect(within(alert).queryByRole('button', { name: 'Revenir à la vérification' })).toBeNull()
+    await user.click(within(alert).getByRole('button', { name: 'Voir la partie en cours' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
+  })
+
+  it('step 4 keeps the way back to the check for the check failures', async () => {
+    const { goat, user } = await openWizard('/session/s1?step=4', {
+      handlers: {
+        'session:get': () => session(),
+        'session:generate': () => ({ taskId: 'g1' }),
+        'session:validate': () => READY,
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Lancer la génération' }))
+    await waitFor(() => expect(goat.inputsOf('session:generate')).toHaveLength(1))
+    goat.emit('task:failed', {
+      taskId: 'g1',
+      kind: 'generate',
+      error: goatError('GENERATION_PREFLIGHT', { errors: 2 }),
+    })
+
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).queryByRole('button', { name: 'Voir la partie en cours' })).toBeNull()
+    await user.click(within(alert).getByRole('button', { name: 'Revenir à la vérification' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/session/s1?step=2'))
+  })
+
+  it('step 4 shows a calm hint while a generation makes no progress, until it moves again', async () => {
+    const { goat, user } = await openWizard('/session/s1?step=4', {
+      handlers: {
+        'session:get': () => session(),
+        'session:generate': () => ({ taskId: 'g1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Lancer la génération' }))
+    await waitFor(() => expect(goat.inputsOf('session:generate')).toHaveLength(1))
+    // The matchers read a no-break space as a space.
+    const hint = /Aucun progrès depuis 10\sminutes/
+
+    goat.emit('task:progress', { taskId: 'g1', kind: 'generate', stage: 'fill', percent: 62 })
+    expect(await screen.findByRole('progressbar', { name: 'Placement des objets' })).toBeInTheDocument()
+    expect(screen.queryByText(hint)).toBeNull()
+
+    goat.emit('task:progress', {
+      taskId: 'g1',
+      kind: 'generate',
+      stage: 'fill',
+      percent: 62,
+      detail: { done: 1000, total: 1442, stalled: 1 },
+    })
+    const shown = await screen.findByText(hint)
+    expect(shown).toHaveTextContent(/les grosses seeds peuvent prendre du temps\s; tu peux annuler\.$/)
+    // The generation keeps running: it can still be cancelled.
+    expect(screen.getByRole('button', { name: 'Annuler la génération' })).toBeEnabled()
+
+    goat.emit('task:progress', { taskId: 'g1', kind: 'generate', stage: 'balancing', percent: 80 })
+    await waitFor(() => expect(screen.queryByText(hint)).toBeNull())
+  })
+
   it('step 4 celebrates a success with pixel confetti, lists the slots and unlocks next', async () => {
     let current = session()
     const { goat } = await renderApp({
@@ -670,6 +750,48 @@ describe('session wizard', () => {
     const alert = await screen.findByRole('alert')
     expect(within(alert).getByRole('button', { name: 'Ouvrir le diagnostic' })).toBeInTheDocument()
     expect(window.location.hash).toBe('#/session/s1?step=5')
+  })
+
+  it.each([
+    [
+      'a running local server',
+      goatError('AP_RUNNING', { reason: 'local-server' }),
+      'Le serveur local de la partie tourne',
+      /^Arrête d’abord le serveur local/,
+    ],
+    [
+      'a seed too big for the site',
+      goatError('WEBHOST_UPLOAD_FAILED', { reason: 'too-large' }, { detail: 'status 413' }),
+      'Partie trop lourde pour archipelago.gg',
+      /héberge-la en local/,
+    ],
+    [
+      'a file the site refused with its message',
+      goatError(
+        'WEBHOST_UPLOAD_FAILED',
+        { message: 'Uploaded data contained a rom file.' },
+        { detail: 'Uploaded data contained a rom file.' },
+      ),
+      'L’envoi vers archipelago.gg a échoué',
+      /«\sUploaded data contained a rom file\.\s»/,
+    ],
+  ])('step 5 explains a web hosting refused for %s', async (_, error, title, body) => {
+    const { goat, user } = await openWizard('/session/s1?step=5', {
+      handlers: {
+        'session:get': () => session({ status: 'generated', generation: GENERATION }),
+        'webhost:host': () => ({ taskId: 'h1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Héberger sur archipelago.gg' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Héberger sur archipelago.gg\u00a0?' })
+    await user.click(within(dialog).getByRole('checkbox', { name: 'J’ai compris' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Envoyer et héberger' }))
+    await waitFor(() => expect(goat.inputsOf('webhost:host')).toHaveLength(1))
+
+    goat.emit('task:failed', { taskId: 'h1', kind: 'webhost-host', error })
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getByText(title)).toBeInTheDocument()
+    expect(within(alert).getByText(body)).toBeInTheDocument()
   })
 
   it('shows a not-found state for an unknown session', async () => {

@@ -1,10 +1,12 @@
 // Step 4: the generation. A big start button, then the stages as a life bar with the live log
-// folded under it; a failure reads as a translated error with its fix and the full log, a success
-// as the slot list under pixel confetti.
+// folded under it (and a calm hint when Archipelago says nothing for a long while); a failure reads
+// as a translated error with its fix and the full log, a success as the slot list under pixel confetti.
 import {
   IconAdjustments,
+  IconBroadcast,
   IconDeviceGamepad2,
   IconFileText,
+  IconHourglass,
   IconPlayerPlay,
   IconPlayerStop,
   IconRefresh,
@@ -151,11 +153,14 @@ export function StepGenerate({ session, run, onRun, goTo }: StepGenerateProps): 
             run={run}
             stage={task.progress?.stage ?? null}
             percent={task.progress?.percent ?? null}
+            stalled={task.progress?.detail?.stalled === 1}
             cancelling={cancel.isPending}
             onCancel={run ? () => cancel.mutate({ taskId: run.taskId }) : undefined}
           />
         )}
-        {view === 'failed' && failure && <Failed error={failure} onRetry={start} goTo={goTo} />}
+        {view === 'failed' && failure && (
+          <Failed error={failure} sessionId={session.id} onRetry={start} goTo={goTo} />
+        )}
         {view === 'cancelled' && (
           <PixelPanel as="div" tone="neutral" padding="lg">
             <EmptyState
@@ -238,12 +243,14 @@ interface RunningProps {
   run: GenerationRun | null
   stage: string | null
   percent: number | null
+  /** No new line from Archipelago for 10 minutes (the task's `detail.stalled`). */
+  stalled: boolean
   cancelling: boolean
   /** Missing until the task has an id. */
   onCancel?: () => void
 }
 
-function Running({ run, stage, percent, cancelling, onCancel }: RunningProps): React.JSX.Element {
+function Running({ run, stage, percent, stalled, cancelling, onCancel }: RunningProps): React.JSX.Element {
   const { t } = useTranslation()
   const now = useNow(true)
   const known = stage !== null && (GENERATE_STAGE_IDS as readonly string[]).includes(stage)
@@ -266,6 +273,12 @@ function Running({ run, stage, percent, cancelling, onCancel }: RunningProps): R
           />
         ))}
       </ol>
+      {stalled && (
+        <p className="gen-cabinet__stalled" role="status">
+          <IconHourglass aria-hidden="true" />
+          <span>{t('screens.session.generate.stalled')}</span>
+        </p>
+      )}
       <div className="gen-cabinet__foot">
         {run && (
           <span className="gen-cabinet__elapsed">
@@ -290,11 +303,12 @@ function Running({ run, stage, percent, cancelling, onCancel }: RunningProps): R
 
 interface FailedProps {
   error: AppErrorData
+  sessionId: string
   onRetry: () => void
   goTo: (step: StepNumber) => void
 }
 
-function Failed({ error, onRetry, goTo }: FailedProps): React.JSX.Element {
+function Failed({ error, sessionId, onRetry, goTo }: FailedProps): React.JSX.Element {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const toast = useToast()
@@ -305,7 +319,9 @@ function Failed({ error, onRetry, goTo }: FailedProps): React.JSX.Element {
     },
   })
   const described = describeError(error, t)
-  const backTo = STEP_FOR_ERROR[error.code]
+  // A local server of the session runs: it is stopped from the live game screen, not fixed at a step.
+  const serving = error.code === 'GENERATION_PREFLIGHT' && error.params?.reason === 'hosting'
+  const backTo = serving ? undefined : STEP_FOR_ERROR[error.code]
   const { action, logPath } = described
   return (
     <ErrorPanel
@@ -324,6 +340,15 @@ function Failed({ error, onRetry, goTo }: FailedProps): React.JSX.Element {
               {backTo === 2
                 ? t('screens.session.generate.backToCheck')
                 : t('screens.session.generate.backToRules')}
+            </NeonButton>
+          )}
+          {serving && (
+            <NeonButton
+              variant="secondary"
+              icon={<IconBroadcast />}
+              onClick={() => void navigate(`/play/${sessionId}`)}
+            >
+              {t('screens.session.generate.toLive')}
             </NeonButton>
           )}
           {action?.to !== undefined && (

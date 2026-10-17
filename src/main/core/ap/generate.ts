@@ -3,7 +3,8 @@
 // ArchipelagoGenerate runs in the session folder with stdin closed, since on any failure it waits for
 // Enter. Its lines drive the progress (GENERATE_STAGE_IDS) and go to the session's logs, masked. A
 // success is an exit 0 with a final archive: the AP_<seed>.zip is read into slots, each slot's files
-// extracted under output/slots/. A failure is the last exception Archipelago printed, as an error code.
+// extracted under output/slots/, and the session leaves the hosting of its previous seed. A failure
+// is the last exception Archipelago printed, as an error code.
 import { mkdir, open, readdir, rm, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { finished } from 'node:stream/promises'
@@ -35,7 +36,7 @@ export interface GenProgress {
 }
 
 export interface GenerateDeps {
-  sessions: Pick<SessionStore, 'get' | 'getSecrets' | 'setGeneration'> &
+  sessions: Pick<SessionStore, 'get' | 'getSecrets' | 'setGeneration' | 'setHosting'> &
     Pick<SessionValidator, 'validateSession'>
   settings: Pick<ApSettings, 'makeSessionSettings'>
   locator: Pick<Locator, 'detect' | 'exe'>
@@ -493,10 +494,11 @@ async function removeNewEntries(dir: string, before: ReadonlySet<string>): Promi
 
 /**
  * Generates session `sessionId` (spec §3.8) and stores the result as its generation. Throws
- * GENERATION_PREFLIGHT `{ reason: 'hosting' }` while the session is hosted, AP_NOT_INSTALLED, then
- * GENERATION_PREFLIGHT `{ errors }` when the validation blocks: nothing runs then. A failed run throws
- * the error Archipelago printed (with the log's `logPath`), a cancelled one TASK_CANCELLED once its
- * partial output is gone.
+ * GENERATION_PREFLIGHT `{ reason: 'hosting' }` while a local server of the session runs,
+ * AP_NOT_INSTALLED, then GENERATION_PREFLIGHT `{ errors }` when the validation blocks: nothing runs
+ * then. A failed run throws the error Archipelago printed (with the log's `logPath`), a cancelled one
+ * TASK_CANCELLED once its partial output is gone. A room on archipelago.gg blocks nothing: the new
+ * seed replaces the hosting of the old one, which stays on the site.
  */
 export async function runGeneration(
   ctx: CoreContext,
@@ -508,9 +510,7 @@ export async function runGeneration(
   throwIfCancelled(signal)
   const session = await deps.sessions.get(sessionId)
   const isServing = deps.isServing ?? ((id: string) => serverRunsFor(ctx.platform.paths.dataRoot, id))
-  if (session.status === 'hosting' || isServing(sessionId)) {
-    throw new AppError('GENERATION_PREFLIGHT', { reason: 'hosting' })
-  }
+  if (isServing(sessionId)) throw new AppError('GENERATION_PREFLIGHT', { reason: 'hosting' })
   const install = await deps.locator.detect()
   if (!install) throw new AppError('AP_NOT_INSTALLED')
   const validation = await deps.sessions.validateSession(sessionId)
@@ -568,7 +568,9 @@ export async function runGeneration(
     const detail = error instanceof AppError ? (error.detail ?? error.message) : String(error)
     throw new AppError('GENERATION_FAILED', undefined, { detail, logPath: log.path, cause: error })
   }
-  await deps.sessions.setGeneration(sessionId, generation)
+  const stored = await deps.sessions.setGeneration(sessionId, generation)
+  // The hosting was the old seed's, unless a server started meanwhile: it runs, and the session says so.
+  if (stored.hosting !== null && !isServing(sessionId)) await deps.sessions.setHosting(sessionId, null)
   return generation
 }
 
