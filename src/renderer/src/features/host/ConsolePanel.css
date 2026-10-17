@@ -1,0 +1,30 @@
+.console-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.console-panel__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* Key caps: a dim frame, lit on hover like any ghost button. */
+.console-panel__shortcuts .console-panel__command {
+  --pb-color: var(--line);
+  --pb-fill: var(--bg-1);
+  letter-spacing: 0;
+}
+
+.console-panel__ask {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.console-panel__ask p {
+  color: var(--text-dim);
+  font-size: var(--fs-14);
+  line-height: 1.55;
+}
