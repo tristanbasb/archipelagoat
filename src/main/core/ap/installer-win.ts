@@ -40,9 +40,18 @@ export interface InnoArgsOptions {
 
 /**
  * The silent command line of the installer. `/TASKS` is always given, since Inno otherwise reuses
- * the choices of the previous install; `deletelib` empties `lib/` first, as the wizard does.
+ * the choices of the previous install; `deletelib` empties `lib/` first, as the wizard does. A `"` in
+ * a path is refused (INVALID_INPUT): Inno reads it as a quote, so it could change what the elevated
+ * installer receives (assertUserPath already refuses it; this is the last check before UAC).
  */
 export function buildInnoArgs({ desktopIcons, customDir, logPath }: InnoArgsOptions): string[] {
+  for (const value of [customDir, logPath]) {
+    if (value !== null && /["\r\n]/.test(value)) {
+      throw new AppError('INVALID_INPUT', undefined, {
+        detail: 'a quote or a line break in an installer path',
+      })
+    }
+  }
   return [
     '/VERYSILENT',
     '/SUPPRESSMSGBOXES',

@@ -54,8 +54,16 @@ function normalize(p: string, os: OS): string {
 const WIN_DEVICE = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\.|\s|$)/i
 
 /**
+ * Characters no Windows file name may hold (after the drive): `"` `<` `>` `|` `?` `*` and the control
+ * characters. Such a path names no real file; a `"` pair would even vanish once quoted on a command
+ * line (`C:\Program"" Files` reaches a program as `C:\Program Files`), past the checks made here.
+ */
+const WIN_BAD_CHARS = /["<>|?*\p{Cc}]/u
+
+/**
  * Refuses empty, relative, drive-relative and UNC / device-namespace paths (`\\?\`, `\\.\`,
- * `\\server`); on Windows, also device names and alternate data streams (`file.yaml:stream`).
+ * `\\server`); on Windows, also device names, alternate data streams (`file.yaml:stream`) and the
+ * characters Windows forbids in a name.
  */
 function absolute(p: string, os: OS): string {
   if (!p || p.includes('\0')) throw forbidden('invalid', p)
@@ -63,6 +71,7 @@ function absolute(p: string, os: OS): string {
     if (/^[\\/]{2}/.test(p)) throw forbidden('unc', p)
     if (!/^[a-z]:[\\/]/i.test(p)) throw forbidden('relative', p)
     if (p.slice(2).includes(':')) throw forbidden('invalid', p)
+    if (WIN_BAD_CHARS.test(p.slice(2))) throw forbidden('invalid', p)
   } else if (!p.startsWith('/')) {
     throw forbidden('relative', p)
   }

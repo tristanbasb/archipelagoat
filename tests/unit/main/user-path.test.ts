@@ -54,6 +54,30 @@ describe('assertUserPath', () => {
     await expect(assertUserPath(join(dir, 'missing.yaml'))).rejects.toThrow(/NOT_FOUND/)
   })
 
+  it('refuses on Windows the characters no file name may hold, which could hide a forbidden folder', async () => {
+    // Quoted on a command line, a pair of quotes vanishes: these would reach a program as
+    // C:\\Program Files\\… and C:\\Windows\\System32, past the checks.
+    const tricks = [
+      'C:\\Program"" Files\\SomeVendor\\SomeApp',
+      'C:\\Win""dows\\System32',
+      'C:\\Games\\x" /LOADINF="\\Users\\Public\\a.inf',
+      'D:\\Jeux\\a<b',
+      'D:\\Jeux\\a>b',
+      'D:\\Jeux\\a|b',
+      'D:\\Jeux\\what?',
+      'D:\\Jeux\\*',
+      'D:\\Jeux\\tab\there',
+    ]
+    for (const p of tricks) {
+      await expect(lexical(p, WIN, { access: 'write' }), p).rejects.toMatchObject({
+        code: 'PATH_FORBIDDEN',
+        params: { reason: 'invalid' },
+      })
+    }
+    // Linux allows them in a name: only NUL is refused there.
+    await expect(lexical('/home/u/what?', LINUX)).resolves.toBe('/home/u/what?')
+  })
+
   it('refuses empty strings and NUL bytes', async () => {
     await expect(lexical('', WIN)).rejects.toThrow(/PATH_FORBIDDEN/)
     await expect(lexical('/home/u/x\0.yaml', LINUX)).rejects.toThrow(/PATH_FORBIDDEN/)

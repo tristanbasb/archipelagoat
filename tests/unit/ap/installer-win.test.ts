@@ -54,6 +54,19 @@ describe('buildInnoArgs', () => {
     ]))
 })
 
+describe('buildInnoArgs and quotes', () => {
+  it('refuses a quote or a line break in a path, which would change what the elevated installer reads', () => {
+    for (const customDir of ['C:\\Program"" Files\\X', 'C:\\Games\\x" /LOADINF="a.inf', 'C:\\a\nb']) {
+      expect(() => buildInnoArgs({ desktopIcons: true, customDir, logPath: 'C:\\l.txt' }), customDir).toThrow(
+        expect.objectContaining({ code: 'INVALID_INPUT' }),
+      )
+    }
+    expect(() => buildInnoArgs({ desktopIcons: true, customDir: null, logPath: 'C:\\l"x.txt' })).toThrow(
+      expect.objectContaining({ code: 'INVALID_INPUT' }),
+    )
+  })
+})
+
 describe('buildElevatedScript', () => {
   it("elevated script quotes ' ‘ ’ and keeps spaces and accents", async () => {
     const exe = "C:\\Users\\O'Neil Jérôme\\Setup.exe"
