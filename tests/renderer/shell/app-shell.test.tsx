@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import type { SessionSummary } from '@shared/types'
+import type { ServerState, SessionSummary } from '@shared/types'
 import { renderApp } from '../render-app'
 
 function fxRoot(): Element {
@@ -208,7 +208,7 @@ describe('app shell', () => {
   })
 
   it('status bar reads the server already running when it mounts (a reload, an orphan found at startup)', async () => {
-    const state = {
+    const state: ServerState = {
       sessionId: 's1',
       status: 'ready',
       port: 38282,
@@ -216,7 +216,7 @@ describe('app shell', () => {
       startedAt: '2026-10-16T20:00:00.000Z',
       resumedFromSave: false,
       error: null,
-    } as const
+    }
     const { goat } = await renderApp({
       handlers: { 'session:list': () => SESSIONS, 'server:get': () => state },
     })
