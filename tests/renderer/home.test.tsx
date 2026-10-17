@@ -300,6 +300,24 @@ describe('home screen', () => {
     ])
     expect(links[0]).toHaveTextContent('Joueurs : 3')
     expect(links[0]).toHaveTextContent('Serveur local')
+    // Five games fit: nothing more to reach.
+    expect(within(recent).queryByRole('button', { name: /Toutes les parties/ })).toBeNull()
+  })
+
+  it('leads to every game when more than the recent ones exist', async () => {
+    const { user } = await renderApp({
+      handlers: {
+        ...HANDLERS,
+        'session:list': () =>
+          Array.from({ length: 7 }, (_, i) =>
+            session({ id: `s${i}`, name: `Partie ${i}`, updatedAt: `2026-10-1${i}T10:00:00.000Z` }),
+          ),
+      },
+    })
+    const recent = await screen.findByRole('region', { name: 'Parties récentes' })
+    expect(await within(recent).findAllByRole('link')).toHaveLength(5)
+    await user.click(within(recent).getByRole('button', { name: 'Toutes les parties (7)' }))
+    expect(await screen.findByRole('list', { name: 'Toutes tes parties' })).toBeInTheDocument()
   })
 
   it('a server that stops ends its game in the recent list at once', async () => {

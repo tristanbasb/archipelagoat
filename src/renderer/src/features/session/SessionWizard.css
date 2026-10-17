@@ -161,6 +161,63 @@
 
 /* ---- /session/new --------------------------------------------------------------------------- */
 
+.all-games {
+  margin-top: var(--sp-6);
+}
+
+.all-games__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.all-games__row {
+  --pb-color: var(--line);
+  --pb-fill: var(--bg-1);
+  --pb-step: var(--corner-sm);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-areas:
+    'name pill open delete'
+    'meta pill open delete';
+  align-items: center;
+  gap: 2px var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.all-games__name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-games__meta {
+  grid-area: meta;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.all-games__row .status-pill {
+  grid-area: pill;
+}
+
+.all-games__row .neon-btn {
+  grid-area: open;
+}
+
+.all-games__row .icon-btn {
+  grid-area: delete;
+}
+
 .new-session {
   display: grid;
   grid-template-columns: minmax(0, 720px);

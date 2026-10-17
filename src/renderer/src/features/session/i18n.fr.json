@@ -47,7 +47,20 @@
     "players_other": "{{count}} joueurs",
     "updated": "Modifiée le {{date}}",
     "resume": "Reprendre",
-    "watch": "Voir la partie en cours"
+    "watch": "Voir la partie en cours",
+    "allEyebrow": "SELECT GAME",
+    "allTitle_one": "Toutes les parties ({{count}})",
+    "allTitle_other": "Toutes les parties ({{count}})",
+    "allLabel": "Toutes tes parties",
+    "open": "Ouvrir",
+    "openGame": "Ouvrir {{name}}",
+    "delete": "Supprimer {{name}}",
+    "deleteEyebrow": "GAME OVER?",
+    "deleteTitle": "Supprimer {{name}}\u00a0?",
+    "deleteBody": "Son dossier (YAML, seed, sauvegarde) part dans les sauvegardes de l’app, et ses mots de passe sont oubliés.",
+    "deleteLive": "Sa room archipelago.gg reste sur le site. Un serveur local qui tourne doit d’abord être arrêté.",
+    "deleteConfirm": "Supprimer",
+    "deleted": "Partie supprimée\u00a0: {{name}}"
   },
   "players": {
     "dropTitle": "Dépose les YAML des joueurs ici",

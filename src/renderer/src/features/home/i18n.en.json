@@ -64,6 +64,7 @@
     "eyebrow": "CONTINUE?",
     "title": "Recent games",
     "new": "New game",
+    "all": "All games ({{count}})",
     "players": "Players: {{count}}",
     "hosting": {
       "local": "Local server",

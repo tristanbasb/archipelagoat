@@ -64,6 +64,7 @@
     "eyebrow": "CONTINUE?",
     "title": "Parties récentes",
     "new": "Nouvelle partie",
+    "all": "Toutes les parties ({{count}})",
     "players": "Joueurs : {{count}}",
     "hosting": {
       "local": "Serveur local",

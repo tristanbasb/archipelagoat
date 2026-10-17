@@ -115,6 +115,53 @@ describe('session wizard', () => {
     expect(screen.getByRole('group', { name: 'Dépose les YAML des joueurs ici' })).toBeInTheDocument()
   })
 
+  it('/session/new lists every game, finished ones included, and deletes one after asking', async () => {
+    const summary = (id: string, name: string, status: Session['status'], updatedAt: string) => ({
+      id,
+      name,
+      status,
+      playerCount: 2,
+      updatedAt,
+      hostingMode: null,
+    })
+    let list = [
+      summary('s1', 'Soirée GOAT', 'generated', '2026-10-17T18:00:00.000Z'),
+      summary('s2', 'Vieille partie', 'finished', '2026-09-01T18:00:00.000Z'),
+      summary('s3', 'Brouillon', 'draft', '2026-10-10T18:00:00.000Z'),
+    ]
+    const { goat, user } = await openWizard('/session/new', {
+      handlers: {
+        'session:list': () => list,
+        'session:delete': ({ id }) => {
+          list = list.filter((session) => session.id !== id)
+        },
+      },
+    })
+    const all = await screen.findByRole('list', { name: 'Toutes tes parties' })
+    // Newest first; the finished game is reachable too (the resume list leaves it out).
+    expect(
+      within(all)
+        .getAllByRole('listitem')
+        .map((row) => row.querySelector('.all-games__name')?.textContent),
+    ).toEqual(['Soirée GOAT', 'Brouillon', 'Vieille partie'])
+
+    await user.click(within(all).getByRole('button', { name: 'Supprimer Vieille partie' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Supprimer Vieille partie\u00a0?' })
+    expect(dialog).toHaveTextContent(/sauvegardes de l’app/)
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(goat.inputsOf('session:delete')).toEqual([])
+
+    await user.click(within(all).getByRole('button', { name: 'Supprimer Vieille partie' }))
+    dialog = await screen.findByRole('dialog', { name: 'Supprimer Vieille partie\u00a0?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Supprimer' }))
+    await waitFor(() => expect(goat.inputsOf('session:delete')).toEqual([{ id: 's2' }]))
+    await waitFor(() => expect(within(all).queryByText('Vieille partie')).toBeNull())
+
+    await user.click(within(all).getByRole('button', { name: 'Ouvrir Brouillon' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/session/s3'))
+  })
+
   it('step 1 lists dropped files and ignored ones', async () => {
     let current = session({ players: [] })
     const { goat } = await openWizard('/session/s1?step=1', {

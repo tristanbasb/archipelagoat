@@ -47,7 +47,20 @@
     "players_other": "{{count}} players",
     "updated": "Changed on {{date}}",
     "resume": "Resume",
-    "watch": "Open the live game"
+    "watch": "Open the live game",
+    "allEyebrow": "SELECT GAME",
+    "allTitle_one": "All games ({{count}})",
+    "allTitle_other": "All games ({{count}})",
+    "allLabel": "All your games",
+    "open": "Open",
+    "openGame": "Open {{name}}",
+    "delete": "Delete {{name}}",
+    "deleteEyebrow": "GAME OVER?",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": "Its folder (YAML files, seed, save) moves to the app’s backups, and its passwords are forgotten.",
+    "deleteLive": "Its archipelago.gg room stays on the site. A local server that runs must be stopped first.",
+    "deleteConfirm": "Delete",
+    "deleted": "Game deleted: {{name}}"
   },
   "players": {
     "dropTitle": "Drop the players’ YAML files here",

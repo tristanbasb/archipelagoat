@@ -501,9 +501,17 @@ function RecentSessions(): React.JSX.Element {
       title={t(`${K}.recent.title`)}
       actions={
         recent.length > 0 ? (
-          <NeonButton variant="ghost" size="sm" icon={<IconPlus />} onClick={newGame}>
-            {t(`${K}.recent.new`)}
-          </NeonButton>
+          <>
+            {/* Older games, finished ones and deleting one: on the games page. */}
+            {(sessions.data?.length ?? 0) > RECENT_COUNT && (
+              <NeonButton variant="ghost" size="sm" onClick={newGame}>
+                {t(`${K}.recent.all`, { count: sessions.data?.length ?? 0 })}
+              </NeonButton>
+            )}
+            <NeonButton variant="ghost" size="sm" icon={<IconPlus />} onClick={newGame}>
+              {t(`${K}.recent.new`)}
+            </NeonButton>
+          </>
         ) : undefined
       }
     >
