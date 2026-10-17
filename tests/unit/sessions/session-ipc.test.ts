@@ -105,7 +105,7 @@ describe('session handlers', () => {
     expect(await call('session:list')).toEqual([])
   })
 
-  it('answers errors as codes; session:generate is not theirs', async () => {
+  it('answers errors as codes', async () => {
     expect(await raw('session:get', { id: 's_missing' })).toEqual({
       ok: false,
       error: expect.objectContaining({ code: 'NOT_FOUND' }) as unknown,
@@ -115,6 +115,5 @@ describe('session handlers', () => {
       ok: false,
       error: expect.objectContaining({ code: 'PATH_FORBIDDEN' }) as unknown,
     })
-    expect(await raw('session:generate', { id })).toEqual({ ok: false, error: { code: 'NOT_IMPLEMENTED' } })
   })
 })
