@@ -1,0 +1,126 @@
+.live-game {
+  container: live-game / inline-size;
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.live-game__loading {
+  color: var(--neon-violet);
+}
+
+/* Connection and players side by side, then the feed next to the console. */
+.live-game__top {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--sp-6);
+}
+
+.live-game__duo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-6);
+}
+
+.live-game__terminal {
+  --terminal-height: 320px;
+}
+
+/* The feed takes the height of the console column (its terminal and the quick commands). */
+.live-game__feed {
+  position: relative;
+  min-height: 320px;
+}
+
+.live-game__feed > .live-game__feed-terminal {
+  --terminal-height: none;
+  position: absolute;
+  inset: 0;
+}
+
+@container live-game (max-width: 860px) {
+  .live-game__top,
+  .live-game__duo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-game__feed {
+    min-height: 360px;
+  }
+}
+
+/* "Resumed from the save": a lit stripe of the tone, the icon glowing. */
+.live-game__banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  background: linear-gradient(90deg, var(--tone-soft), transparent 80%), var(--bg-1);
+  box-shadow: inset 3px 0 0 var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.live-game__banner > svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--tone);
+  filter: var(--drop-glow);
+}
+
+.live-game__banner-title {
+  color: var(--tone-ink);
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.live-game__banner-body {
+  margin-top: var(--sp-1);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.live-game__stopped {
+  min-height: 100%;
+}
+
+/* A forced stop: the lost minute, said above the empty state. */
+.live-game__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--neon-yellow) 8%, transparent);
+  box-shadow: inset 2px 0 0 var(--neon-yellow);
+  color: color-mix(in srgb, var(--neon-yellow) 80%, #ffffff);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.live-game__warning svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.live-game__notice {
+  margin-top: var(--sp-4);
+  color: color-mix(in srgb, var(--neon-yellow) 80%, #ffffff);
+  font-size: var(--fs-12);
+}
+
+.live-game__dialog {
+  display: grid;
+  gap: var(--sp-3);
+  font-size: var(--fs-14);
+  line-height: 1.55;
+}
+
+.live-game__dialog-dim {
+  color: var(--text-dim);
+}
+
+:where(.fx-off, .fx-no-glow) .live-game__banner > svg {
+  filter: none;
+}

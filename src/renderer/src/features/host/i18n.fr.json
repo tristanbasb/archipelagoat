@@ -1,1 +1,156 @@
-{}
+{
+  "eyebrow": "LIVE",
+  "loading": "Chargement de la partie…",
+  "subtitle": {
+    "local": "{{name}} · serveur local",
+    "since": "{{name}} · serveur local · en ligne depuis {{time}}",
+    "web": "{{name}} · room sur {{host}}"
+  },
+  "notHosted": {
+    "title": "Cette partie n’est pas hébergée",
+    "body": "Termine l’assistant pour lancer le serveur, en local ou sur archipelago.gg.",
+    "action": "Ouvrir l’assistant"
+  },
+  "status": {
+    "starting": "Démarrage du serveur…",
+    "ready": "Serveur prêt",
+    "stopping": "Arrêt du serveur…",
+    "stopped": "Serveur arrêté",
+    "crashed": "Serveur planté",
+    "webAwake": "Room éveillée",
+    "webAsleep": "Room endormie"
+  },
+  "resumed": {
+    "title": "Partie reprise depuis la sauvegarde : ses options priment",
+    "body": "Les règles changées depuis le premier lancement ne s’appliquent pas : le serveur garde celles de la sauvegarde."
+  },
+  "stopped": {
+    "title": "Le serveur est arrêté",
+    "body": "La progression est sauvegardée. Relance la partie depuis l’assistant quand tu veux.",
+    "forced": "Le serveur ne répondait plus : il a été arrêté de force et la dernière minute de jeu a pu être perdue."
+  },
+  "restart": "Relancer depuis l’assistant",
+  "save": "Sauvegarder",
+  "stop": {
+    "button": "Arrêter le serveur",
+    "eyebrow": "GAME OVER?",
+    "title": "Arrêter le serveur ?",
+    "body": "Le serveur sauvegarde la partie puis s’arrête : les joueurs connectés seront déconnectés.",
+    "later": "Tu pourras la reprendre plus tard, là où vous en étiez.",
+    "confirm": "Arrêter",
+    "stopping": "Arrêt…",
+    "force": "Sans réponse sous 15 s, il est arrêté de force : la dernière minute de jeu peut alors être perdue."
+  },
+  "connection": {
+    "title": "Connexion",
+    "starting": "Le serveur démarre, les adresses arrivent…",
+    "address": {
+      "lan": "Réseau local",
+      "public": "Internet",
+      "localhost": "Sur ce PC"
+    },
+    "publicHint": "Pour jouer par Internet, redirige le port {{port}} (TCP) vers ce PC sur ta box.",
+    "noAddress": "Pas encore d’adresse.",
+    "password": "Mot de passe de la partie",
+    "passwordLoading": "Lecture du mot de passe…",
+    "passwordError": "Le mot de passe est illisible : {{error}}",
+    "reveal": "Afficher le mot de passe",
+    "hide": "Masquer le mot de passe",
+    "serverAddress": "Adresse du serveur",
+    "roomLink": "Lien de la room",
+    "asleep": "La room dort : réveille-la pour connaître son port.",
+    "wake": "Réveiller la room",
+    "waking": "Réveil…",
+    "woken": "La room est réveillée : port {{port}}",
+    "openAsOwner": "Ouvrir en tant que propriétaire",
+    "lastActivity": "Dernière activité {{when}}",
+    "timeout": "S’endort après {{duration}} sans activité",
+    "roomError": "L’état de la room est indisponible : {{error}}",
+    "asleepPort": "La room dort : réveille-la avant de jouer, son port peut changer."
+  },
+  "share": {
+    "title": "Message à partager",
+    "hint": "Colle-le dans ton groupe de discussion pour que chacun sache où se connecter.",
+    "includePassword": "Inclure le mot de passe",
+    "copy": "Copier le message",
+    "copied": "Copié",
+    "heading": "Partie Archipelago : {{name}}",
+    "address": {
+      "lan": "Adresse (réseau local) : {{address}}",
+      "public": "Adresse (Internet) : {{address}}",
+      "localhost": "Adresse : {{address}}",
+      "web": "Adresse : {{address}}"
+    },
+    "room": "Room : {{url}}",
+    "password": "Mot de passe : {{password}}",
+    "slots": "Slots :",
+    "slot": "- {{name}} ({{game}})"
+  },
+  "players": {
+    "title": "Joueurs",
+    "online": "{{online}}/{{total}} en ligne",
+    "goals": "{{goals}}/{{total}} au but",
+    "connected": "En ligne",
+    "absent": "Absent",
+    "goal": "But atteint",
+    "slot": "P{{slot}}",
+    "empty": "Aucun joueur dans cette partie.",
+    "webHint": "archipelago.gg ne dit pas qui est connecté : le journal de la room, si."
+  },
+  "feed": {
+    "title": "Flux d’objets",
+    "loading": "Chargement de l’historique…",
+    "empty": "En attente des premiers événements…",
+    "historyError": "L’historique est indisponible : {{error}}",
+    "join": "{{player}} a rejoint la partie",
+    "leave": "{{player}} a quitté la partie",
+    "item": "{{player}} a envoyé {{item}} à {{receiver}}",
+    "itemSelf": "{{player}} a trouvé son objet {{item}}",
+    "goal": "{{player}} a atteint son objectif",
+    "allGoals": "Toute l’équipe a fini ses jeux. Bravo !",
+    "chat": "{{player}} : {{message}}"
+  },
+  "console": {
+    "title": "Console du serveur",
+    "webTitle": "Console de la room",
+    "input": "Commande du serveur",
+    "placeholder": "/help, /players… ou un message pour tous",
+    "offline": "La console s’active quand le serveur est prêt.",
+    "shortcuts": "Commandes rapides",
+    "failed": "Commande refusée : {{error}}",
+    "logError": "Le journal de la room est indisponible : {{error}}. Nouvel essai dans 5 s.",
+    "commands": {
+      "players": "Qui est connecté",
+      "status": "Avancement de chaque joueur",
+      "countdown": "Un compte à rebours de 10 secondes",
+      "save": "Sauvegarder la partie maintenant",
+      "release": "Envoyer les objets restants d’un joueur",
+      "collect": "Donner à un joueur tous ses objets restants"
+    },
+    "release": {
+      "title": "Libérer les objets d’un joueur",
+      "body": "Envoie tous les objets restants du monde de ce joueur à leurs destinataires. Impossible à annuler.",
+      "confirm": "Libérer"
+    },
+    "collect": {
+      "title": "Collecter les objets d’un joueur",
+      "body": "Donne à ce joueur tous ses objets restants, où qu’ils soient. Impossible à annuler.",
+      "confirm": "Collecter"
+    },
+    "player": "Joueur",
+    "pickPlayer": "Choisis un joueur"
+  },
+  "files": {
+    "title": "Fichiers des joueurs",
+    "hint": "Envoie à chaque joueur le fichier de son slot : il l’ouvre pour lancer son jeu.",
+    "openFor": "Ouvrir le dossier du slot {{name}}",
+    "open": "Ouvrir le dossier",
+    "copyPathFor": "Copier le chemin du slot {{name}}",
+    "copyPath": "Copier le chemin",
+    "copyLinkFor": "Copier le lien de téléchargement du slot {{name}}",
+    "copyLink": "Copier le lien",
+    "copied": "Copié",
+    "noFile": "Pas de fichier : ce jeu se connecte directement au serveur.",
+    "none": "Pas encore de fichiers : la partie n’a pas été générée."
+  }
+}

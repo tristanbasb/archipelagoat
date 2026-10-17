@@ -1,0 +1,82 @@
+.players-panel__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One player: a lit slot tag in the player's neon, the name and game, then the status. */
+.players-panel__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2);
+  background: linear-gradient(90deg, var(--tone-soft), transparent 55%), var(--bg-1);
+  clip-path: var(--clip-corner-sm);
+}
+
+.players-panel__slot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 6px;
+  background: var(--bg-0);
+  color: var(--tone-ink);
+  clip-path: var(--clip-corner-sm);
+}
+
+.players-panel__row[data-online] .players-panel__slot {
+  background: color-mix(in srgb, var(--tone) 22%, var(--bg-0));
+  text-shadow: var(--text-glow);
+}
+
+/* The name keeps some room: the status badges wrap first. */
+.players-panel__who {
+  display: grid;
+  flex: 1 0 96px;
+  min-width: 0;
+}
+
+.players-panel__name,
+.players-panel__game {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.players-panel__name {
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.players-panel__game {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.players-panel__status {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.players-panel__note {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.players-panel__list + .players-panel__note {
+  margin-top: var(--sp-4);
+}
+
+:where(.fx-off, .fx-no-glow) .players-panel__row[data-online] .players-panel__slot {
+  text-shadow: none;
+}

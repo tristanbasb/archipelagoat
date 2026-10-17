@@ -1,0 +1,110 @@
+.slot-files__hint {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+/* One grid for every slot, so the columns line up from row to row (rows are subgrids). */
+.slot-files__list {
+  display: grid;
+  grid-template-columns: auto minmax(110px, 0.9fr) minmax(0, 1.4fr) auto;
+  gap: var(--sp-2) 0;
+  margin: var(--sp-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One slot: its tag, the player, the file, then the buttons. */
+.slot-files__row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2);
+  background: var(--bg-1);
+  clip-path: var(--clip-corner-sm);
+}
+
+.slot-files__slot {
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 28px;
+  padding: 0 6px;
+  background: color-mix(in srgb, var(--tone) 16%, var(--bg-0));
+  color: var(--tone-ink);
+  clip-path: var(--clip-corner-sm);
+}
+
+.slot-files__who {
+  display: grid;
+  min-width: 0;
+}
+
+.slot-files__name,
+.slot-files__game,
+.slot-files__file span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-files__name {
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.slot-files__game {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.slot-files__file {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--fs-13);
+}
+
+.slot-files__file svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--tone-ink);
+}
+
+.slot-files__file--none {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.4;
+}
+
+/* A note with no buttons after it takes their room too. */
+.slot-files__file--wide {
+  grid-column: 3 / -1;
+}
+
+.slot-files__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+@container live-game (max-width: 900px) {
+  .slot-files__list {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .slot-files__row {
+    align-items: start;
+  }
+
+  .slot-files__file,
+  .slot-files__actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}

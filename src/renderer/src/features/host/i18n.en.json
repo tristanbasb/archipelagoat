@@ -1,1 +1,156 @@
-{}
+{
+  "eyebrow": "LIVE",
+  "loading": "Loading the game…",
+  "subtitle": {
+    "local": "{{name}} · local server",
+    "since": "{{name}} · local server · up since {{time}}",
+    "web": "{{name}} · room on {{host}}"
+  },
+  "notHosted": {
+    "title": "This game is not hosted",
+    "body": "Finish the wizard to start the server, locally or on archipelago.gg.",
+    "action": "Open the wizard"
+  },
+  "status": {
+    "starting": "Server starting…",
+    "ready": "Server ready",
+    "stopping": "Server stopping…",
+    "stopped": "Server stopped",
+    "crashed": "Server crashed",
+    "webAwake": "Room awake",
+    "webAsleep": "Room asleep"
+  },
+  "resumed": {
+    "title": "Game resumed from its save: the save’s options win",
+    "body": "Rules changed since the first start do not apply: the server keeps the ones stored in the save."
+  },
+  "stopped": {
+    "title": "The server is stopped",
+    "body": "The progress is saved. Start the game again from the wizard whenever you like.",
+    "forced": "The server stopped answering: it was stopped by force and the last minute of play may have been lost."
+  },
+  "restart": "Restart from the wizard",
+  "save": "Save",
+  "stop": {
+    "button": "Stop the server",
+    "eyebrow": "GAME OVER?",
+    "title": "Stop the server?",
+    "body": "The server saves the game and then stops: connected players will be disconnected.",
+    "later": "You can resume it later, right where you left off.",
+    "confirm": "Stop",
+    "stopping": "Stopping…",
+    "force": "If it does not answer within 15 s, it is stopped by force: the last minute of play may then be lost."
+  },
+  "connection": {
+    "title": "Connection",
+    "starting": "The server is starting, the addresses are on their way…",
+    "address": {
+      "lan": "Local network",
+      "public": "Internet",
+      "localhost": "On this PC"
+    },
+    "publicHint": "To play over the Internet, forward port {{port}} (TCP) to this PC on your router.",
+    "noAddress": "No address yet.",
+    "password": "Game password",
+    "passwordLoading": "Reading the password…",
+    "passwordError": "The password cannot be read: {{error}}",
+    "reveal": "Show the password",
+    "hide": "Hide the password",
+    "serverAddress": "Server address",
+    "roomLink": "Room link",
+    "asleep": "The room is asleep: wake it up to get its port.",
+    "wake": "Wake the room up",
+    "waking": "Waking up…",
+    "woken": "The room is awake: port {{port}}",
+    "openAsOwner": "Open as owner",
+    "lastActivity": "Last activity {{when}}",
+    "timeout": "Goes to sleep after {{duration}} without activity",
+    "roomError": "The room state is not available: {{error}}",
+    "asleepPort": "The room is asleep: wake it up before playing, its port may change."
+  },
+  "share": {
+    "title": "Message to share",
+    "hint": "Paste it in your group chat so everyone knows where to connect.",
+    "includePassword": "Include the password",
+    "copy": "Copy the message",
+    "copied": "Copied",
+    "heading": "Archipelago game: {{name}}",
+    "address": {
+      "lan": "Address (local network): {{address}}",
+      "public": "Address (Internet): {{address}}",
+      "localhost": "Address: {{address}}",
+      "web": "Address: {{address}}"
+    },
+    "room": "Room: {{url}}",
+    "password": "Password: {{password}}",
+    "slots": "Slots:",
+    "slot": "- {{name}} ({{game}})"
+  },
+  "players": {
+    "title": "Players",
+    "online": "{{online}}/{{total}} online",
+    "goals": "{{goals}}/{{total}} done",
+    "connected": "Online",
+    "absent": "Away",
+    "goal": "Goal reached",
+    "slot": "P{{slot}}",
+    "empty": "No player in this game.",
+    "webHint": "archipelago.gg does not say who is connected: the room log does."
+  },
+  "feed": {
+    "title": "Item feed",
+    "loading": "Loading the history…",
+    "empty": "Waiting for the first events…",
+    "historyError": "The history is not available: {{error}}",
+    "join": "{{player}} joined the game",
+    "leave": "{{player}} left the game",
+    "item": "{{player}} sent {{item}} to {{receiver}}",
+    "itemSelf": "{{player}} found their own {{item}}",
+    "goal": "{{player}} reached their goal",
+    "allGoals": "The whole team finished their games. Well done!",
+    "chat": "{{player}}: {{message}}"
+  },
+  "console": {
+    "title": "Server console",
+    "webTitle": "Room console",
+    "input": "Server command",
+    "placeholder": "/help, /players… or a message to everyone",
+    "offline": "The console comes alive once the server is ready.",
+    "shortcuts": "Quick commands",
+    "failed": "Command refused: {{error}}",
+    "logError": "The room log is not available: {{error}}. Trying again in 5 s.",
+    "commands": {
+      "players": "Who is connected",
+      "status": "Progress of each player",
+      "countdown": "A 10 second countdown",
+      "save": "Save the game now",
+      "release": "Send out a player’s remaining items",
+      "collect": "Give a player all of their remaining items"
+    },
+    "release": {
+      "title": "Release a player’s items",
+      "body": "Sends every remaining item of this player’s world to its owners. This cannot be undone.",
+      "confirm": "Release"
+    },
+    "collect": {
+      "title": "Collect a player’s items",
+      "body": "Gives this player all of their remaining items, wherever they are. This cannot be undone.",
+      "confirm": "Collect"
+    },
+    "player": "Player",
+    "pickPlayer": "Pick a player"
+  },
+  "files": {
+    "title": "Player files",
+    "hint": "Send each player the file of their slot: they open it to start their game.",
+    "openFor": "Open the folder for slot {{name}}",
+    "open": "Open the folder",
+    "copyPathFor": "Copy the path for slot {{name}}",
+    "copyPath": "Copy the path",
+    "copyLinkFor": "Copy the download link for slot {{name}}",
+    "copyLink": "Copy the link",
+    "copied": "Copied",
+    "noFile": "No file: this game connects to the server directly.",
+    "none": "No files yet: the game has not been generated."
+  }
+}
