@@ -244,6 +244,43 @@ describe('prepare', () => {
     })
   })
 
+  it('decides the winner against each rival and leaves out the rivals Archipelago never loads', async () => {
+    const higher = await makeApworld(join(paths.customWorlds, 'a.apworld'), {
+      manifest: apworldManifest('Game', { world_version: '2.0.0' }),
+    })
+    // Already shadowed by a.apworld, but the new world beats it.
+    const lower = await makeApworld(join(paths.customWorlds, 'b.apworld'), {
+      manifest: apworldManifest('Game', { world_version: '1.0.0' }),
+    })
+    // Outside its AP range: never loaded, whatever its version.
+    await makeApworld(join(paths.customWorlds, 'inc.apworld'), {
+      manifest: apworldManifest('Game', { world_version: '9.0.0', minimum_ap_version: '0.7.0' }),
+    })
+    expect((await installer.list()).map((w) => [w.fileName, w.states])).toEqual([
+      ['a.apworld', ['ok']],
+      ['b.apworld', ['shadowed']],
+      ['inc.apworld', ['incompatible']],
+    ])
+
+    const middle = await userFile('c.apworld', {
+      manifest: apworldManifest('Game', { world_version: '1.5.0' }),
+    })
+    const plan = await installer.prepare({ kind: 'file', path: middle }, task())
+    expect(plan.conflicts).toEqual([
+      { worldId: sha1(higher), version: '2.0.0', winner: 'existing' },
+      { worldId: sha1(lower), version: '1.0.0', winner: 'new' },
+    ])
+    expect(plan.warnings).toEqual(['world-version-conflict'])
+
+    const top = await userFile('d.apworld', {
+      manifest: apworldManifest('Game', { world_version: '3.0.0' }),
+    })
+    expect((await installer.prepare({ kind: 'file', path: top }, task())).conflicts).toEqual([
+      { worldId: sha1(higher), version: '2.0.0', winner: 'new' },
+      { worldId: sha1(lower), version: '1.0.0', winner: 'new' },
+    ])
+  })
+
   it('downloads a catalog world and checks the sha256 the catalog gives', async () => {
     const src = await userFile('pokemon_crystal.apworld', { game: 'Pokemon Crystal' })
     const bytes = readFileSync(src)

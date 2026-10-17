@@ -22,6 +22,7 @@ import type {
   WorldInfo,
   WorldInstallPlan,
   WorldSource,
+  WorldState,
 } from '@shared/types'
 import {
   AP_CONTAINER_VERSION,
@@ -35,6 +36,9 @@ import { apRangeViolation, computeStates, disabledWorldsDir, scanWorlds, worldId
 
 /** A plan not confirmed within this delay is dropped, with its staged file. */
 export const PLAN_TTL_MS = 60 * 60 * 1000
+
+/** The states of a world Archipelago does not load: it cannot conflict with a new one. */
+const NEVER_LOADED: ReadonlySet<WorldState> = new Set(['disabled', 'corrupt', 'incompatible'])
 
 export interface WorldInstallerDeps {
   locator: Pick<Locator, 'detect'>
@@ -204,31 +208,36 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
     return { file: await fetchTo(dir, url, entry.latest.sha256, task), source, entry }
   }
 
-  /** The existing worlds the new one replaces or competes with, and which one Archipelago loads. */
+  /**
+   * The existing worlds the new one replaces or competes with and, for each one, which of the two
+   * Archipelago loads. The winner is decided head to head: Archipelago's load order ranks any two
+   * worlds the same way whatever else is installed. A rival Archipelago never loads (disabled,
+   * corrupt, outside its AP range) competes with nothing and is left out.
+   */
   function findConflicts(
     worlds: WorldInfo[],
     candidate: WorldInfo,
     apVersion: string | null,
   ): WorldInstallPlan['conflicts'] {
-    const replaced = worlds.filter((w) => w.location === 'custom' && samePath(w.path, candidate.path))
-    const others = worlds.filter((w) => !replaced.includes(w))
-    const after = computeStates([...others, candidate], apVersion).at(-1)
-    const winner: 'new' | 'existing' = after?.states.includes('shadowed') ? 'existing' : 'new'
-    const rivals = others.filter(
-      (w) =>
-        candidate.game !== null &&
-        w.game === candidate.game &&
-        !w.states.includes('disabled') &&
-        !w.states.includes('corrupt'),
-    )
-    return [
-      ...replaced.map((w) => ({
-        worldId: w.id,
-        version: w.manifest?.worldVersion ?? null,
-        winner: 'new' as const,
-      })),
-      ...rivals.map((w) => ({ worldId: w.id, version: w.manifest?.worldVersion ?? null, winner })),
-    ]
+    type Conflict = WorldInstallPlan['conflicts'][number]
+    const conflict = (world: WorldInfo, winner: Conflict['winner']): Conflict => ({
+      worldId: world.id,
+      version: world.manifest?.worldVersion ?? null,
+      winner,
+    })
+    const replaced: Conflict[] = []
+    const rivals: Conflict[] = []
+    for (const world of worlds) {
+      if (world.location === 'custom' && samePath(world.path, candidate.path)) {
+        replaced.push(conflict(world, 'new'))
+        continue
+      }
+      if (candidate.game === null || world.game !== candidate.game) continue
+      const [rival, challenger] = computeStates([world, candidate], apVersion)
+      if (!rival || !challenger || rival.states.some((state) => NEVER_LOADED.has(state))) continue
+      rivals.push(conflict(world, challenger.states.includes('shadowed') ? 'existing' : 'new'))
+    }
+    return [...replaced, ...rivals]
   }
 
   async function isApRunning(): Promise<boolean> {
