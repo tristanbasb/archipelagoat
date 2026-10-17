@@ -85,10 +85,15 @@ export function itemClassOf(flags: number): ItemClass {
 
 /** Hooks a connection calls so that its owner can tell the lines the server logs about it. */
 export interface ConnectionHooks {
-  /** A connection is about to open: the server will log `connection open`, then `connection closed`. */
+  /** A connection is about to open: the server will log `connection open`. */
   onConnecting?: () => void
-  /** That connection ended before it opened: the server logged neither line. */
+  /** That connection ended before it opened: the server logged no line about it. */
   onNeverOpened?: () => void
+  /**
+   * The app closes that connection, which opened: the server will log `connection closed`. Not called
+   * when the server ends it first.
+   */
+  onClosing?: () => void
 }
 
 export interface PokeOptions extends ConnectionHooks {
@@ -104,19 +109,25 @@ export function pokeServer(url: string, opts: PokeOptions = {}): Promise<boolean
   const open = opts.socket ?? openWebSocket
   return new Promise((resolve) => {
     let opened = false
+    let closing = false
+    const close = (): void => {
+      if (opened && !closing) opts.onClosing?.()
+      closing = true
+      socket.close()
+    }
     opts.onConnecting?.()
     const socket = open(url, {
       open: () => {
         opened = true
       },
-      message: () => socket.close(),
+      message: close,
       close: () => {
         clearTimeout(timer)
         if (!opened) opts.onNeverOpened?.()
         resolve(opened)
       },
     })
-    const timer = setTimeout(() => socket.close(), opts.timeoutMs ?? POKE_TIMEOUT_MS)
+    const timer = setTimeout(close, opts.timeoutMs ?? POKE_TIMEOUT_MS)
     timer.unref()
   })
 }
@@ -154,6 +165,13 @@ export interface Tracker {
 }
 
 type Packet = Record<string, unknown>
+
+/** A connection of the tracker: `closing` once the app ends it. */
+interface Link {
+  socket: LinkSocket
+  opened: boolean
+  closing: boolean
+}
 
 const isRecord = (value: unknown): value is Packet =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -207,7 +225,8 @@ function itemSendOf(packet: Packet, names: ReadonlyMap<number, string>, team: nu
 export function connectTracker(opts: TrackerOptions): Tracker {
   const open = opts.socket ?? openWebSocket
   const delays = opts.retryDelaysMs ?? RETRY_DELAYS_MS
-  let socket: LinkSocket | null = null
+  /** The connection of the current attempt. */
+  let link: Link | null = null
   let connected = false
   let stopped = false
   let failures = 0
@@ -215,6 +234,14 @@ export function connectTracker(opts: TrackerOptions): Tracker {
   let login: NodeJS.Timeout | undefined
   let names = new Map<number, string>()
   let team = 1
+
+  /** Ends the current connection from the app's side: once it opened, the server logs its closing. */
+  function closeLink(): void {
+    if (!link) return
+    if (link.opened && !link.closing) opts.onClosing?.()
+    link.closing = true
+    link.socket.close()
+  }
 
   const setConnected = (value: boolean): void => {
     if (connected === value) return
@@ -238,7 +265,7 @@ export function connectTracker(opts: TrackerOptions): Tracker {
     for (const packet of packetsOf(text)) {
       switch (packet.cmd) {
         case 'RoomInfo':
-          socket?.send(JSON.stringify([connectPacket()]))
+          link?.socket.send(JSON.stringify([connectPacket()]))
           break
         case 'Connected':
           clearTimeout(login)
@@ -250,7 +277,7 @@ export function connectTracker(opts: TrackerOptions): Tracker {
         case 'ConnectionRefused':
           opts.log.warn('servers: the server refused the item tracker', { errors: packet.errors })
           stopped = true
-          socket?.close()
+          closeLink()
           break
         case 'PrintJSON': {
           const send = packet.type === 'ItemSend' ? itemSendOf(packet, names, team) : null
@@ -262,17 +289,17 @@ export function connectTracker(opts: TrackerOptions): Tracker {
   }
 
   function attempt(): void {
-    let opened = false
     opts.onConnecting?.()
-    socket = open(opts.url, {
+    // A socket calls its handlers once open() returned (WebSocket events never fire synchronously).
+    const handlers: SocketHandlers = {
       open: () => {
-        opened = true
+        current.opened = true
       },
       message: onPackets,
       close: () => {
         clearTimeout(login)
-        socket = null
-        if (!opened) opts.onNeverOpened?.()
+        link = null
+        if (!current.opened) opts.onNeverOpened?.()
         setConnected(false)
         if (stopped) return
         const delay = delays[failures++]
@@ -283,9 +310,10 @@ export function connectTracker(opts: TrackerOptions): Tracker {
         retry = setTimeout(attempt, delay)
         retry.unref()
       },
-    })
-    const current = socket
-    login = setTimeout(() => current.close(), opts.loginTimeoutMs ?? LOGIN_TIMEOUT_MS)
+    }
+    const current: Link = { socket: open(opts.url, handlers), opened: false, closing: false }
+    link = current
+    login = setTimeout(closeLink, opts.loginTimeoutMs ?? LOGIN_TIMEOUT_MS)
     login.unref()
   }
 
@@ -298,7 +326,7 @@ export function connectTracker(opts: TrackerOptions): Tracker {
       stopped = true
       clearTimeout(retry)
       clearTimeout(login)
-      socket?.close()
+      closeLink()
     },
   }
 }

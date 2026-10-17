@@ -70,7 +70,7 @@ function track(overrides: Partial<TrackerOptions> = {}) {
   const { socket, sockets } = fakeSockets()
   const items: ItemSend[] = []
   const statuses: boolean[] = []
-  const hooks = { connecting: 0, neverOpened: 0 }
+  const hooks = { connecting: 0, neverOpened: 0, closing: 0 }
   const tracker = connectTracker({
     url: 'ws://127.0.0.1:38281',
     slot: 'Alice',
@@ -82,6 +82,7 @@ function track(overrides: Partial<TrackerOptions> = {}) {
     onStatus: (connected) => void statuses.push(connected),
     onConnecting: () => void hooks.connecting++,
     onNeverOpened: () => void hooks.neverOpened++,
+    onClosing: () => void hooks.closing++,
     ...overrides,
   })
   return { tracker, sockets, items, statuses, hooks }
@@ -117,26 +118,42 @@ describe('pokeServer', () => {
   it('opens a connection and closes it once the server answered, without a word', async () => {
     const { socket, sockets } = fakeSockets()
     const onNeverOpened = vi.fn()
-    const poked = pokeServer('ws://127.0.0.1:38281', { socket, onNeverOpened })
+    const onClosing = vi.fn()
+    const poked = pokeServer('ws://127.0.0.1:38281', { socket, onNeverOpened, onClosing })
     const [fake] = sockets
     if (!fake) throw new Error('no connection')
     expect(fake.url).toBe('ws://127.0.0.1:38281')
     fake.open()
     expect(fake.closing).toBe(false)
     fake.receive({ cmd: 'RoomInfo' })
+    // Said before the closing goes out: the server logs it afterwards.
+    expect(onClosing).toHaveBeenCalledOnce()
+    expect(fake.closing).toBe(true)
 
     expect(await poked).toBe(true)
     expect(fake.closed).toBe(true)
     expect(fake.sent).toEqual([])
     expect(onNeverOpened).not.toHaveBeenCalled()
+    expect(onClosing).toHaveBeenCalledOnce()
   })
 
   it('gives up after its timeout on a server that never answers', async () => {
     const { socket, sockets } = fakeSockets()
-    const poked = pokeServer('ws://127.0.0.1:38281', { socket, timeoutMs: 20 })
+    const onClosing = vi.fn()
+    const poked = pokeServer('ws://127.0.0.1:38281', { socket, timeoutMs: 20, onClosing })
     sockets[0]?.open()
     expect(await poked).toBe(true)
     expect(sockets[0]?.closed).toBe(true)
+    expect(onClosing).toHaveBeenCalledOnce()
+  })
+
+  it('owes no closing for a connection that never opened', async () => {
+    const { socket, sockets } = fakeSockets()
+    const onClosing = vi.fn()
+    const poked = pokeServer('ws://127.0.0.1:38281', { socket, timeoutMs: 20, onClosing })
+    expect(await poked).toBe(false)
+    expect(sockets[0]?.closed).toBe(true)
+    expect(onClosing).not.toHaveBeenCalled()
   })
 
   it('answers false, and says so, when nothing listens (a real WebSocket)', async () => {
@@ -235,7 +252,8 @@ describe('connectTracker', () => {
     sockets[2]?.end()
     await new Promise((resolve) => setTimeout(resolve, 30))
     expect(sockets).toHaveLength(3)
-    expect(hooks).toEqual({ connecting: 3, neverOpened: 2 })
+    // The server ended them: the app closed none.
+    expect(hooks).toEqual({ connecting: 3, neverOpened: 2, closing: 0 })
     expect(warn).toHaveBeenCalledWith('servers: the item tracker gave up on the server', {
       url: 'ws://127.0.0.1:38281',
     })
@@ -253,32 +271,36 @@ describe('connectTracker', () => {
 
   it('never comes back once refused', async () => {
     const warn = vi.fn()
-    const { sockets, statuses } = track({ retryDelaysMs: [5], log: { ...silentLogger, warn } })
+    const { sockets, statuses, hooks } = track({ retryDelaysMs: [5], log: { ...silentLogger, warn } })
     sockets[0]?.open()
     sockets[0]?.receive({ cmd: 'RoomInfo' }, { cmd: 'ConnectionRefused', errors: ['InvalidSlot'] })
     await vi.waitFor(() => expect(sockets[0]?.closed).toBe(true))
     await new Promise((resolve) => setTimeout(resolve, 30))
     expect(sockets).toHaveLength(1)
     expect(statuses).toEqual([])
+    expect(hooks.closing).toBe(1)
     expect(warn).toHaveBeenCalledWith('servers: the server refused the item tracker', {
       errors: ['InvalidSlot'],
     })
   })
 
   it('tries again when the login takes too long', async () => {
-    const { sockets } = track({ retryDelaysMs: [5], loginTimeoutMs: 20 })
+    const { sockets, hooks } = track({ retryDelaysMs: [5], loginTimeoutMs: 20 })
     sockets[0]?.open()
     await vi.waitFor(() => expect(sockets[0]?.closing).toBe(true))
+    expect(hooks.closing).toBe(1)
     await vi.waitFor(() => expect(sockets).toHaveLength(2))
   })
 
   it('close() ends the connection for good', async () => {
-    const { tracker, sockets, statuses } = track({ retryDelaysMs: [5] })
+    const { tracker, sockets, statuses, hooks } = track({ retryDelaysMs: [5] })
     sockets[0]?.open()
     sockets[0]?.receive({ cmd: 'RoomInfo' }, { cmd: 'Connected', team: 0, slot: 1, slot_info: SLOT_INFO })
 
     tracker.close()
+    tracker.close()
 
+    expect(hooks.closing).toBe(1)
     await vi.waitFor(() => expect(sockets[0]?.closed).toBe(true))
     expect(statuses).toEqual([true, false])
     await new Promise((resolve) => setTimeout(resolve, 30))

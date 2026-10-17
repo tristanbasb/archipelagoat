@@ -255,10 +255,16 @@ interface Run {
   /** null for an orphan, which is not ours. */
   readonly link: LinkInfo | null
   tracker: Tracker | null
-  /** The `connection open` and `connection closed` lines the app's own connections still owe. */
+  /**
+   * The `connection open` and `connection closed` lines the app's own connections still owe: an opening
+   * from the attempt on, a closing once the app ends the connection or the server printed the tracker's
+   * leave. Never earlier: as long as the tracker is logged in, a player's closing is a player's.
+   */
   ownConnections: { open: number; closed: number }
   /** The last line was the tracker's join: the notices the server sends it next follow. */
   afterTrackerJoin: boolean
+  /** The server printed the tracker's join and not yet its leave. */
+  trackerJoined: boolean
   /** The events in the order of their lines. */
   outbox: Outgoing[]
   /** Item classes that came before the line of their item. */
@@ -368,6 +374,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       tracker: null,
       ownConnections: { open: 0, closed: 0 },
       afterTrackerJoin: false,
+      trackerJoined: false,
       outbox: [],
       early: [],
       proc: null,
@@ -451,20 +458,23 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
 
   // --- the app's own connections (server-link.ts) ---------------------------------------------------
 
-  function expectConnection(run: Run): void {
+  function expectOpening(run: Run): void {
     run.ownConnections.open++
-    run.ownConnections.closed++
   }
 
-  function unexpectConnection(run: Run): void {
+  function unexpectOpening(run: Run): void {
     run.ownConnections.open = Math.max(0, run.ownConnections.open - 1)
-    run.ownConnections.closed = Math.max(0, run.ownConnections.closed - 1)
+  }
+
+  function expectClosing(run: Run): void {
+    run.ownConnections.closed++
   }
 
   /**
    * Whether `line` is about the app's own connections: the `connection open` and `connection closed` they
    * owe (any such line will do, they are all alike), and the join and leave notices of the tracker with
-   * the notices the server sends it right after its join.
+   * the notices the server sends it right after its join. The tracker's leave comes before the closing of
+   * its connection: websockets logs it once MultiServer's handler, which prints the leave, returned.
    */
   function isOwnLine(run: Run, line: string): boolean {
     const end = SERVER_CONNECTION_RE.exec(line)?.groups?.end
@@ -481,7 +491,11 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     run.afterTrackerJoin = false
     if (!OWN_TRACKER_RE.test(line)) return false
     const kind = parseServerLine(line)?.kind
-    run.afterTrackerJoin = kind === 'join'
+    if (kind === 'join') run.afterTrackerJoin = run.trackerJoined = true
+    if (kind === 'leave') {
+      run.trackerJoined = false
+      expectClosing(run)
+    }
     return kind === 'join' || kind === 'leave'
   }
 
@@ -494,8 +508,9 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       if (!current(run) || run.state.status !== 'ready' || !run.link) return
       void pokeServer(run.link.url, {
         socket: deps.socket,
-        onConnecting: () => expectConnection(run),
-        onNeverOpened: () => unexpectConnection(run),
+        onConnecting: () => expectOpening(run),
+        onNeverOpened: () => unexpectOpening(run),
+        onClosing: () => expectClosing(run),
       })
     }, pokeMs)
     timer.unref()
@@ -512,8 +527,12 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       log: ctx.log,
       socket: deps.socket,
       retryDelaysMs: trackerRetryMs,
-      onConnecting: () => expectConnection(run),
-      onNeverOpened: () => unexpectConnection(run),
+      onConnecting: () => expectOpening(run),
+      onNeverOpened: () => unexpectOpening(run),
+      // Once its join was printed, its leave owes the closing instead (isOwnLine).
+      onClosing: () => {
+        if (!run.trackerJoined) expectClosing(run)
+      },
       onStatus: (connected) => onTrackerStatus(run, connected),
       onItem: (send) => onItem(run, send),
     })

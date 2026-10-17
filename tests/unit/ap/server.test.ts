@@ -1291,6 +1291,52 @@ describe("the app's own connections (driven process, fake sockets)", () => {
     ])
   })
 
+  // Real run of 17 October (docs/verification/2026-10-17-v1.1-followups.md): the Text Client's
+  // `connection closed` went missing while the tracker was logged in, and the tracker's showed at the stop.
+  it("keeps a player's connection lines while the tracker is logged in, and leaves out the tracker's", async () => {
+    const { manager, session, proc, tracker, bus } = await trackedServer()
+    const joined =
+      "Notice (all): Bob (Team #1) viewing A Hat in Time has joined. Client(0.6.8), ['AP', 'TextOnly']."
+    const left =
+      "Notice (all): Bob (Team #1) has stopped viewing the game. Client(0.6.8), ['AP', 'TextOnly']."
+    proc.line('connection open')
+    proc.line(joined)
+    proc.line(left)
+    proc.line('connection closed')
+    expect(bus.logs.slice(-4)).toEqual(['connection open', joined, left, 'connection closed'])
+
+    // The stop closes the tracker: the server prints its leave, then its `connection closed` (websockets
+    // logs it once MultiServer's handler returned), here after `server closing` as on 17 October.
+    const stopping = manager.stop(session.id)
+    proc.line('server closing')
+    proc.line(
+      "Notice (all): Alice (Team #1) has stopped tracking the game. Client(0.6.8), ['Tracker', 'ArchipelaGOAT'].",
+    )
+    proc.line('connection closed')
+    proc.line('server closed')
+    await stopping
+    expect(tracker.closed).toBe(true)
+    expect(bus.logs.slice(-2)).toEqual(['server closing', 'server closed'])
+  })
+
+  it('leaves out the closing of a tracker the server dropped, which then logs in again', async () => {
+    const { proc, tracker, sockets, bus } = await trackedServer({ trackerRetryMs: [10] })
+    tracker.end()
+    proc.line(
+      "Notice (all): Alice (Team #1) has stopped tracking the game. Client(0.6.8), ['Tracker', 'ArchipelaGOAT'].",
+    )
+    proc.line('connection closed')
+    await vi.waitFor(() => expect(sockets).toHaveLength(2))
+    sockets[1]!.open()
+    proc.line('connection open')
+    sockets[1]!.receive(CONNECTED)
+    proc.line(TRACKER_JOIN)
+    proc.line(`Notice (Player Alice in team 1): ${TUTORIAL}`)
+    // A player who leaves afterwards keeps the line of their connection.
+    proc.line('connection closed')
+    expect(bus.logs.slice(-2)).toEqual([`server listening on 0.0.0.0:${portOf(proc)}`, 'connection closed'])
+  })
+
   it('a connection that never opened owes no line', async () => {
     const { manager, session, proc, sockets, bus } = await trackedServer({ pokeMs: 10 })
     manager.command(session.id, '/players')
