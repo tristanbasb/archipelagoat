@@ -1,0 +1,550 @@
+/* Settings and About: two stacks of panels, then the wide data and credits panels. */
+
+/* Panels side by side are as tall as each other. */
+.settings__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-6);
+}
+
+.settings__wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .settings__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- Shared pieces --------------------------------------------------------------------------- */
+
+.settings-stack {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.settings-field {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.settings-muted {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.settings-with-icon {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
+.settings-with-icon svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--text);
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* A setting with its icon tile: a small lit square, stepped corners. */
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.settings-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-row__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--tone) 22%, transparent), var(--tone-soft)), var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--tone-line);
+  color: var(--tone-ink);
+  clip-path: var(--clip-corner);
+}
+
+.settings-row__icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75;
+}
+
+/* A short notice in the tone's color (no keyring, reduced motion). */
+.settings-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--tone-soft);
+  box-shadow: inset 3px 0 0 var(--tone);
+  color: var(--text);
+  font-size: var(--fs-13);
+  clip-path: var(--clip-corner-sm);
+}
+
+.settings-note svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--tone-ink);
+}
+
+.settings-unavailable {
+  color: var(--neon-yellow);
+  font-weight: 600;
+}
+
+.settings-path {
+  display: block;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+  user-select: text;
+  clip-path: var(--clip-corner-sm);
+}
+
+.settings-error {
+  margin: 0;
+}
+
+/* ---- Archipelago ----------------------------------------------------------------------------- */
+
+.settings-ap {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.settings-ap__state {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* ---- GitHub token ---------------------------------------------------------------------------- */
+
+.settings-token {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.settings-token__key {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--tone-ink);
+}
+
+/* The token on the left, how secrets are stored on the right. */
+.settings-secrets {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: var(--sp-6) var(--sp-8);
+}
+
+.settings-secrets__storage {
+  padding-left: var(--sp-8);
+  border-left: 1px dashed var(--line-strong);
+}
+
+@media (max-width: 860px) {
+  .settings-secrets {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-secrets__storage {
+    padding: var(--sp-4) 0 0;
+    border-left: 0;
+    border-top: 1px dashed var(--line-strong);
+  }
+}
+
+.settings-confirm {
+  display: grid;
+  gap: var(--sp-3);
+  color: var(--text-dim);
+}
+
+.settings-confirm__risk {
+  color: var(--neon-yellow);
+  font-weight: 600;
+}
+
+/* ---- App data -------------------------------------------------------------------------------- */
+
+/* One row per folder, on a shared grid so the paths and buttons line up. */
+.settings-folders {
+  display: grid;
+  grid-template-columns: auto minmax(11rem, 17rem) minmax(0, 1fr) auto;
+  gap: var(--sp-2) 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-folder {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--bg-1) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: var(--clip-corner);
+  transition: box-shadow var(--dur) var(--ease-out);
+}
+
+.settings-folder:hover,
+.settings-folder:focus-within {
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.settings-folder__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-folder__label {
+  font-weight: 700;
+}
+
+.settings-folder__hint {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.settings-folder__path {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.settings-folder__actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 860px) {
+  .settings-folders {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .settings-folder__path {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}
+
+/* ---- About ----------------------------------------------------------------------------------- */
+
+.about {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.about__hero {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-5) var(--sp-6);
+  background:
+    radial-gradient(
+      ellipse at 18% 50%,
+      color-mix(in srgb, var(--neon-violet) 22%, transparent),
+      transparent 60%
+    ),
+    repeating-linear-gradient(to bottom, transparent 0 3px, rgb(255 255 255 / 0.015) 3px 4px), var(--bg-1);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--neon-violet) 35%, transparent);
+  clip-path: var(--clip-corner);
+}
+
+/* The goat on its archipelago, floating. */
+.about__art {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.about__goat {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--neon-violet) 60%, transparent));
+  animation: about-float 3.2s steps(8, jump-none) infinite alternate;
+}
+
+.about__island--left {
+  animation: about-float 2.6s steps(6, jump-none) -1.2s infinite alternate;
+}
+
+.about__island--right {
+  margin-bottom: var(--sp-5);
+  animation: about-float 2.2s steps(5, jump-none) -0.6s infinite alternate;
+}
+
+@keyframes about-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+:where(.fx-off, .fx-no-anim) .about__art * {
+  animation: none;
+}
+
+:where(.fx-off, .fx-no-glow) .about__goat {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about__art * {
+    animation: none;
+  }
+}
+
+.about__identity {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.about__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.about__wordmark {
+  font-size: var(--fs-20);
+}
+
+.about__unofficial {
+  color: var(--neon-yellow);
+  font-size: var(--fs-16);
+  font-weight: 700;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon-yellow) 35%, transparent);
+}
+
+:where(.fx-off, .fx-no-glow) .about__unofficial {
+  text-shadow: none;
+}
+
+.about__tagline {
+  color: var(--text);
+}
+
+.about__affiliation {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.about__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+}
+
+.about__facts > div {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--bg-1) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: var(--clip-corner-sm);
+}
+
+.about__facts dt {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.about__facts dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.about__section {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.about__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* A dotted rule after the heading, like a high-score table. */
+.about__heading::after {
+  content: '';
+  flex: 1;
+  height: 2px;
+  background: radial-gradient(circle, var(--line-strong) 1px, transparent 1.5px) 0 0 / 6px 2px;
+}
+
+.about__credits {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about__credit {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: color-mix(in srgb, var(--bg-1) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  text-wrap: pretty;
+  clip-path: var(--clip-corner);
+}
+
+.about__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-self: start;
+  color: var(--neon-cyan);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.about__credit-license {
+  justify-self: start;
+}
+
+.about__link:hover {
+  text-decoration: underline;
+}
+
+.about__link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.about__licenses summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  color: var(--neon-cyan);
+  cursor: pointer;
+}
+
+.about__licenses summary svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* The native marker is gone with display: inline-flex; a chevron turns instead. */
+.about__chevron {
+  transition: transform var(--dur) steps(3, end);
+}
+
+.about__licenses[open] .about__chevron {
+  transform: rotate(90deg);
+}
+
+.about__license-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0 var(--sp-6);
+  max-height: 280px;
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  overflow: auto;
+  background: var(--bg-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  list-style: none;
+  font-size: var(--fs-12);
+}
+
+.about__license-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.about__package {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.about__package-version {
+  color: var(--text-dim);
+}
+
+.about__package-license {
+  margin-left: auto;
+  color: var(--neon-green);
+  white-space: nowrap;
+}
+
+.about__package-license--none {
+  color: var(--text-dim);
+}
+
+.about__missing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px dashed var(--line-strong);
+}
+
+.about__missing > svg {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  color: var(--text-dim);
+}
+
+.about__missing-title {
+  font-weight: 700;
+}
