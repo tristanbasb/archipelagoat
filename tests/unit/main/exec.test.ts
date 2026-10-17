@@ -41,6 +41,14 @@ describe('exec', () => {
     }
   })
 
+  it('writes `input` to the program’s stdin as UTF-8, then closes it', async () => {
+    const echo =
+      'let text = ""; process.stdin.setEncoding("utf8"); ' +
+      'process.stdin.on("data", (chunk) => (text += chunk)).on("end", () => process.stdout.write(`<${text}>`))'
+    const result = await exec(node, ['-e', echo], { input: 'Jérôme\n日本 😀' })
+    expect(result).toEqual({ code: 0, stdout: '<Jérôme\n日本 😀>', stderr: '' })
+  })
+
   it('rejects with PROCESS_TIMEOUT when the timeout fires', async () => {
     await expect(exec(node, ['-e', 'setTimeout(() => {}, 20000)'], { timeoutMs: 200 })).rejects.toThrow(
       /PROCESS_TIMEOUT/,

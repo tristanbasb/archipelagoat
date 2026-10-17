@@ -1,4 +1,4 @@
-import type { ExecFn, ExecResult } from '@main/core/exec'
+import type { ExecFn, ExecOptions, ExecResult } from '@main/core/exec'
 import { readRegistryValues } from '@main/core/system/registry'
 import { AP_UNINSTALL_KEY } from '@shared/data/ap-constants'
 
@@ -13,7 +13,7 @@ const KEY = AP_UNINSTALL_KEY
 interface Call {
   cmd: string
   args: string[]
-  opts: unknown
+  opts?: ExecOptions
 }
 
 function fakeExec(stdout: string, result: Partial<ExecResult> = {}): ExecFn & { calls: Call[] } {
@@ -25,9 +25,8 @@ function fakeExec(stdout: string, result: Partial<ExecResult> = {}): ExecFn & { 
   return Object.assign(fn, { calls })
 }
 
-/** The script a call ran, decoded from its -EncodedCommand. */
-const scriptOf = (call: Call | undefined): string =>
-  Buffer.from(call?.args.at(-1) ?? '', 'base64').toString('utf16le')
+/** The script a call ran: what runPowerShell writes to its stdin. */
+const scriptOf = (call: Call | undefined): string => call?.opts?.input ?? ''
 
 describe('readRegistryValues', () => {
   it('readRegistryValues decodes UTF-8 JSON with accented InstallLocation', async () =>
@@ -58,8 +57,6 @@ describe('readRegistryValues', () => {
         "{918BA46A-FAB8-460C-9DFF-AE691E1C865B}_is1')",
     )
     expect(script).toContain('ConvertTo-Json')
-    // Short enough for -EncodedCommand (about 32k characters once encoded).
-    expect(script.length).toBeLessThan(12_000)
   })
 
   it('uses the 32-bit view when asked and doubles apostrophes in the subkey', async () => {

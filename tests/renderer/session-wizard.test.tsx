@@ -408,6 +408,21 @@ describe('session wizard', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Studio YAML' })).toBeInTheDocument()
   })
 
+  it('a new step starts at the top of the screen, and takes the focus', async () => {
+    const { user } = await openWizard('/session/s1?step=2', {
+      handlers: { 'session:get': () => session(), 'session:validate': () => READY },
+    })
+    await screen.findByText('Tout est prêt')
+    // The check was read down to its end, where Next waits.
+    const main = document.querySelector('main') as HTMLElement
+    main.scrollTop = 640
+
+    await user.click(screen.getByRole('button', { name: 'Suivant' }))
+    const rules = await screen.findByRole('group', { name: 'Règles' })
+    await waitFor(() => expect(rules).toHaveFocus())
+    expect(main.scrollTop).toBe(0)
+  })
+
   it('step 3 applies race preset values', async () => {
     const { goat, user } = await openWizard('/session/s1?step=3', {
       handlers: {
@@ -735,6 +750,34 @@ describe('session wizard', () => {
     await waitFor(() => expect(goat.inputsOf('server:start')).toEqual([{ sessionId: 's1' }]))
     await waitFor(() => expect(window.location.hash).toBe('#/play/s1'))
     expect(goat.inputsOf('webhost:host')).toEqual([])
+  })
+
+  it('step 5 says the game is hosted only while it is live, not once its server stopped', async () => {
+    const hosting = {
+      mode: 'local',
+      port: 38281,
+      savefile: `${WORKSPACE}\\output\\AP_48213977.apsave`,
+    } as const
+    let status: Session['status'] = 'hosting'
+    const { goat } = await openWizard('/session/s1?step=5', {
+      handlers: { 'session:get': () => session({ status, generation: GENERATION, hosting }) },
+    })
+    expect(await screen.findByText('Cette partie est déjà hébergée')).toBeInTheDocument()
+    expect(screen.getByText('Elle tourne sur ce PC.')).toBeInTheDocument()
+
+    // Stopped: the game is over until it is started again from here.
+    status = 'finished'
+    goat.emit('server:state', {
+      sessionId: 's1',
+      status: 'stopped',
+      port: 38281,
+      addresses: [],
+      startedAt: NOW,
+      resumedFromSave: true,
+      error: null,
+    })
+    await waitFor(() => expect(screen.queryByText('Cette partie est déjà hébergée')).toBeNull())
+    expect(screen.getByRole('button', { name: 'Lancer le serveur local' })).toBeEnabled()
   })
 
   it('step 5 shows a local server error with its fix', async () => {

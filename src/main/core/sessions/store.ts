@@ -83,6 +83,11 @@ export interface SessionStore {
   setGeneration(id: string, generation: Generation | null): Promise<Session>
   /** Sets the hosting; the status follows (`hosting`, or back to `generated` / `draft` for null). */
   setHosting(id: string, hosting: Hosting | null): Promise<Session>
+  /**
+   * The local server of the session stopped or crashed: the game is `finished`, its hosting (and the
+   * save it names) kept for a restart. Nothing changes for a web room, which lives on the site.
+   */
+  setFinished(id: string): Promise<Session>
   /** The session with the text of each player file, in its order: for the validation. */
   loadPlayers(id: string): Promise<{ session: Session; files: PlayerSource[] }>
 }
@@ -484,6 +489,12 @@ export function createSessionStore(ctx: CoreContext, deps: SessionStoreDeps): Se
         const next = { ...stored, hosting }
         return { ...next, status: statusOf(next) }
       })
+    },
+
+    setFinished(id) {
+      return modify(id, (stored) =>
+        stored.hosting?.mode === 'local' ? { ...stored, status: 'finished' } : stored,
+      )
     },
 
     async loadPlayers(id) {

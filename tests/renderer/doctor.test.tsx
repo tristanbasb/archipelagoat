@@ -140,6 +140,44 @@ describe('doctor screen', () => {
     expect(await screen.findByText('Tout est prêt. Bonne partie !')).toBeInTheDocument()
   })
 
+  it('leaves out the checks of another system and never calls a check that could not run passed', async () => {
+    const checks = withChecks({
+      glibc: { params: { skipped: 'not-linux' } },
+      'programdata-acl': { params: { skipped: 'no-installer-folder' } },
+      'ap-update': { params: { skipped: 'release-unavailable', error: 'NETWORK_OFFLINE: x' } },
+      network: { severity: 'warning', params: { reason: 'offline' } },
+    })
+    await renderDoctor({ 'doctor:run': () => checks })
+    const passing = await screen.findByRole('region', { name: 'Tout va bien' })
+    // Linux's C library on Windows, the permissions of an installer folder that is not there: not shown.
+    expect(screen.queryByText('Bibliothèque C (glibc)')).toBeNull()
+    expect(screen.queryByText('Droits du dossier d’Archipelago')).toBeNull()
+    // Offline, the latest release is unknown: the check says so, not that Archipelago is up to date.
+    const update = within(passing).getByText('Mise à jour d’Archipelago').closest('li')
+    expect(update).toHaveTextContent('Pas vérifié : la dernière version ne peut pas être lue pour le moment.')
+    expect(screen.queryByText('Archipelago est à jour.')).toBeNull()
+
+    // 12 checks concern this machine; 10 passed (not the warning, not the update left unchecked).
+    const summary = screen.getByRole('region', { name: 'Santé du système' })
+    expect(within(summary).getByText('10/12')).toBeInTheDocument()
+    expect(within(summary).getByRole('progressbar', { name: 'Vérifications réussies' })).toHaveAttribute(
+      'aria-valuenow',
+      String(Math.round((10 / 12) * 100)),
+    )
+  })
+
+  it('says a check waits for Archipelago while it is not installed', async () => {
+    const checks = withChecks({
+      'ap-installed': { severity: 'error', fix: { kind: 'navigate', to: '/install' } },
+      'settings-file': { params: { skipped: 'ap-not-installed' } },
+    })
+    await renderDoctor({ 'doctor:run': () => checks })
+    const passing = await screen.findByRole('region', { name: 'Tout va bien' })
+    const settings = within(passing).getByText('Fichier de réglages').closest('li')
+    expect(settings).toHaveTextContent('Vérifié une fois Archipelago installé.')
+    expect(screen.queryByText('Le fichier de réglages d’Archipelago est lisible.')).toBeNull()
+  })
+
   it('announces the checks while they run', async () => {
     let finish: (checks: DoctorCheck[]) => void = () => undefined
     await renderDoctor({

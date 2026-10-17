@@ -438,6 +438,11 @@
       "title": "Connection and clock",
       "ok": "The connection works and the clock is right.",
       "problem": "No connection, or the clock is off: downloads may fail."
+    },
+    "skipped": {
+      "ap-not-installed": "Checked once Archipelago is installed.",
+      "release-unavailable": "Not checked: the latest release cannot be looked up right now.",
+      "other": "Not checked."
     }
   },
   "stages": {

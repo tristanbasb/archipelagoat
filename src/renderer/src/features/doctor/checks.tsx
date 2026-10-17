@@ -73,17 +73,39 @@ export function isAlert(check: DoctorCheck): boolean {
   return check.severity === 'warning' || check.severity === 'error'
 }
 
-/** Nothing to do about it: passing, or only a note. */
-export function isPassing(check: DoctorCheck): boolean {
-  return check.severity === 'ok' || check.severity === 'info'
+/**
+ * Why the main process did not run the check (`params.skipped`, with an `ok` severity), or null when
+ * it ran: Archipelago is not installed, the latest release could not be read, another system…
+ */
+export function skipReason(check: DoctorCheck): string | null {
+  const reason = check.params.skipped
+  return typeof reason === 'string' ? reason : null
 }
 
-/** The check's name and the sentence that describes its state. */
+/** Skip reasons that say the check is not for this machine: another system, no installer folder. */
+const NOT_FOR_THIS_MACHINE: ReadonlySet<string> = new Set(['not-linux', 'not-windows', 'no-installer-folder'])
+
+/** The checks that concern this machine: glibc on Linux only, the folder of an installer that ran… */
+export function applicableChecks(checks: readonly DoctorCheck[]): DoctorCheck[] {
+  return checks.filter((check) => !NOT_FOR_THIS_MACHINE.has(skipReason(check) ?? ''))
+}
+
+/** Nothing to do about it: passing, or only a note. A check that could not run did not pass. */
+export function isPassing(check: DoctorCheck): boolean {
+  return (check.severity === 'ok' || check.severity === 'info') && skipReason(check) === null
+}
+
+/** Skip reasons with their own sentence; any other one reads as "not checked". */
+const SKIP_TEXTS: ReadonlySet<string> = new Set(['ap-not-installed', 'release-unavailable'])
+
+/** The check's name and the sentence that describes its state, never "all is well" for a skipped one. */
 export function checkText(check: DoctorCheck, t: TFunction): { title: string; text: string } {
-  return {
-    title: t(`doctor.${check.id}.title`, check.params),
-    text: t(`doctor.${check.id}.${check.severity === 'ok' ? 'ok' : 'problem'}`, check.params),
+  const title = t(`doctor.${check.id}.title`, check.params)
+  const skipped = skipReason(check)
+  if (skipped !== null) {
+    return { title, text: t(`doctor.skipped.${SKIP_TEXTS.has(skipped) ? skipped : 'other'}`) }
   }
+  return { title, text: t(`doctor.${check.id}.${check.severity === 'ok' ? 'ok' : 'problem'}`, check.params) }
 }
 
 export function useDoctorRun(opts?: IpcQueryOptions<'doctor:run'>): UseQueryResult<DoctorCheck[], GoatError> {

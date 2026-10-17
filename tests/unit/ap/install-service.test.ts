@@ -5,7 +5,7 @@ import { dirname, join, posix } from 'node:path'
 import { createInstallService, type InstallService } from '@main/core/ap/install-service'
 import { createLocator, type Locator } from '@main/core/ap/locator'
 import type { ProcessInfo } from '@main/core/ap/processes'
-import type { ExecFn, ExecResult } from '@main/core/exec'
+import type { ExecFn, ExecOptions, ExecResult } from '@main/core/exec'
 import { createHttp } from '@main/core/system/http'
 import { psQuote } from '@main/core/system/powershell'
 import { registerHandlers } from '@main/ipc'
@@ -162,7 +162,8 @@ async function failed(ref: TaskRef): Promise<AppErrorData> {
 }
 
 const dataRoot = (): string => core.ctx.platform.paths.dataRoot
-const scriptOf = (args: string[]): string => Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
+/** The script a powershell.exe call ran: what runPowerShell writes to its stdin. */
+const scriptOf = (opts: ExecOptions | undefined): string => opts?.input ?? ''
 const requestsFor = (name: string): number => server.requests.filter((r) => r.url.endsWith(`/${name}`)).length
 
 function write(file: string, data: string): void {
@@ -230,9 +231,9 @@ describe('install on Windows', () => {
     setupExit = 0
     scripts = []
     atSetup = null
-    core.ctx.exec = (cmd, args): Promise<ExecResult> => {
+    core.ctx.exec = (cmd, _args, opts): Promise<ExecResult> => {
       if (cmd !== 'powershell.exe') return Promise.reject(new Error(`unexpected program: ${cmd}`))
-      scripts.push(scriptOf(args))
+      scripts.push(scriptOf(opts))
       const list = (dir: string): string[] => (existsSync(dir) ? readdirSync(dir).sort() : [])
       atSetup = {
         backups: backups(),
@@ -368,7 +369,7 @@ describe('install on Windows', () => {
     const exec = core.ctx.exec
     core.ctx.exec = async (cmd, args, opts) => {
       // Inno writes its log where /LOG says before it fails.
-      const log = /\/LOG="([^"]+)"/.exec(scriptOf(args))?.[1]?.replaceAll("''", "'")
+      const log = /\/LOG="([^"]+)"/.exec(scriptOf(opts))?.[1]?.replaceAll("''", "'")
       if (log) writeFileSync(log, 'Fatal error during install')
       return exec(cmd, args, opts)
     }
@@ -423,8 +424,8 @@ describe('install on Windows', () => {
   it('uninstalls with the official uninstaller, then forgets the install', async () => {
     await existingInstall()
     write(join(ap, 'unins000.exe'), 'uninstaller')
-    core.ctx.exec = (cmd, args) => {
-      scripts.push(scriptOf(args))
+    core.ctx.exec = (_cmd, _args, opts) => {
+      scripts.push(scriptOf(opts))
       rmSync(join(ap, 'unins000.exe'))
       rmSync(join(ap, apExeFileName('ArchipelagoLauncher', 'win32')))
       detected = null

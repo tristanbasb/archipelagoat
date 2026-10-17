@@ -8,14 +8,14 @@ import {
   runElevated,
   uninstallWindows,
 } from '@main/core/ap/installer-win'
-import type { ExecFn, ExecResult } from '@main/core/exec'
+import type { ExecFn, ExecOptions, ExecResult } from '@main/core/exec'
 import { AppError } from '@shared/errors'
 import type { ApInstall, ApPaths } from '@shared/types'
 import { createTestContext, type TestCore } from '../../helpers/core'
 import { makeApworld } from '../../helpers/make-apworld'
 
-/** The script `runPowerShell` hands to powershell.exe, without the prelude it adds. */
-const scriptOf = (args: string[]): string => Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
+/** The script `runPowerShell` hands to powershell.exe on its stdin, the prelude it adds included. */
+const scriptOf = (opts: ExecOptions | undefined): string => opts?.input ?? ''
 
 async function failure(promise: Promise<unknown>): Promise<AppError> {
   try {
@@ -70,16 +70,16 @@ describe('buildElevatedScript', () => {
       ].join('\n'),
     )
 
-    // Through runPowerShell: -EncodedCommand carries the accents and the spaces unchanged.
-    const calls: { cmd: string; args: string[] }[] = []
-    const exec: ExecFn = (cmd, a) => {
-      calls.push({ cmd, args: a })
+    // Through runPowerShell: stdin carries the accents and the spaces unchanged.
+    const calls: { cmd: string; opts?: ExecOptions }[] = []
+    const exec: ExecFn = (cmd, _args, opts) => {
+      calls.push({ cmd, opts })
       return Promise.resolve({ code: 0, stdout: '', stderr: '' })
     }
     expect(await runElevated(exec, exe, args)).toBe(0)
     expect(calls).toHaveLength(1)
     expect(calls[0]?.cmd).toBe('powershell.exe')
-    expect(scriptOf(calls[0]?.args ?? []).endsWith(`\n${script}`)).toBe(true)
+    expect(scriptOf(calls[0]?.opts).endsWith(`\n${script}`)).toBe(true)
   })
 })
 
@@ -169,8 +169,8 @@ describe('uninstallWindows', () => {
       removeProgram()
       return 0
     }
-    core.ctx.exec = (cmd, args): Promise<ExecResult> => {
-      calls.push({ cmd, script: scriptOf(args) })
+    core.ctx.exec = (cmd, _args, opts): Promise<ExecResult> => {
+      calls.push({ cmd, script: scriptOf(opts) })
       return Promise.resolve({ code: uninstaller(), stdout: '', stderr: '' })
     }
   })

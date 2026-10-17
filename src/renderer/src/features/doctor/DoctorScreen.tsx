@@ -1,6 +1,13 @@
 // The health check (spec §3.15): every check with its state and its fix, the health summary, and
 // the support bundle (a zip of the logs, made locally, then its folder opens).
-import { IconCircleCheck, IconFileZip, IconFolderOpen, IconLock, IconRefresh } from '@tabler/icons-react'
+import {
+  IconCircleCheck,
+  IconCircleDashed,
+  IconFileZip,
+  IconFolderOpen,
+  IconLock,
+  IconRefresh,
+} from '@tabler/icons-react'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
@@ -26,8 +33,10 @@ import {
   CheckFixButton,
   SEVERITY_STATUS,
   SEVERITY_TONE,
+  applicableChecks,
   checkText,
   isPassing,
+  skipReason,
   sortChecks,
   useDoctorFix,
   useDoctorRun,
@@ -42,7 +51,8 @@ export function DoctorScreen(): React.JSX.Element {
   // Opening the screen always runs the checks again; what the home had stays shown meanwhile.
   const doctor = useDoctorRun({ refetchOnMount: 'always' })
   const fix = useDoctorFix()
-  const checks = doctor.data
+  // The checks of another system (glibc on Windows…) are not this machine's business.
+  const checks = doctor.data && applicableChecks(doctor.data)
 
   return (
     <div className="doctor">
@@ -170,8 +180,17 @@ function CheckLists({ checks, fix }: { checks: DoctorCheck[]; fix: DoctorFix }):
             {passing.map((check) => {
               const { title, text } = checkText(check, t)
               return (
-                <li key={check.id} className="doctor-pass">
-                  <IconCircleCheck className="doctor-pass__icon" aria-hidden="true" />
+                <li
+                  key={check.id}
+                  className="doctor-pass"
+                  data-skipped={skipReason(check) !== null || undefined}
+                >
+                  {/* A check that could not run is not ticked. */}
+                  {skipReason(check) === null ? (
+                    <IconCircleCheck className="doctor-pass__icon" aria-hidden="true" />
+                  ) : (
+                    <IconCircleDashed className="doctor-pass__icon" aria-hidden="true" />
+                  )}
                   <span className="doctor-pass__text">
                     <span className="doctor-pass__title">{title}</span>{' '}
                     <span className="doctor-pass__body">{text}</span>

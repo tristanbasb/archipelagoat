@@ -116,7 +116,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await mock.close()
-  rmSync(root, { recursive: true, force: true, maxRetries: 3 })
+  // A client the test started runs detached in the install's folder, and may still be exiting.
+  rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
 async function startMock(opts?: MockWebhostOptions): Promise<void> {

@@ -212,6 +212,37 @@ describe('session store: lifecycle', () => {
     expect(await store.setGeneration(id, null)).toMatchObject({ status: 'draft', generation: null })
     expect(await makeStore().get(id)).toMatchObject({ status: 'draft', generation: null, hosting: null })
   })
+
+  it('setFinished ends a local game and keeps its hosting for a restart; a web room stays hosted', async () => {
+    const { id } = await store.create('Goat')
+    await store.setGeneration(id, {
+      seedName: '12345',
+      zipPath: join(dataRoot(), 'sessions', id, 'output', 'AP_12345.zip'),
+      spoilerName: null,
+      slots: [{ slot: 1, name: 'Alice', game: 'TUNIC', patchFile: null }],
+      durationS: 42,
+      logPath: join(dataRoot(), 'sessions', id, 'logs', 'generate.txt'),
+    })
+    // Nothing hosted: nothing ends.
+    expect(await store.setFinished(id)).toMatchObject({ status: 'generated' })
+
+    const local: Hosting = { mode: 'local', port: 38281, savefile: join('x', 'AP_12345.apsave') }
+    await store.setHosting(id, local)
+    expect(await store.setFinished(id)).toMatchObject({ status: 'finished', hosting: local })
+    expect((await makeStore().list())[0]).toMatchObject({ status: 'finished', hostingMode: 'local' })
+    // Started again: live again.
+    expect(await store.setHosting(id, local)).toMatchObject({ status: 'hosting' })
+
+    const web: Hosting = {
+      mode: 'web',
+      seedId: 'seedseedseedseedseedse',
+      roomId: 'roomroomroomroomroomro',
+      roomUrl: 'https://archipelago.gg/room/roomroomroomroomroomro',
+      port: 50123,
+    }
+    await store.setHosting(id, web)
+    expect(await store.setFinished(id)).toMatchObject({ status: 'hosting', hosting: web })
+  })
 })
 
 describe('session store: player files', () => {

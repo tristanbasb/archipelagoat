@@ -37,7 +37,7 @@ const ERROR_LINES = 20
 const SERVER = AP_EXES.server
 
 export interface ServerManagerDeps {
-  sessions: Pick<SessionStore, 'get' | 'getSecrets' | 'setHosting'> & {
+  sessions: Pick<SessionStore, 'get' | 'getSecrets' | 'setHosting' | 'setFinished'> & {
     resolveRomNeeds(games: readonly string[]): Promise<RomNeed[]>
   }
   settings: Pick<ApSettings, 'makeSessionSettings'>
@@ -345,14 +345,28 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     armReadyTimer(run)
   }
 
-  function onExit(run: Run, exit: ApExit): void {
+  /**
+   * The server is gone (stopped or crashed): its run says so at once, the session's game ends, and
+   * only then does the state go out, so that a screen reading the session on it sees the game over.
+   */
+  async function ended(run: Run, patch: Pick<ServerState, 'status' | 'error'>): Promise<void> {
+    run.state = { ...run.state, ...patch }
+    try {
+      await deps.sessions.setFinished(run.id)
+    } catch (error) {
+      ctx.log.warn('servers: cannot record the end of the game', { id: run.id, error: String(error) })
+    }
+    if (current(run)) ctx.bus.emit('server:state', run.state)
+  }
+
+  async function onExit(run: Run, exit: ApExit): Promise<void> {
     clearTimers(run)
     run.proc = null
     if (run.stopRequested) {
       const error: AppErrorData | null = run.killed
         ? { code: 'PROCESS_TIMEOUT', params: { command: SERVER } }
         : null
-      setState(run, { status: 'stopped', error })
+      await ended(run, { status: 'stopped', error })
       // A server stopped while it was starting: its start is cancelled.
       run.ready.reject(new AppError('TASK_CANCELLED', undefined, { detail: 'stopped while starting' }))
       return
@@ -360,10 +374,13 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     if (run.state.status === 'starting') return fail(run, exitError(run, exit))
     if (run.state.status !== 'ready') return
     // auto_shutdown, or an /exit typed in the console, ends with 0.
-    if (exit.code === 0) return setState(run, { status: 'stopped', error: null })
+    if (exit.code === 0) return ended(run, { status: 'stopped', error: null })
     // The error says the server had run: it crashed, it did not fail to start.
     const error = exitError(run, exit)
-    setState(run, { status: 'crashed', error: { ...error, params: { ...error.params, phase: 'running' } } })
+    return ended(run, {
+      status: 'crashed',
+      error: { ...error, params: { ...error.params, phase: 'running' } },
+    })
   }
 
   function kill(run: Run): void {
@@ -388,7 +405,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
       throw new AppError('AP_RUNNING', undefined, { detail: `the orphan server ${pid} could not be stopped` })
     }
     run.orphanPid = null
-    setState(run, { status: 'stopped', error: null })
+    await ended(run, { status: 'stopped', error: null })
   }
 
   function stop(id: string, opts: { force?: boolean } = {}): Promise<void> {

@@ -19,6 +19,9 @@ const EVENT_INVALIDATIONS = {
   ],
   // A world installed, removed, switched on or off, by the app or outside it.
   'worlds:changed': ['worlds:list', 'doctor:run', 'studio:games', 'catalog:list'],
+  // A local server started, stopped or crashed: its game is live, or over (the main process records
+  // that before it sends the state).
+  'server:state': ['session:list', 'session:get'],
 } as const satisfies Partial<Record<EventName, readonly ChannelName[]>>
 
 export function useEventInvalidation(): void {
@@ -28,4 +31,5 @@ export function useEventInvalidation(): void {
   }
   useEvent('ap:installed', () => refresh(EVENT_INVALIDATIONS['ap:installed']))
   useEvent('worlds:changed', () => refresh(EVENT_INVALIDATIONS['worlds:changed']))
+  useEvent('server:state', () => refresh(EVENT_INVALIDATIONS['server:state']))
 }

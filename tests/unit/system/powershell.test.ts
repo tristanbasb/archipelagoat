@@ -1,8 +1,6 @@
-import type { ExecFn, ExecResult } from '@main/core/exec'
+import type { ExecFn, ExecOptions, ExecResult } from '@main/core/exec'
 import { exec } from '@main/core/exec'
-import { encodePowerShell, psQuote, runPowerShell } from '@main/core/system/powershell'
-
-const decode = (encoded: string): string => Buffer.from(encoded, 'base64').toString('utf16le')
+import { POWERSHELL_STDIN_COMMAND, psQuote, runPowerShell } from '@main/core/system/powershell'
 
 describe('psQuote', () => {
   it('wraps the value in single quotes', () => {
@@ -23,44 +21,53 @@ describe('psQuote', () => {
   })
 })
 
-describe('encodePowerShell', () => {
-  it('round-trips as base64 of UTF-16LE', () => {
-    const script = "Write-Output 'Jérôme €uro 日本 😀'"
-    const encoded = encodePowerShell(script)
-    expect(encoded).toMatch(/^[A-Za-z0-9+/]+=*$/)
-    expect(decode(encoded)).toBe(script)
-    expect(Buffer.from(encoded, 'base64')).toEqual(Buffer.from(script, 'utf16le'))
-  })
-})
-
 describe('runPowerShell', () => {
   const ok: ExecResult = { code: 0, stdout: 'out', stderr: '' }
 
-  it('runs powershell.exe with the fixed flags and the encoded script, UTF-8 output first', async () => {
-    const calls: { cmd: string; args: string[]; opts: unknown }[] = []
+  function recordingExec(): ExecFn & { calls: { cmd: string; args: string[]; opts?: ExecOptions }[] } {
+    const calls: { cmd: string; args: string[]; opts?: ExecOptions }[] = []
     const fake: ExecFn = (cmd, args, opts) => {
       calls.push({ cmd, args, opts })
       return Promise.resolve(ok)
     }
+    return Object.assign(fake, { calls })
+  }
+
+  it('runs powershell.exe with the fixed flags and hands it the script on stdin, UTF-8 output first', async () => {
+    const fake = recordingExec()
     const result = await runPowerShell(fake, 'Get-Date', { timeoutMs: 5000, cwd: 'C:\\x' })
     expect(result).toEqual(ok)
-    expect(calls).toHaveLength(1)
-    const [call] = calls
+    expect(fake.calls).toHaveLength(1)
+    const [call] = fake.calls
     expect(call?.cmd).toBe('powershell.exe')
-    expect(call?.args.slice(0, 5)).toEqual([
+    expect(call?.args).toEqual([
       '-NoProfile',
       '-NonInteractive',
       '-ExecutionPolicy',
       'Bypass',
-      '-EncodedCommand',
+      '-Command',
+      POWERSHELL_STDIN_COMMAND,
     ])
-    expect(call?.args).toHaveLength(6)
-    expect(call?.opts).toEqual({ timeoutMs: 5000, cwd: 'C:\\x' })
-    const script = decode(call?.args[5] ?? '')
-    expect(script.startsWith('[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)')).toBe(
+    const { input, ...opts } = call?.opts ?? {}
+    expect(opts).toEqual({ timeoutMs: 5000, cwd: 'C:\\x' })
+    expect(input?.startsWith('[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)')).toBe(
       true,
     )
-    expect(script.endsWith('\nGet-Date')).toBe(true)
+    expect(input?.endsWith('\nGet-Date')).toBe(true)
+  })
+
+  // An antivirus inspects a new command line when the process is created, and CreateProcess (so the
+  // whole main process) waits for it: half a second to seconds for each -EncodedCommand script seen
+  // under Electron. The command line stays the same whatever the script.
+  it('never puts the script on the command line: it is the same for every script', async () => {
+    const fake = recordingExec()
+    await runPowerShell(fake, `Write-Output ${psQuote('Jérôme')}`)
+    await runPowerShell(fake, 'exit 3')
+    expect(fake.calls[0]?.args).toEqual(fake.calls[1]?.args)
+    expect(fake.calls[0]?.args.join(' ')).not.toMatch(/Jérôme|EncodedCommand/)
+    expect(POWERSHELL_STDIN_COMMAND).toContain(
+      '[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)',
+    )
   })
 
   it('turns a CLIXML error stream into plain text', async () => {

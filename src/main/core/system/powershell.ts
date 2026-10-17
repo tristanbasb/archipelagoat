@@ -1,12 +1,20 @@
-// The only place that builds PowerShell command lines: a script is passed as -EncodedCommand, so
-// no quoting layer of cmd.exe, CreateProcess or the PowerShell parser can reinterpret it, and every
-// value that goes inside a script is quoted by `psQuote`.
+// The only place that runs PowerShell: a script goes to powershell.exe on its stdin, so no quoting
+// layer of cmd.exe, CreateProcess or the PowerShell parser can reinterpret it, and every value that
+// goes inside a script is quoted by `psQuote`.
+//
+// Not as -EncodedCommand: an antivirus (Windows Defender) inspects a new command line when the
+// process is created, and CreateProcess, so the whole main process of the app, waits for it. Under
+// Electron that took 0.5 to 2.5 s for each script, three times at startup. The command line is now
+// the same for every script.
 import type { ExecFn, ExecOptions, ExecResult } from '../exec'
 
-/** Base64 of the UTF-16LE script, the format of `powershell.exe -EncodedCommand`. */
-export function encodePowerShell(script: string): string {
-  return Buffer.from(script, 'utf16le').toString('base64')
-}
+/**
+ * The fixed `-Command`: reads the whole of stdin as UTF-8 (the console's code page otherwise), then
+ * runs it as one script block, so a statement may span lines and `exit` sets the exit code.
+ */
+export const POWERSHELL_STDIN_COMMAND =
+  '[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); ' +
+  '& ([ScriptBlock]::Create([Console]::In.ReadToEnd()))'
 
 // PowerShell reads all of these as a single quote: ' ‘ ’ ‚ ‛ . Inside '…' each must be doubled.
 const SINGLE_QUOTES = /['‘’‚‛]/g
@@ -44,15 +52,19 @@ function decodeClixml(stderr: string): string {
  * Runs `script` with `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass` and resolves
  * with its exit code and output (UTF-8; stderr as plain text). Rejects like `exec` does.
  */
-export async function runPowerShell(exec: ExecFn, script: string, opts?: ExecOptions): Promise<ExecResult> {
+export async function runPowerShell(
+  exec: ExecFn,
+  script: string,
+  opts?: Omit<ExecOptions, 'input'>,
+): Promise<ExecResult> {
   const args = [
     '-NoProfile',
     '-NonInteractive',
     '-ExecutionPolicy',
     'Bypass',
-    '-EncodedCommand',
-    encodePowerShell(`${PRELUDE}\n${script}`),
+    '-Command',
+    POWERSHELL_STDIN_COMMAND,
   ]
-  const result = await exec('powershell.exe', args, opts)
+  const result = await exec('powershell.exe', args, { ...opts, input: `${PRELUDE}\n${script}` })
   return { ...result, stderr: decodeClixml(result.stderr) }
 }

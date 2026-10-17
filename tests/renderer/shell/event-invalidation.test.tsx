@@ -69,6 +69,23 @@ describe('query invalidation on main-process events', () => {
     expect(invalidated.sort()).toEqual(['catalog:list', 'doctor:run', 'studio:games', 'worlds:list'].sort())
   })
 
+  it('server:state refreshes the sessions: a server that starts or ends makes its game live or over', async () => {
+    const { goat, queryClient } = await renderApp({ route: '/settings', handlers: { 'ap:detect': () => AP } })
+    await screen.findByRole('heading', { level: 1, name: 'Réglages' })
+    const invalidated = recordInvalidations(queryClient)
+
+    goat.emit('server:state', {
+      sessionId: 's1',
+      status: 'stopped',
+      port: 38281,
+      addresses: [],
+      startedAt: '2026-10-17T18:00:00.000Z',
+      resumedFromSave: false,
+      error: null,
+    })
+    expect(invalidated.sort()).toEqual(['session:get', 'session:list'])
+  })
+
   it('ap:installed is handled the same on any screen', async () => {
     const { goat, queryClient } = await renderApp({ route: '/settings', handlers: { 'ap:detect': () => AP } })
     await screen.findByRole('heading', { level: 1, name: 'Réglages' })

@@ -302,6 +302,32 @@ describe('home screen', () => {
     expect(links[0]).toHaveTextContent('Serveur local')
   })
 
+  it('a server that stops ends its game in the recent list at once', async () => {
+    let status: SessionSummary['status'] = 'hosting'
+    const { goat } = await renderApp({
+      handlers: {
+        ...HANDLERS,
+        'session:list': () => [session({ id: 'live', name: 'Soirée Zelda', status, hostingMode: 'local' })],
+      },
+    })
+    const recent = await screen.findByRole('region', { name: 'Parties récentes' })
+    expect(await within(recent).findByRole('link')).toHaveTextContent(/En cours.*Reprendre/)
+
+    // The main process ends the game, then says the server stopped.
+    status = 'finished'
+    goat.emit('server:state', {
+      sessionId: 'live',
+      status: 'stopped',
+      port: 38281,
+      addresses: [],
+      startedAt: '2026-10-16T21:00:00.000Z',
+      resumedFromSave: false,
+      error: null,
+    })
+    await waitFor(() => expect(within(recent).getByRole('link')).toHaveTextContent(/Terminée.*Héberger/))
+    expect(within(recent).getByRole('link')).toHaveAttribute('href', '#/session/live?step=5')
+  })
+
   it('invites to organize a first game when there is no session', async () => {
     const { user } = await renderApp({ handlers: HANDLERS })
     const recent = await screen.findByRole('region', { name: 'Parties récentes' })

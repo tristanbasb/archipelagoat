@@ -189,6 +189,11 @@
   color: var(--neon-green);
 }
 
+/* A check that could not run: neither green nor a problem. */
+.doctor-pass[data-skipped] .doctor-pass__icon {
+  color: var(--text-dim);
+}
+
 .doctor-pass__text {
   display: grid;
   gap: 2px;

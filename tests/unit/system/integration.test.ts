@@ -45,7 +45,7 @@ function fakeRegistry(): ExecFn & { keys: Map<string, Map<string, string>>; regC
     keys.set(key, values)
     return values
   }
-  const fn: ExecFn = (cmd, args) => {
+  const fn: ExecFn = (cmd, args, opts) => {
     if (cmd === 'reg') {
       regCalls.push(args)
       const [verb = '', key = '', ...rest] = args
@@ -62,7 +62,7 @@ function fakeRegistry(): ExecFn & { keys: Map<string, Map<string, string>>; regC
       return Promise.resolve(OK)
     }
     if (cmd === 'powershell.exe') {
-      const script = Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
+      const script = opts?.input ?? ''
       const subKey = (/OpenSubKey\('((?:[^']|'')*)'\)/.exec(script)?.[1] ?? '').replaceAll("''", "'")
       const full = `HKCU\\${subKey}`
       const exists = [...keys.keys()].some((name) => name === full || name.startsWith(`${full}\\`))

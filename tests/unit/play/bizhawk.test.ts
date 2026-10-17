@@ -21,7 +21,7 @@ import { ZipFile } from 'yazl'
 import { resolveApPaths, type Locator } from '@main/core/ap/locator'
 import { createApSettings, SETTINGS_KEYS, type ApSettings, type SettingsEntry } from '@main/core/ap/settings'
 import type { CoreContext, Http } from '@main/core/context'
-import type { ExecFn, ExecResult } from '@main/core/exec'
+import type { ExecFn, ExecOptions, ExecResult } from '@main/core/exec'
 import {
   checkPrereqsLinux,
   checkPrereqsWindows,
@@ -97,15 +97,15 @@ interface Call {
 type FakeExec = ExecFn & { calls: Call[] }
 type Answer = Partial<ExecResult> | Error | undefined
 
-/** The script a powershell.exe call ran, decoded from its -EncodedCommand. */
-const scriptOf = (cmd: string, args: string[]): string =>
-  cmd === 'powershell.exe' ? Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le') : ''
+/** The script a powershell.exe call ran: what runPowerShell writes to its stdin. */
+const scriptOf = (cmd: string, opts: ExecOptions | undefined): string =>
+  cmd === 'powershell.exe' ? (opts?.input ?? '') : ''
 
 /** An exec that answers from `answer` and refuses (like a missing program) what it does not know. */
 function fakeExec(answer: (call: Call) => Answer): FakeExec {
   const calls: Call[] = []
-  const fn: ExecFn = (cmd, args) => {
-    const call: Call = { cmd, args, script: scriptOf(cmd, args) }
+  const fn: ExecFn = (cmd, args, opts) => {
+    const call: Call = { cmd, args, script: scriptOf(cmd, opts) }
     calls.push(call)
     const result = answer(call)
     if (result instanceof Error) return Promise.reject(result)

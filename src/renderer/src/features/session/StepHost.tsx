@@ -118,7 +118,7 @@ export function StepHost({ session, taskId, onTaskId, onBack }: StepHostProps): 
   return (
     <>
       <div className="host-step">
-        {session.hosting && (
+        {session.hosting && session.status === 'hosting' && (
           <div className="host-live pixel-border tone-green" role="status">
             <IconBroadcast className="host-live__icon" aria-hidden="true" />
             <div className="host-live__text">

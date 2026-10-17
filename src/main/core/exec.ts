@@ -8,6 +8,8 @@ export interface ExecOptions {
   cwd?: string
   timeoutMs?: number
   env?: NodeJS.ProcessEnv
+  /** Written to the program's stdin (UTF-8), which is then closed. Without it stdin is left alone. */
+  input?: string
 }
 
 export interface ExecResult {
@@ -30,7 +32,7 @@ type ExecError = Error & { code?: string | number | null; killed?: boolean }
 
 export const exec: ExecFn = (cmd, args, opts = {}) =>
   new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       cmd,
       args,
       {
@@ -54,4 +56,9 @@ export const exec: ExecFn = (cmd, args, opts = {}) =>
         resolve({ code: typeof error.code === 'number' ? error.code : null, stdout, stderr })
       },
     )
+    if (opts.input !== undefined) {
+      // A program that exits without reading its input closes the pipe: that is not a failure.
+      child.stdin?.on('error', () => undefined)
+      child.stdin?.end(opts.input, 'utf8')
+    }
   })

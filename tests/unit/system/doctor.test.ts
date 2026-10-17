@@ -433,8 +433,8 @@ describe('default probes', () => {
 
   it('everyoneCanModify asks PowerShell about the well-known groups, by SID', async () => {
     const scripts: string[] = []
-    const exec: ExecFn = (_cmd, args) => {
-      scripts.push(Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le'))
+    const exec: ExecFn = (_cmd, _args, opts) => {
+      scripts.push(opts?.input ?? '')
       return Promise.resolve({ code: 0, stdout: 'true\r\n', stderr: '' })
     }
     expect(await everyoneCanModify(exec, "C:\\ProgramData\\Archipel'ago")).toBe(true)

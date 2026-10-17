@@ -84,6 +84,7 @@ function makeManager(overrides: Partial<ServerManagerDeps> = {}): ServerManager 
       get: (id) => store.get(id),
       getSecrets: (id) => store.getSecrets(id),
       setHosting: (id, hosting) => store.setHosting(id, hosting),
+      setFinished: (id) => store.setFinished(id),
       resolveRomNeeds: () => Promise.resolve([]),
     },
     settings,
@@ -396,11 +397,32 @@ describe('local server (fake ArchipelagoServer)', () => {
     expect(bus.states.map((state) => state.status)).toEqual(['stopping', 'stopped'])
     expect(manager.get(session.id)).toMatchObject({ status: 'stopped', error: null, port })
     expect(await canConnect(port)).toBe(false)
-    // Stopped, the session keeps its hosting: it resumes from the same save.
-    expect((await store.get(session.id)).hosting).toMatchObject({
-      mode: 'local',
-      savefile: savefileOf(session),
+    // Stopped, the game is over until a restart, which resumes from the same save.
+    expect(await store.get(session.id)).toMatchObject({
+      status: 'finished',
+      hosting: { mode: 'local', savefile: savefileOf(session) },
     })
+  })
+
+  it('ends the game of the session before it says the server stopped or crashed', async () => {
+    const { spawn, procs } = fakeSpawn()
+    const manager = makeManager({ spawn })
+    const session = await generatedSession()
+    // What the session says when each state goes out: the screens read it again on that event.
+    const seen: string[] = []
+    core.ctx.bus.on('server:state', (state) => {
+      void store.get(session.id).then(({ status }) => seen.push(`${state.status}:${status}`))
+    })
+
+    await startFake(manager, procs, session.id)
+    expect((await store.get(session.id)).status).toBe('hosting')
+    await manager.stop(session.id)
+    await vi.waitFor(() => expect(seen).toContain('stopped:finished'))
+
+    const { proc } = await startFake(manager, procs, session.id)
+    expect((await store.get(session.id)).status).toBe('hosting')
+    proc.exit(3)
+    await vi.waitFor(() => expect(seen).toContain('crashed:finished'))
   })
 
   it('stop force-kills after timeout when server ignores /exit', async () => {
@@ -880,6 +902,7 @@ describe('local server (driven process)', () => {
         get: (id) => store.get(id),
         getSecrets: (id) => store.getSecrets(id),
         setHosting: (id, hosting) => store.setHosting(id, hosting),
+        setFinished: (id) => store.setFinished(id),
         resolveRomNeeds,
       },
     })

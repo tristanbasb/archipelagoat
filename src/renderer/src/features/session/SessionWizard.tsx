@@ -54,10 +54,15 @@ function Wizard({ id }: { id: string }): React.JSX.Element {
   const session = query.data
   const step = session ? (parseStep(params.get('step')) ?? defaultStep(session.status)) : null
 
-  // A new step takes the focus, so keyboard and screen reader users start reading at its top.
+  // A new step starts at the top of the screen, its title and the stepper in view, and takes the
+  // focus (without scrolling), so keyboard and screen reader users start reading there too.
   useEffect(() => {
     if (step === null) return
-    if (shownStep.current !== null && shownStep.current !== step) stepRef.current?.focus()
+    if (shownStep.current !== null && shownStep.current !== step) {
+      const main = stepRef.current?.closest('main')
+      if (main) main.scrollTop = 0
+      stepRef.current?.focus({ preventScroll: true })
+    }
     shownStep.current = step
   }, [step])
 

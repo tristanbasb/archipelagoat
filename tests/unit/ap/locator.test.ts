@@ -83,8 +83,8 @@ function memFs(os: OS, tree: MemTree): LocatorFs & { probed: string[] } {
 /** A fake powershell.exe answering registry reads from `keys` (full key path → values). */
 function registryExec(keys: Record<string, Record<string, string>>): ExecFn & { scripts: string[] } {
   const scripts: string[] = []
-  const fn: ExecFn = (_cmd, args) => {
-    const script = Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le')
+  const fn: ExecFn = (_cmd, _args, opts) => {
+    const script = opts?.input ?? ''
     scripts.push(script)
     const subKey = /OpenSubKey\('((?:[^']|'')*)'\)/.exec(script)?.[1]?.replaceAll("''", "'")
     const hit = Object.entries(keys).find(([key]) => key.replace(/^HKLM\\/, '') === subKey)

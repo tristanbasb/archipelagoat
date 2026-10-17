@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { AppError } from '@shared/errors'
 import type { ApInstall, IntegrationState } from '@shared/types'
@@ -423,5 +425,20 @@ describe('parseLicenses', () => {
     expect(parseLicenses(undefined)).toBeNull()
     expect(parseLicenses('MIT')).toBeNull()
     expect(parseLicenses([{ version: '1.0.0' }])).toEqual([])
+  })
+})
+
+describe('settings styles', () => {
+  // Read from disk (Vitest runs from the project root): Vitest empties imported CSS.
+  const css = readFileSync(
+    join(process.cwd(), 'src/renderer/src/features/settings/SettingsScreen.css'),
+    'utf8',
+  )
+
+  it('spaces the pill and the badges of the found Archipelago, on one line that may wrap', () => {
+    const rule = /\.settings-ap__status\s*\{([^}]*)\}/.exec(css)?.[1] ?? ''
+    expect(rule).toMatch(/display:\s*flex/)
+    expect(rule).toMatch(/flex-wrap:\s*wrap/)
+    expect(rule).toMatch(/gap:\s*var\(--sp-\d\)/)
   })
 })

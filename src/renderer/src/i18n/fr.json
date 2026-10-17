@@ -438,6 +438,11 @@
       "title": "Connexion et horloge",
       "ok": "La connexion fonctionne et l’horloge est à l’heure.",
       "problem": "Connexion impossible ou horloge déréglée\u00a0: les téléchargements peuvent échouer."
+    },
+    "skipped": {
+      "ap-not-installed": "Vérifié une fois Archipelago installé.",
+      "release-unavailable": "Pas vérifié\u00a0: la dernière version ne peut pas être lue pour le moment.",
+      "other": "Pas vérifié."
     }
   },
   "stages": {
