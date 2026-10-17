@@ -16,7 +16,7 @@ import {
   IconShieldLock,
   IconX,
 } from '@tabler/icons-react'
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GoatError } from '@shared/errors'
 import type { RomRecord, VaultApplyResult } from '@shared/types'
@@ -148,6 +148,9 @@ function RomVault({ records, recognised }: RomVaultProps): React.JSX.Element {
   const runningScanId = useRunningTask('rom-scan')
   const scan = useTask(runningScanId ?? scanId)
   const scanning = scan.status === 'running'
+  // Hiding the scan summary or the apply result removes the focused button: focus goes back here.
+  const scanButton = useRef<HTMLButtonElement>(null)
+  const applyButton = useRef<HTMLButtonElement>(null)
 
   const toastError = (error: unknown): void => {
     const { title, body } = describeError(error, t)
@@ -238,6 +241,7 @@ function RomVault({ records, recognised }: RomVaultProps): React.JSX.Element {
             {t('screens.vault.vault.addFiles')}
           </NeonButton>
           <NeonButton
+            ref={scanButton}
             size="sm"
             variant="secondary"
             icon={<IconFolderSearch />}
@@ -280,7 +284,10 @@ function RomVault({ records, recognised }: RomVaultProps): React.JSX.Element {
             type="button"
             className="rom-vault__dismiss"
             aria-label={t('screens.vault.scan.dismiss')}
-            onClick={() => setScanId(null)}
+            onClick={() => {
+              setScanId(null)
+              scanButton.current?.focus()
+            }}
           >
             <IconX aria-hidden="true" />
           </button>
@@ -316,6 +323,7 @@ function RomVault({ records, recognised }: RomVaultProps): React.JSX.Element {
             <p className="rom-vault__apply-hint">{t('screens.vault.apply.hint')}</p>
           </div>
           <NeonButton
+            ref={applyButton}
             icon={<IconPlugConnected />}
             loading={apply.isPending}
             loadingLabel={t('screens.vault.apply.applying')}
@@ -328,7 +336,15 @@ function RomVault({ records, recognised }: RomVaultProps): React.JSX.Element {
       )}
 
       {apply.error && <ErrorPanel {...errorPanelProps(apply.error, t)} />}
-      {apply.data && <ApplyResult result={apply.data} onDismiss={() => apply.reset()} />}
+      {apply.data && (
+        <ApplyResult
+          result={apply.data}
+          onDismiss={() => {
+            apply.reset()
+            applyButton.current?.focus()
+          }}
+        />
+      )}
 
       {records.data &&
         (records.data.length === 0 ? (

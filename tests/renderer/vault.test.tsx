@@ -102,6 +102,11 @@ describe('VaultScreen', () => {
     // getByText collapses no-break spaces into plain ones.
     expect(screen.getByText('Reconnues : 2 · non reconnues : 1')).toBeInTheDocument()
     expect(screen.queryByRole('progressbar', { name: 'Recherche de ROMs…' })).toBeNull()
+
+    // Hiding the summary hands keyboard focus back to the scan button, not to the page.
+    await user.click(screen.getByRole('button', { name: 'Masquer le résumé du scan' }))
+    expect(screen.queryByText('Scan terminé')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Scanner un dossier' })).toHaveFocus()
   })
 
   it('apply shows applied and skipped with reasons', async () => {
@@ -137,6 +142,7 @@ describe('VaultScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Masquer le résultat' }))
     expect(screen.queryByRole('list', { name: 'Appliquées\u00a0: 1' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Appliquer à Archipelago' })).toHaveFocus()
   })
 
   it('bizhawk card shows missing prereqs with copyable linux command', async () => {
