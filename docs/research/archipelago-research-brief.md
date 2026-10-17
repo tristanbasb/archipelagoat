@@ -45,10 +45,10 @@ Almost every organizer step can be automated end to end. The exceptions are gett
 ### 1.2 Windows installer (Inno Setup)
 
 - **Build (V).** CI runs `choco install innosetup --version=6.2.2`, then `python setup.py build_exe --yes`, then `iscc.exe inno_setup.iss /DNO_SIGNTOOL`. `setup.py` generates `setup.ini` (`[Data] source_path=..., min_windows=6.2.9200`) and `installdelete.iss`. Sources: `release.yml:61-88`, `setup.py:449-456`.
-- **AppId (L).** `{918BA46A-FAB8-460C-9DFF-AE691E1C865B}`, unchanged since at least 0.5.1.
-  - Uninstall key: `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}_is1`, in the **native 64-bit view** (`ArchitecturesInstallIn64BitMode=x64 arm64`).
+- **AppId (V, real install 2026-10-17).** `{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}`, unchanged since at least 0.5.1. The `.iss` writes `{{…}}`: `{{` is Inno's escape for `{`, but `}}` stays two braces.
+  - Uninstall key: `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}_is1` (two closing braces, as the 0.6.8 installer wrote it), in the **native 64-bit view** (`ArchitecturesInstallIn64BitMode=x64 arm64`).
   - Values: `InstallLocation`, `Inno Setup: App Path`, `DisplayName` (= AppVerName `Archipelago X.Y.Z`), `UninstallString`, `QuietUninstallString`.
-  - `DisplayVersion` is probably absent, because AppVersion is not set (**U**).
+  - `DisplayVersion` is absent, because AppVersion is not set (**V**, real 0.6.8 install).
   - Source: `inno_setup.iss:15,16-19,28`.
 - **Install dir (V).** `DefaultDirName={commonappdata}\Archipelago` resolves to `C:\ProgramData\Archipelago`.
   - `[Dirs]` sets `setntfscompression` and `Permissions: everyone-modify users-modify authusers-modify`.

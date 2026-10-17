@@ -12,8 +12,13 @@ export const WEBHOST_DEFAULT = 'https://archipelago.gg'
 /** Port `ArchipelagoServer` listens on unless told otherwise (settings.py ServerOptions.port). */
 export const DEFAULT_PORT = 38281
 
-// Windows installer (Inno Setup, brief 1.2; inno_setup.iss:15 writes it as `{{...}}`, Inno's escape)
-export const AP_INNO_APPID = '{918BA46A-FAB8-460C-9DFF-AE691E1C865B}'
+/**
+ * The AppId of the Windows installer (Inno Setup, brief 1.2). inno_setup.iss:15 writes
+ * `AppId={{918BA46A-…}}`: `{{` is Inno's escape for `{`, but a `}` needs none, so `}}` stays two
+ * braces. The real 0.6.8 install wrote its uninstall key with both
+ * (docs/verification/2026-10-16-real-run.md).
+ */
+export const AP_INNO_APPID = '{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}'
 
 /** Uninstall key of the installer, read in the native 64-bit registry view. */
 export const AP_UNINSTALL_KEY =

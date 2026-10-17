@@ -54,7 +54,7 @@ describe('readRegistryValues', () => {
     )
     expect(script).toContain(
       ".OpenSubKey('SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\" +
-        "{918BA46A-FAB8-460C-9DFF-AE691E1C865B}_is1')",
+        "{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}_is1')",
     )
     expect(script).toContain('ConvertTo-Json')
   })

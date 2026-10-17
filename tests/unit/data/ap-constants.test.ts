@@ -29,9 +29,12 @@ describe('repositories and urls', () => {
 
 describe('Inno Setup installer', () => {
   it('has the AppId and the uninstall key built from it (64-bit view path, _is1 suffix)', () => {
-    expect(AP_INNO_APPID).toBe('{918BA46A-FAB8-460C-9DFF-AE691E1C865B}')
+    // inno_setup.iss writes `AppId={{918BA46A-…}}`: `{{` is Inno's escape for `{`, but `}}` is two
+    // braces. The real 0.6.8 install (docs/verification/2026-10-16-real-run.md) wrote the key
+    // `…\Uninstall\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}_is1`.
+    expect(AP_INNO_APPID).toBe('{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}')
     expect(AP_UNINSTALL_KEY).toBe(
-      'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}_is1',
+      'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{918BA46A-FAB8-460C-9DFF-AE691E1C865B}}_is1',
     )
   })
 
