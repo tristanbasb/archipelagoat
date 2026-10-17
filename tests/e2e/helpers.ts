@@ -408,7 +408,8 @@ export async function checkAndKeepRules(
   onStep?: (step: 2 | 3) => Promise<void>,
 ): Promise<void> {
   await nextButton(page, t).click()
-  await expect(page.getByText(t('screens.session.check.readyTitle'))).toBeVisible()
+  // Exact: the step's subtitle ("On vérifie que tout est prêt…") holds the same words.
+  await expect(page.getByText(t('screens.session.check.readyTitle'), { exact: true })).toBeVisible()
   await onStep?.(2)
   await nextButton(page, t).click()
   await expect(page.getByRole('group', { name: t('screens.session.steps.rules'), exact: true })).toBeVisible()
