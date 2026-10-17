@@ -1,4 +1,5 @@
-// The `locator` service: where Archipelago is installed (Task 6).
+// The `locator` service: where Archipelago is installed (Task 6). Eager, so that the app:openPath
+// roots it adds exist from startup, before anything else asks for it.
 import { createLocator, fakeApFromEnv, type Locator } from '@main/core/ap/locator'
 import { defineService } from './registry'
 
@@ -19,5 +20,5 @@ defineService(
     })
     return locator
   },
-  { eager: false },
+  { eager: true },
 )

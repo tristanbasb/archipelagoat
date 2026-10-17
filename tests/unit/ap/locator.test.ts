@@ -831,6 +831,20 @@ describe('ap handlers', () => {
     expect(core.ctx.config.get().apPathOverride).toBeNull()
   })
 
+  it('the locator service is eager: the install folder is openable from startup', async () => {
+    addLauncher()
+    core.ctx.config.updateInternal({ apPathOverride: ap })
+    // What src/main/index.ts does at startup, before any handler asks for the locator.
+    const services = createServices(core.ctx)
+    services.startEager()
+    const ipc = createIpcRegistry()
+    registerHandlers(services, ipc.registerHandler)
+    expect(await ipc.dispatch('app:openPath', { path: ap }, { senderId: 1 })).toEqual({
+      ok: true,
+      value: undefined,
+    })
+  })
+
   it('ap:setCustomPath refuses a folder without Archipelago, a file and a missing path', async () => {
     expect(await call('ap:setCustomPath', { path: ap })).toMatchObject({
       error: { code: 'AP_NOT_INSTALLED' },
