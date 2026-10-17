@@ -111,12 +111,14 @@
       "1": "Clique sur JOUER\u00a0: {{client}} s’ouvre et crée ta ROM à côté du patch.",
       "2": "Lance ton émulateur et charge cette ROM.",
       "3": "Relie l’émulateur au client comme l’explique le tutoriel officiel (script Lua, SNI…).",
-      "4": "Si le client demande le serveur, indique {{address}} et le slot {{slot}}."
+      "4": "Si le client demande le serveur, indique {{address}} et le slot {{slot}}.",
+      "4NoSlot": "Si le client demande le serveur, indique {{address}}, puis ton nom de slot."
     },
     "guided": {
       "1": "Installe et prépare le jeu en suivant le tutoriel officiel.",
       "2": "Dans le jeu ou son client, connecte-toi à {{address}}.",
       "3": "Utilise le nom de slot {{slot}}.",
+      "3NoSlot": "Entre ton nom de slot, celui de ton YAML, quand le client te le demande.",
       "4": "Le Text Client te permet de suivre la partie et de demander des indices."
     },
     "password": "Cette room demande un mot de passe\u00a0: l’organisateur te l’a donné."

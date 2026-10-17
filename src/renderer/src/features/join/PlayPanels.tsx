@@ -211,6 +211,15 @@ export function ConnectionPanel({
 
 const STEP_NUMBERS = ['1', '2', '3', '4'] as const
 
+/**
+ * The step of each tier that names the slot. Without a slot (`localhost:38281`), its `NoSlot` text
+ * says to enter the name when the client asks for it.
+ */
+const SLOT_STEP: Record<'assisted' | 'guided', (typeof STEP_NUMBERS)[number]> = {
+  assisted: '4',
+  guided: '3',
+}
+
 /** The assisted and guided tiers: what the player does by hand, and the official tutorial. */
 export function GuidePanel({ plan }: { plan: JoinPlan }): React.JSX.Element {
   const { t } = useTranslation()
@@ -228,6 +237,8 @@ export function GuidePanel({ plan }: { plan: JoinPlan }): React.JSX.Element {
     address: connectAddress(plan),
     ...(slot !== null ? { slot } : {}),
   }
+  const stepKey = (step: (typeof STEP_NUMBERS)[number]): string =>
+    slot === null && step === SLOT_STEP[tier] ? `${step}NoSlot` : step
   const tutorialUrl = plan.tutorialUrl
 
   return (
@@ -249,7 +260,7 @@ export function GuidePanel({ plan }: { plan: JoinPlan }): React.JSX.Element {
             <span className="guide-steps__number t-display" aria-hidden="true">
               {step}
             </span>
-            <span>{t(`screens.join.guide.${tier}.${step}`, values)}</span>
+            <span>{t(`screens.join.guide.${tier}.${stepKey(step)}`, values)}</span>
           </li>
         ))}
       </ol>

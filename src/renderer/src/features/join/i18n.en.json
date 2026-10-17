@@ -111,12 +111,14 @@
       "1": "Press PLAY: {{client}} opens and builds your ROM next to the patch.",
       "2": "Start your emulator and load that ROM.",
       "3": "Link the emulator to the client as the official tutorial explains (Lua script, SNI…).",
-      "4": "If the client asks for the server, enter {{address}} and the slot {{slot}}."
+      "4": "If the client asks for the server, enter {{address}} and the slot {{slot}}.",
+      "4NoSlot": "If the client asks for the server, enter {{address}}, then your slot name."
     },
     "guided": {
       "1": "Install and set up the game with the official tutorial.",
       "2": "In the game or its client, connect to {{address}}.",
       "3": "Use the slot name {{slot}}.",
+      "3NoSlot": "Enter your slot name, the one in your YAML, when the client asks for it.",
       "4": "The Text Client lets you follow the game and ask for hints."
     },
     "password": "This room needs a password: the host gave it to you."

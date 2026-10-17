@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { AppError } from '@shared/errors'
 import type {
   BizhawkState,
@@ -11,6 +11,7 @@ import type {
 } from '@shared/types'
 import { JoinScreen } from '@renderer/features/join/JoinScreen'
 import { withoutPassword } from '@renderer/features/join/room-history'
+import { i18n } from '@renderer/i18n'
 import { installGoatMock, type GoatHandlers, type GoatMock } from './goat-mock'
 import { renderWithProviders } from './render-app'
 
@@ -482,6 +483,39 @@ describe('join screen', () => {
     await waitFor(() =>
       expect(goat.inputsOf('join:textClient')).toEqual([{ host: 'localhost', port: 38281 }]),
     )
+
+    // The steps agree: the slot step asks for the name instead of showing « … » (real run,
+    // screenshot 25: « Utilise le nom de slot …. »).
+    const guide = screen.getByRole('region', { name: 'Les étapes' })
+    const steps = within(guide).getAllByRole('listitem')
+    expect(steps[2]).toHaveTextContent(
+      'Entre ton nom de slot, celui de ton YAML, quand le client te le demande.',
+    )
+    expect(guide.textContent).not.toContain('…')
+  })
+
+  it('assisted tier without a slot asks for the slot name in its last step', async () => {
+    await openPlan(
+      plan({
+        slot: null,
+        route: { suffix: '.apemerald', client: 'bizhawk', exe: 'ArchipelagoBizHawkClient', tier: 'assisted' },
+        connect: { host: 'localhost', port: 38281, slot: null, hasPassword: false },
+      }),
+    )
+
+    const guide = screen.getByRole('region', { name: 'Les étapes' })
+    const steps = within(guide).getAllByRole('listitem')
+    expect(steps[3]).toHaveTextContent(
+      'Si le client demande le serveur, indique localhost:38281, puis ton nom de slot.',
+    )
+    expect(steps[3]?.textContent).not.toContain('…')
+
+    // In English too (the next render switches back to French).
+    await act(() => i18n.changeLanguage('en'))
+    expect(steps[3]).toHaveTextContent(
+      'If the client asks for the server, enter localhost:38281, then your slot name.',
+    )
+    expect(steps[3]?.textContent).not.toContain('…')
   })
 
   it('remembers joined rooms without their password and rejoins from the history', async () => {
