@@ -57,6 +57,11 @@ export interface MockWebhostState {
   assignPort: number
   /** The players of every seed, as `[name, game]` (`/api/room_status` `players`). */
   players: [string, string][]
+  /**
+   * The file of each slot, by slot number, served at `/dl_patch/<room>/<slot>` as it was set: the real
+   * site also rewrites the manifest's `server` with its address and the room's port.
+   */
+  slotFiles: Map<number, Buffer>
 }
 
 export interface MockWebhost {
@@ -114,6 +119,7 @@ export async function startMockWebhost(opts: MockWebhostOptions = {}): Promise<M
       ['Alice', 'A Link to the Past'],
       ['Bob', 'TUNIC'],
     ],
+    slotFiles: new Map(),
   }
   let refreshes = 0
   let origin = ''
@@ -220,6 +226,16 @@ export async function startMockWebhost(opts: MockWebhostOptions = {}): Promise<M
     )
   }
 
+  /** A slot's file; a slot without one gets a 200 text, as on the real site, not a 404. */
+  function downloadPatch(call: Call, room: MockRoom, slot: number): void {
+    const file = state.slotFiles.get(slot)
+    if (!file) return call.reply(200, 'Patch not found', { 'content-type': 'text/html; charset=utf-8' })
+    call.reply(200, file, {
+      'content-type': 'application/octet-stream',
+      'content-disposition': `attachment; filename=P${slot}_${room.id}`,
+    })
+  }
+
   function readLog(call: Call, room: MockRoom): void {
     if (room.owner !== call.identity) return html(call, 403, 'Access Denied')
     if (room.log === '') {
@@ -292,6 +308,11 @@ export async function startMockWebhost(opts: MockWebhostOptions = {}): Promise<M
     if (statusId !== undefined && method === 'GET') {
       const room = roomOf(statusId)
       return room ? roomStatus(call, room) : notFound(call)
+    }
+    const download = new RegExp(`^/dl_patch/${SUUID}/(\\d+)$`).exec(pathname)
+    if (download && method === 'GET') {
+      const room = roomOf(download[1])
+      return room ? downloadPatch(call, room, Number(download[2])) : notFound(call)
     }
     const logId = match(`/log/${SUUID}`)
     if (logId !== undefined && method === 'GET') {
