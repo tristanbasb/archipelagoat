@@ -1,14 +1,13 @@
 // Finds the Archipelago install and the folders it uses (spec §3.1). The path rules reimplement
 // Utils.local_path / user_path / home_path / cache_path, worlds/__init__.py and settings.py:885-907 of
 // Archipelago 0.6.8 (research brief §1.4).
-import { cpSync, existsSync, mkdtempSync } from 'node:fs'
-import { readdir, readFile, rm } from 'node:fs/promises'
+import { constants, cpSync, existsSync, mkdtempSync } from 'node:fs'
+import { access, readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { AP_EXES, AP_UNINSTALL_KEY, apExeFileName } from '@shared/data/ap-constants'
 import { AppError } from '@shared/errors'
 import type { ApInstall, ApInstallKind, ApPaths, ExeRef, OS } from '@shared/types'
 import type { CoreContext } from '../context'
-import { isWritableDir } from '../system/fsx'
 import { readRegistryValues } from '../system/registry'
 
 /** The archipelago:// handler the installer registers: `"{app}\ArchipelagoLauncher.exe" "%1"`. */
@@ -27,7 +26,10 @@ export interface LocatorFs {
   readText(p: string): Promise<string | null>
   /** Names in a folder; [] when it cannot be read. */
   list(dir: string): Promise<string[]>
-  /** True when a file can really be created in the folder. */
+  /**
+   * True when the folder grants write access, the check of AP's `os.access(local_path(), os.W_OK)`.
+   * It must write nothing: nothing is ever written to AP's folder.
+   */
   isWritableDir(dir: string): Promise<boolean>
 }
 
@@ -35,7 +37,11 @@ export const nodeLocatorFs: LocatorFs = {
   exists: existsSync,
   readText: (p) => readFile(p, 'utf8').catch(() => null),
   list: (dir) => readdir(dir).catch(() => []),
-  isWritableDir,
+  isWritableDir: (dir) =>
+    access(dir, constants.W_OK).then(
+      () => true,
+      () => false,
+    ),
 }
 
 export interface LocatorOptions {
@@ -229,7 +235,8 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
       throw new AppError('AP_NOT_INSTALLED', undefined, { detail: localPath })
     }
     const version = (await readManifest(paths.join(localPath, 'manifest.json'))) ?? versionIn(displayName)
-    // Windows needs no write test (home_path() is local_path() there): nothing is written to AP's folder.
+    // user_path(): Linux checks os.access(W_OK), which writes nothing. Windows needs no check, since
+    // home_path() is local_path() there.
     const localWritable = os === 'win32' || (await fs.isWritableDir(localPath))
     // Archipelago runs in its own folder unless a session says otherwise (Task 8).
     const appPaths = pathsFor(localPath, localWritable, localPath)

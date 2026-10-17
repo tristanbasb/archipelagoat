@@ -1,9 +1,20 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path, { join } from 'node:path'
 import {
   createLocator,
   fakeApFromEnv,
+  nodeLocatorFs,
   readManifestVersion,
   resolveApPaths,
   resolveSettingsFile,
@@ -669,6 +680,32 @@ describe('locator', () => {
     const fake = createLocator(coreFor('win32').ctx, { fs, env: {}, exeOverride: () => null })
     expect(await fake.fromRoot('D:\\AP')).toMatchObject({ kind: 'custom', root: 'D:\\AP' })
   })
+
+  it('nodeLocatorFs.isWritableDir checks access like os.access(W_OK) and writes nothing', async () => {
+    const ap = join(dir, 'AP')
+    mkdirSync(ap)
+    const old = new Date('2001-01-01T00:00:00Z')
+    utimesSync(ap, old, old)
+    expect(await nodeLocatorFs.isWritableDir(ap)).toBe(true)
+    // Creating and deleting a probe file would leave nothing behind but would bump the folder's mtime.
+    expect(statSync(ap).mtimeMs).toBe(old.getTime())
+    expect(readdirSync(ap)).toEqual([])
+    expect(await nodeLocatorFs.isWritableDir(join(dir, 'missing'))).toBe(false)
+  })
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'nodeLocatorFs.isWritableDir is false for a read-only folder',
+    async () => {
+      const ap = join(dir, 'AP')
+      mkdirSync(ap)
+      chmodSync(ap, 0o555)
+      try {
+        expect(await nodeLocatorFs.isWritableDir(ap)).toBe(false)
+      } finally {
+        chmodSync(ap, 0o755)
+      }
+    },
+  )
 
   it('exeOverride replaces the executable, and null falls back to the real one', async () => {
     const fs = memFs('win32', { files: winLauncher(programData) })
