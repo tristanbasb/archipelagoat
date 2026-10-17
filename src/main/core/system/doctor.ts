@@ -51,6 +51,11 @@ export interface DoctorDeps {
   freeBytes?: (dir: string) => Promise<number>
   everyoneCanModify?: (dir: string) => Promise<boolean>
   network?: () => Promise<NetworkStatus>
+  /**
+   * The app runs without Chromium's sandbox (`--no-sandbox`, which an AppImage's launcher adds when
+   * AppArmor restricts user namespaces, Ubuntu 23.10+). Default: this process's arguments.
+   */
+  sandboxDisabled?: () => boolean
 }
 
 type Params = DoctorCheck['params']
@@ -265,6 +270,13 @@ function runners(deps: DoctorDeps): Record<DoctorCheckId, Runner> {
       return (await modifiable(found.root))
         ? check('programdata-acl', 'info', { path: found.root })
         : check('programdata-acl', 'ok', { path: found.root })
+    },
+
+    // Spec §6.1 keeps the sandbox on: a run without it says so, with the README's fix.
+    'chromium-sandbox': () => {
+      if (os !== 'linux') return Promise.resolve(skipped('chromium-sandbox', 'not-linux'))
+      const off = (deps.sandboxDisabled ?? (() => process.argv.includes('--no-sandbox')))()
+      return Promise.resolve(off ? check('chromium-sandbox', 'warning') : check('chromium-sandbox', 'ok'))
     },
 
     glibc: async () => {

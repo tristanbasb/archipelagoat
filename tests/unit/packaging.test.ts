@@ -76,6 +76,43 @@ describe('electron-builder.yml', () => {
     expect(section('deb').artifactName).toBe('archipelagoat_${version}_${arch}.${ext}')
   })
 
+  it('ships the tar.gz launcher, executable, which keeps the sandbox and prints the AppArmor fix', () => {
+    expect(section('linux').extraFiles).toEqual([
+      { from: 'build/linux/archipelagoat.sh', to: 'archipelagoat.sh' },
+    ])
+    expect(config.afterPack).toBe('scripts/after-pack.cjs')
+    const launcher = readFileSync(root('build/linux/archipelagoat.sh'), 'utf8')
+    expect(launcher.startsWith('#!/bin/sh\n')).toBe(true)
+    // Never the sandbox off: it starts the app as is, then explains the profile it needs.
+    expect(launcher).not.toMatch(/^[^#]*--no-sandbox/m)
+    expect(launcher).toContain('"$here/archipelagoat" "$@"')
+    expect(launcher).toContain('/proc/sys/kernel/apparmor_restrict_unprivileged_userns')
+    expect(launcher).toContain('userns,')
+    expect(launcher).toContain('sudo apparmor_parser -r /etc/apparmor.d/archipelagoat-local')
+  })
+
+  it('makes the launcher executable in the Linux app folder, and only there', async () => {
+    const { default: afterPack } = (await import(root('scripts/after-pack.cjs'))) as {
+      default: (context: { electronPlatformName: string; appOutDir: string }) => Promise<void>
+    }
+    // Windows: nothing to do (and no file to find).
+    await expect(
+      afterPack({ electronPlatformName: 'win32', appOutDir: root('no-such-dir') }),
+    ).resolves.toBeUndefined()
+    await expect(
+      afterPack({ electronPlatformName: 'linux', appOutDir: root('no-such-dir') }),
+    ).rejects.toThrow()
+  })
+
+  it('removes the Windows integration keys pointing at the app when it is uninstalled', () => {
+    expect(section('nsis').include).toBe('build/installer.nsh')
+    const script = readFileSync(root('build/installer.nsh'), 'utf8')
+    expect(script).toMatch(/!macro customUnInstall[\s\S]*\$\{ifNot\} \$\{isUpdated\}[\s\S]*!macroend/)
+    expect(script).toContain('DeleteRegKey HKCU "Software\\Classes\\archipelago"')
+    expect(script).toContain('DeleteRegKey HKCU "Software\\Classes\\ArchipelaGOAT.Patch"')
+    expect(script).toContain('DeleteRegValue HKCU "Software\\Classes\\.apsml2" ""')
+  })
+
   it('leaves publishing to the release workflow, so a local build has no app-update.yml', () => {
     // electron-builder resolves a `github` provider from the git remote; without one (every local
     // build) it fails on the update info and writes a broken app-update.yml.

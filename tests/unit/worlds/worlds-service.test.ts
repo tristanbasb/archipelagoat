@@ -77,7 +77,7 @@ describe('worlds service: installedGames', () => {
     await tunic('5.0.0')
     stamp(paths.customWorlds)
     expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '4.0.0' })
-    core.ctx.bus.emit('ap:installed', install!)
+    core.ctx.bus.emit('ap:installed', install)
     expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '5.0.0' })
     // A copy: changing it does not change the cache.
     ;(await worlds.installedGames()).clear()

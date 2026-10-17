@@ -120,6 +120,7 @@ export const DOCTOR_CHECK_IDS = [
   'disk-space',
   'programdata-acl',
   'glibc',
+  'chromium-sandbox',
   'network',
 ] as const
 export type DoctorCheckId = (typeof DOCTOR_CHECK_IDS)[number]

@@ -388,6 +388,28 @@ describe('runDoctor', () => {
     })
   })
 
+  it('says on Linux when the app runs without Chromium’s sandbox; Windows never asks', async () => {
+    const windows = await runDoctor(deps({ sandboxDisabled: () => true }))
+    expect(byId(windows, 'chromium-sandbox')).toMatchObject({
+      severity: 'ok',
+      params: { skipped: 'not-linux' },
+    })
+    core = createTestContext(dir, { os: 'linux' })
+    expect(byId(await runDoctor(deps({ sandboxDisabled: () => false })), 'chromium-sandbox')).toEqual({
+      id: 'chromium-sandbox',
+      severity: 'ok',
+      params: {},
+      fix: null,
+    })
+    // An AppImage started with --no-sandbox on Ubuntu 23.10+ (its launcher adds it there).
+    expect(byId(await runDoctor(deps({ sandboxDisabled: () => true })), 'chromium-sandbox')).toEqual({
+      id: 'chromium-sandbox',
+      severity: 'warning',
+      params: {},
+      fix: null,
+    })
+  })
+
   it('bizhawk not installed is a note; offline is a warning', async () => {
     const checks = await runDoctor(
       deps({

@@ -58,9 +58,23 @@ Chaque version fournit cinq fichiers, et `SHA256SUMS.txt` pour les vérifier
 | Windows | `ArchipelaGOAT-<version>-portable.exe` | Sans installation : lance-le directement                                                 |
 | Linux   | `ArchipelaGOAT-<version>.AppImage`     | `chmod +x` puis lance-le (FUSE 2 requis : `libfuse2`, ou `libfuse2t64` sur Ubuntu 24.04) |
 | Linux   | `archipelagoat_<version>_amd64.deb`    | `sudo apt install ./archipelagoat_<version>_amd64.deb`                                   |
-| Linux   | `ArchipelaGOAT-<version>.tar.gz`       | Extrais l’archive, puis lance `./archipelagoat`                                          |
+| Linux   | `ArchipelaGOAT-<version>.tar.gz`       | Extrais l’archive, `cd ArchipelaGOAT-<version>`, puis lance `./archipelagoat.sh`         |
 
 Linux : x64 avec glibc 2.35 ou plus récente (Ubuntu 22.04, Debian 12, Fedora 36…).
+
+#### Linux : le bac à sable de Chromium
+
+L’app garde le bac à sable de Chromium (elle n’est jamais livrée avec `--no-sandbox`). Depuis Ubuntu
+23.10, AppArmor empêche un programme sans profil de créer les espaces de noms dont ce bac à sable a besoin :
+
+- **`.deb`** : le paquet installe le profil AppArmor de sa copie. Rien à faire.
+- **`tar.gz`** : lance l’app avec `./archipelagoat.sh`. Si elle s’arrête sur son bac à sable
+  (`chrome-sandbox`), le script affiche les deux commandes qui donnent une fois pour toutes un profil
+  AppArmor à ta copie, avec ses chemins : un fichier dans `/etc/apparmor.d/` (le même profil que celui
+  du `.deb`, avec `userns`), puis `sudo apparmor_parser -r` sur ce fichier.
+- **AppImage** : son lanceur (celui d’electron-builder) démarre l’app sans le bac à sable quand
+  AppArmor bloque ces espaces de noms ; le diagnostic de l’app le signale. Sur Ubuntu 23.10 ou plus
+  récent, préfère le `.deb` pour garder le bac à sable.
 
 #### Avertissement SmartScreen (Windows)
 
@@ -174,9 +188,23 @@ Each version comes as five files, with `SHA256SUMS.txt` to check them
 | Windows | `ArchipelaGOAT-<version>-portable.exe` | No install: run it as is                                                             |
 | Linux   | `ArchipelaGOAT-<version>.AppImage`     | `chmod +x`, then run it (needs FUSE 2: `libfuse2`, or `libfuse2t64` on Ubuntu 24.04) |
 | Linux   | `archipelagoat_<version>_amd64.deb`    | `sudo apt install ./archipelagoat_<version>_amd64.deb`                               |
-| Linux   | `ArchipelaGOAT-<version>.tar.gz`       | Extract it, then run `./archipelagoat`                                               |
+| Linux   | `ArchipelaGOAT-<version>.tar.gz`       | Extract it, `cd ArchipelaGOAT-<version>`, then run `./archipelagoat.sh`              |
 
 Linux: x64 with glibc 2.35 or later (Ubuntu 22.04, Debian 12, Fedora 36…).
+
+#### Linux: Chromium’s sandbox
+
+The app keeps Chromium’s sandbox on (it never ships with `--no-sandbox`). Since Ubuntu 23.10, AppArmor
+keeps a program without a profile from creating the user namespaces that sandbox needs:
+
+- **`.deb`**: the package installs the AppArmor profile of its copy. Nothing to do.
+- **`tar.gz`**: start the app with `./archipelagoat.sh`. If it stops on its sandbox (`chrome-sandbox`),
+  the script prints the two commands that give your copy an AppArmor profile once and for all, with its
+  paths: a file in `/etc/apparmor.d/` (the same profile as the `.deb` one, with `userns`), then
+  `sudo apparmor_parser -r` on that file.
+- **AppImage**: its launcher (electron-builder’s) starts the app without the sandbox when AppArmor
+  blocks those namespaces; the app’s health check says so. On Ubuntu 23.10 or later, prefer the `.deb`
+  to keep the sandbox.
 
 #### SmartScreen warning (Windows)
 

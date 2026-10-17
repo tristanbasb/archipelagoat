@@ -15,6 +15,7 @@ export const WIN_UNASSOCIATED_SUFFIXES = ['.apsml2'] as const
 
 const CLASSES = 'HKCU\\Software\\Classes'
 const PROG_KEY = `${CLASSES}\\${WIN_PATCH_PROG_ID}`
+const PROTOCOL_KEY = `${CLASSES}\\archipelago`
 const REG_TIMEOUT_MS = 15_000
 
 /** The program that opens a file: the app, and in development the entry point Electron runs. */
@@ -36,6 +37,38 @@ export function setWinProtocol(platform: Pick<Platform, 'setProtocolClient'>, on
   if (!platform.setProtocolClient(on)) {
     throw failed(`the system refused to ${on ? 'register' : 'remove'} the archipelago:// handler`)
   }
+}
+
+/** An open command that runs a copy of ArchipelaGOAT (an installed one, a moved one, a portable one). */
+export function runsArchipelagoat(command: string): boolean {
+  return /archipelagoat[^\\/"]*\.exe/i.test(command)
+}
+
+/**
+ * Removes the archipelago:// handler of this account when its command runs any copy of ArchipelaGOAT.
+ * Electron's removal only matches this exe's exact path: a handler a moved or older copy wrote (the
+ * temporary exe of a portable build is gone once it quits) would otherwise stay, sending every link,
+ * Archipelago's own included, to a program that no longer exists. Another program's handler stays.
+ */
+export async function removeOwnWinProtocol(exec: ExecFn): Promise<void> {
+  const command = await protocolCommand(exec)
+  if (command !== null && runsArchipelagoat(command)) await reg(exec, ['delete', PROTOCOL_KEY, '/f'])
+}
+
+/**
+ * Removes the archipelago:// handler of this account when it runs a copy of ArchipelaGOAT that no
+ * longer exists (`exists` false for its exe): the temporary exe of a portable build that quit.
+ */
+export async function removeDeadWinProtocol(exec: ExecFn, exists: (path: string) => boolean): Promise<void> {
+  const command = await protocolCommand(exec)
+  if (command === null || !runsArchipelagoat(command)) return
+  const exe = /^\s*"([^"]+)"/.exec(command)?.[1] ?? command.trim().split(/\s+/)[0] ?? ''
+  if (exe !== '' && !exists(exe)) await reg(exec, ['delete', PROTOCOL_KEY, '/f'])
+}
+
+async function protocolCommand(exec: ExecFn): Promise<string | null> {
+  const values = await readRegistryValues(exec, `${PROTOCOL_KEY}\\shell\\open\\command`, { view64: true })
+  return values?.[''] ?? null
 }
 
 /** `reg add` and `reg delete` take wide arguments, so accented paths are written as they are. */

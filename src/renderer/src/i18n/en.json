@@ -466,6 +466,11 @@
       "ok": "The glibc version is fine.",
       "problem": "The glibc version is too old for Archipelago (2.35 at least)."
     },
+    "chromium-sandbox": {
+      "title": "Chromium sandbox",
+      "ok": "The app runs inside Chromium’s sandbox.",
+      "problem": "The app runs without Chromium’s sandbox: this system restricts user namespaces (AppArmor). The README’s Linux section shows how to turn it back on (or use the .deb)."
+    },
     "network": {
       "title": "Connection and clock",
       "ok": "The connection works and the clock is right.",

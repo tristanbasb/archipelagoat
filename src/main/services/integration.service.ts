@@ -1,6 +1,7 @@
 // The `integration` service (Task 21): the Linux desktop entry, and on Windows the archipelago:// handler
 // and the .apsml2 association. Eager, so that it hears `ap:installed`: the first install of Archipelago
 // the app makes under Linux also installs the desktop entry, when the setting (on by default) says so.
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { CoreContext } from '@main/core/context'
 import {
@@ -10,7 +11,13 @@ import {
   removeLinuxIntegration,
   type ToolsReport,
 } from '@main/core/system/integration-linux'
-import { setWinAssociations, setWinProtocol, type WinCommand } from '@main/core/system/integration-win'
+import {
+  removeDeadWinProtocol,
+  removeOwnWinProtocol,
+  setWinAssociations,
+  setWinProtocol,
+  type WinCommand,
+} from '@main/core/system/integration-win'
 import { AppError } from '@shared/errors'
 import type { AppConfig, IntegrationState } from '@shared/types'
 import { defineService } from './registry'
@@ -35,7 +42,7 @@ declare module '@main/services/registry' {
 }
 
 export interface IntegrationOptions {
-  /** APPIMAGE, APPDIR, XDG_DATA_HOME. Default: process.env. */
+  /** APPIMAGE, APPDIR, XDG_DATA_HOME, PORTABLE_EXECUTABLE_DIR. Default: process.env. */
   env?: NodeJS.ProcessEnv
   /** Default: process.execPath. */
   execPath?: string
@@ -52,10 +59,13 @@ export function createIntegration(ctx: CoreContext, opts: IntegrationOptions = {
   const execPath = opts.execPath ?? process.execPath
   const args = opts.entryPoint ? [opts.entryPoint] : []
   const dataHome = linuxDataHome(env, platform.paths.home)
+  // The portable exe runs a copy its wrapper extracts to a temporary folder and deletes on exit: a
+  // handler or an association registered with that path would break as soon as the app quits.
+  const portable = os === 'win32' && Boolean(env.PORTABLE_EXECUTABLE_DIR)
   const available: Flags = {
     linuxDesktop: os === 'linux',
-    winProtocol: os === 'win32',
-    winAssociations: os === 'win32',
+    winProtocol: os === 'win32' && !portable,
+    winAssociations: os === 'win32' && !portable,
   }
   const winCommand: WinCommand = { exe: execPath, args }
 
@@ -89,6 +99,8 @@ export function createIntegration(ctx: CoreContext, opts: IntegrationOptions = {
       else report(await removeLinuxIntegration(ctx.exec, { dataHome }))
     } else if (feature === 'winProtocol') {
       setWinProtocol(platform, on)
+      // Also the handler an older or moved copy left, which Electron does not recognize as its own.
+      if (!on) await removeOwnWinProtocol(ctx.exec)
     } else {
       await setWinAssociations(ctx.exec, on, winCommand)
     }
@@ -104,6 +116,14 @@ export function createIntegration(ctx: CoreContext, opts: IntegrationOptions = {
       winAssociations: available.winAssociations && flags.winAssociations,
       available: { ...available },
     }
+  }
+
+  // A portable build of before this check may have left a handler to its temporary exe, now gone: it
+  // sends every archipelago:// link nowhere, so it goes.
+  if (portable) {
+    void serial(() => removeDeadWinProtocol(ctx.exec, existsSync)).catch((error: unknown) =>
+      log.warn('integration: cannot check the archipelago:// handler', error),
+    )
   }
 
   ctx.bus.on('ap:installed', (install) => {

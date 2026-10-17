@@ -7,7 +7,7 @@
 //
 // Chromium refuses to run as root with its sandbox: every start passes --no-sandbox.
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -88,5 +88,9 @@ test('the extracted tar.gz starts', async () => {
   // One top folder, named after the archive.
   const [top, ...others] = readdirSync(target)
   expect(others).toEqual([])
+  // The launcher the README tells users to run, executable, which keeps the sandbox on.
+  const launcher = join(target, top ?? '', 'archipelagoat.sh')
+  expect(statSync(launcher).mode & 0o111).toBe(0o111)
+  expect(readFileSync(launcher, 'utf8')).not.toContain('--no-sandbox')
   await startsAndShowsHome(join(target, top ?? '', 'archipelagoat'))
 })

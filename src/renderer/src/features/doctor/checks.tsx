@@ -14,6 +14,7 @@ import {
   IconFileSettings,
   IconPlug,
   IconPuzzleOff,
+  IconShieldHalf,
   IconShieldLock,
   IconStack2,
   IconWand,
@@ -62,6 +63,7 @@ export const CHECK_ICONS: Record<DoctorCheckId, Icon> = {
   'disk-space': IconDatabase,
   'programdata-acl': IconShieldLock,
   glibc: IconStack2,
+  'chromium-sandbox': IconShieldHalf,
   network: IconWifi,
 }
 

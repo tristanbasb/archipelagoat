@@ -40,6 +40,9 @@ files:
   - '!node_modules/use-sync-external-store/**'
 asar: true
 
+# Runs once each app folder is laid out: makes the Linux launcher below executable.
+afterPack: scripts/after-pack.cjs
+
 # archipelago:// links. Linux registers the handler through the .desktop entry; Windows only when
 # the user turns it on in the settings (HKCU, Task 21), never at install time.
 protocols:
@@ -64,6 +67,8 @@ nsis:
   uninstallDisplayName: ArchipelaGOAT
   deleteAppDataOnUninstall: false
   artifactName: ArchipelaGOAT-Setup-${version}.${ext}
+  # Removes, on uninstall, the archipelago:// handler and .apsml2 keys that still point at the app.
+  include: build/installer.nsh
 
 portable:
   artifactName: ArchipelaGOAT-${version}-portable.${ext}
@@ -80,6 +85,11 @@ linux:
   synopsis: Unofficial Archipelago companion
   # A deb needs a maintainer; package.json names no author.
   maintainer: ArchipelaGOAT contributors
+  # The launcher of the extracted tar.gz: the sandbox stays on, and when AppArmor (Ubuntu 23.10+)
+  # keeps it from starting, it prints the one-time fix (README). The deb installs its own profile.
+  extraFiles:
+    - from: build/linux/archipelagoat.sh
+      to: archipelagoat.sh
   # No `mimeTypes`: `protocols` above already gives the .desktop `MimeType=x-scheme-handler/archipelago;`
   # (tests/e2e/linux-smoke.spec.ts checks it), and electron-builder 26 appends each protocol to a
   # `mimeTypes` list once per target, which repeated the type three times.

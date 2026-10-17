@@ -10,7 +10,14 @@ import {
   mimeXml,
   removeLinuxIntegration,
 } from '@main/core/system/integration-linux'
-import { WIN_PATCH_PROG_ID, setWinAssociations, winOpenCommand } from '@main/core/system/integration-win'
+import {
+  WIN_PATCH_PROG_ID,
+  removeDeadWinProtocol,
+  removeOwnWinProtocol,
+  runsArchipelagoat,
+  setWinAssociations,
+  winOpenCommand,
+} from '@main/core/system/integration-win'
 import { createIntegration } from '@main/services/integration.service'
 import type { ApInstall, ApInstallKind } from '@shared/types'
 import { createTestContext, type TestCore } from '../../helpers/core'
@@ -344,6 +351,38 @@ describe('windows integration', () => {
     expect(registry.keys.get(`${CLASSES}\\.apsml2`)?.get('')).toBe('Other.Patch')
   })
 
+  it('removes an archipelago:// handler any copy of ArchipelaGOAT left, and only such a handler', async () => {
+    const registry = fakeRegistry()
+    const command = `${CLASSES}\\archipelago\\shell\\open\\command`
+    // The portable build's temporary exe, gone once it quit.
+    registry.keys.set(
+      command,
+      new Map([['', '"C:\\Users\\J\\AppData\\Local\\Temp\\2Wx\\ArchipelaGOAT.exe" "%1"']]),
+    )
+    await removeOwnWinProtocol(registry)
+    expect(registry.regCalls).toEqual([['delete', `${CLASSES}\\archipelago`, '/f']])
+
+    // Another program's handler stays.
+    registry.regCalls.length = 0
+    registry.keys.set(
+      command,
+      new Map([['', '"C:\\ProgramData\\Archipelago\\ArchipelagoLauncher.exe" "%1"']]),
+    )
+    await removeOwnWinProtocol(registry)
+    expect(registry.regCalls).toEqual([])
+    expect(runsArchipelagoat('"D:\\Jeux\\ArchipelaGOAT-0.1.0-portable.exe" "%1"')).toBe(true)
+
+    // At the start of a portable build: only a handler whose exe is gone.
+    registry.keys.set(command, new Map([['', '"D:\\Apps\\ArchipelaGOAT.exe" "%1"']]))
+    await removeDeadWinProtocol(registry, () => true)
+    expect(registry.regCalls).toEqual([])
+    await removeDeadWinProtocol(registry, (p) => p !== 'D:\\Apps\\ArchipelaGOAT.exe')
+    expect(registry.regCalls).toEqual([['delete', `${CLASSES}\\archipelago`, '/f']])
+    expect(runsArchipelagoat('"D:\\archipelagoat\\node_modules\\electron\\dist\\electron.exe" "%1"')).toBe(
+      false,
+    )
+  })
+
   it('a reg failure is an INSTALL_FAILED', async () => {
     const exec = recordingExec(() => ({ code: 1, stdout: '', stderr: 'ERROR: Access is denied.' }))
     await expect(setWinAssociations(exec, true, { exe: EXE, args: [] })).rejects.toMatchObject({
@@ -395,5 +434,44 @@ describe('windows integration', () => {
     // ap:installed never touches Windows.
     core.ctx.bus.emit('ap:installed', apInstall('windows-installer', 'C:\\ProgramData\\Archipelago'))
     expect((await integration.state()).linuxDesktop).toBe(false)
+  })
+
+  it('turning the handler off also removes the one a moved or older copy left', async () => {
+    core = createTestContext(dir, { os: 'win32', setProtocolClient: () => true })
+    const registry = fakeRegistry()
+    core.ctx.exec = registry
+    core.ctx.config.updateInternal({
+      integration: { linuxDesktop: false, winProtocol: true, winAssociations: false },
+    })
+    // Electron's removal matches this exe only: the key of an older copy stays without the app's own check.
+    registry.keys.set(
+      `${CLASSES}\\archipelago\\shell\\open\\command`,
+      new Map([['', '"D:\\Ancien\\ArchipelaGOAT.exe" "%1"']]),
+    )
+    const integration = createIntegration(core.ctx, { env: {}, execPath: 'C:\\Apps\\ArchipelaGOAT.exe' })
+    expect(await integration.set({ winProtocol: false })).toMatchObject({ winProtocol: false })
+    expect(registry.regCalls).toContainEqual(['delete', `${CLASSES}\\archipelago`, '/f'])
+  })
+
+  it('offers neither the handler nor the association in the portable build, whose exe is temporary', async () => {
+    const setProtocolClient = vi.fn<(on: boolean) => boolean>(() => true)
+    core = createTestContext(dir, { os: 'win32', setProtocolClient })
+    core.ctx.exec = fakeRegistry()
+    const integration = createIntegration(core.ctx, {
+      env: { PORTABLE_EXECUTABLE_DIR: 'D:\\Jeux' },
+      execPath: 'C:\\Users\\J\\AppData\\Local\\Temp\\2Wx\\ArchipelaGOAT.exe',
+    })
+    expect((await integration.state()).available).toEqual({
+      linuxDesktop: false,
+      winProtocol: false,
+      winAssociations: false,
+    })
+    await expect(integration.set({ winProtocol: true })).rejects.toMatchObject({
+      code: 'UNSUPPORTED_PLATFORM',
+    })
+    await expect(integration.set({ winAssociations: true })).rejects.toMatchObject({
+      code: 'UNSUPPORTED_PLATFORM',
+    })
+    expect(setProtocolClient).not.toHaveBeenCalled()
   })
 })

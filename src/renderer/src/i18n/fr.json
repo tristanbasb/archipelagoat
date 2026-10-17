@@ -466,6 +466,11 @@
       "ok": "La version de glibc convient.",
       "problem": "La version de glibc est trop ancienne pour Archipelago (2.35 minimum)."
     },
+    "chromium-sandbox": {
+      "title": "Bac à sable de Chromium",
+      "ok": "L’app tourne dans le bac à sable de Chromium.",
+      "problem": "L’app tourne sans le bac à sable de Chromium\u00a0: ce système restreint les espaces de noms (AppArmor). La section Linux du README explique comment le remettre (ou utilise le .deb)."
+    },
     "network": {
       "title": "Connexion et horloge",
       "ok": "La connexion fonctionne et l’horloge est à l’heure.",
