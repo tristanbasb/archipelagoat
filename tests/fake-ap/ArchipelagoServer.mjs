@@ -11,9 +11,10 @@ import { createInterface } from 'node:readline'
 import { argValue, argv, err, exit, fixtureLines, flush, modes, out, record, sleep } from './common.mjs'
 
 const port = Number(argValue('--port') ?? 38281)
-// Without --savefile, AP saves next to the multidata: output/AP_<seed>.zip → output/AP_<seed>.apsave.
+// AP saves next to the multidata, output/AP_<seed>.zip → output/AP_<seed>.apsave: MultiServer 0.6.8
+// parses --savefile but never reads it (MultiServer.py:694-701, 2708), as the real run showed.
 const multidata = argv.find((arg) => /\.(?:zip|archipelago)$/i.test(arg))
-const savefile = argValue('--savefile') ?? multidata?.replace(/\.[^.\\/]+$/, '.apsave')
+const savefile = multidata?.replace(/\.[^.\\/]+$/, '.apsave')
 
 function save() {
   if (savefile) writeFileSync(savefile, JSON.stringify({ fake: 'apsave', savedAt: new Date().toISOString() }))

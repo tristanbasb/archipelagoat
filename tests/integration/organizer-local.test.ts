@@ -88,7 +88,8 @@ it('organizer local: create session → add fixture yamls → validate → gener
   // /exit saves the game: the save sits next to the seed, where the next start resumes from.
   await core.call('server:stop', { sessionId })
   expect(await core.call('server:get', { sessionId })).toMatchObject({ status: 'stopped', error: null })
-  const savefile = join(session.workspace, 'output', `${generation.seedName}.apsave`)
+  // MultiServer 0.6.8 names it after the multidata (AP_<seed>.zip → AP_<seed>.apsave).
+  const savefile = join(session.workspace, 'output', `AP_${generation.seedName}.apsave`)
   expect(existsSync(savefile)).toBe(true)
   expect((await core.call('session:get', { id: sessionId })).hosting).toEqual({
     mode: 'local',

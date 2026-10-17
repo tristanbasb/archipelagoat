@@ -119,7 +119,12 @@ async function generatedSession(name = 'Soirée'): Promise<Session> {
   return store.setGeneration(session.id, generation(session.workspace))
 }
 
-const savefileOf = (session: Session): string => join(session.workspace, 'output', `${SEED}.apsave`)
+/**
+ * Where MultiServer 0.6.8 saves: next to the multidata, AP_<seed>.zip → AP_<seed>.apsave. It parses
+ * --savefile but never reads it (MultiServer.py:694-701, 2708; the real run of
+ * docs/verification/2026-10-16-real-run.md), and the fake server does the same.
+ */
+const savefileOf = (session: Session): string => join(session.workspace, 'output', `AP_${SEED}.apsave`)
 
 /** What the bus sends, in order. */
 function recordBus(): {
@@ -237,7 +242,7 @@ describe('buildServerArgs', () => {
     const args = buildServerArgs(
       '/data/sessions/s_1/output/AP_1.zip',
       38282,
-      '/data/sessions/s_1/output/1.apsave',
+      '/data/sessions/s_1/output/AP_1.apsave',
       {
         ...rules,
         releaseMode: 'goal',
@@ -254,7 +259,7 @@ describe('buildServerArgs', () => {
       '--port',
       '38282',
       '--savefile',
-      '/data/sessions/s_1/output/1.apsave',
+      '/data/sessions/s_1/output/AP_1.apsave',
       '--release_mode',
       'goal',
       '--collect_mode',

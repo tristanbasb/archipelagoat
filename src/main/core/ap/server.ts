@@ -114,6 +114,16 @@ export interface ServerManager {
 }
 
 /**
+ * Where ArchipelagoServer saves the game of `zipPath`: next to it, `AP_<seed>.zip` → `AP_<seed>.apsave`
+ * (MultiServer.py:697-701). MultiServer 0.6.8 parses `--savefile` but never reads it, as the real run
+ * showed (docs/verification/2026-10-16-real-run.md): this is the file, whatever the command line says.
+ */
+export function saveFileOf(zipPath: string): string {
+  const { dir, name } = path.parse(zipPath)
+  return path.join(dir, `${name}.apsave`)
+}
+
+/**
  * The command line of a server: the multidata, the port, the save file and every mode option with
  * its value, so that nothing depends on defaults. The passwords are left to the session's host.yaml.
  */
@@ -508,7 +518,7 @@ export function createServerManager(ctx: CoreContext, deps: ServerManagerDeps): 
     const secrets = await deps.sessions.getSecrets(id)
     const entries = buildSessionSettingsEntries(rules, secrets, await romPaths(generation))
     await writeSessionHostYaml(deps.settings, workspace, entries, ctx.platform.os)
-    const savefile = path.join(workspace, 'output', `${generation.seedName}.apsave`)
+    const savefile = saveFileOf(generation.zipPath)
     const resumedFromSave = await exists(savefile)
 
     /** Chooses a free port, then registers and spawns the run of the server, which reserves it. */

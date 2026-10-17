@@ -655,7 +655,7 @@ describe('fake ArchipelagoServer', () => {
     expect(existsSync(join(root, `AP_${SEED}.apsave`))).toBe(true)
   })
 
-  it('ignores EOF on stdin and writes --savefile on /exit', async () => {
+  it('ignores EOF on stdin and saves next to the multidata on /exit, whatever --savefile says', async () => {
     const port = await freePort()
     const lines = collector()
     const ignoring = run({
@@ -682,7 +682,9 @@ describe('fake ArchipelagoServer', () => {
     await other.next(/^server listening on /)
     proc.write('/exit')
     expect(await within(proc.exited, 5000)).toEqual({ code: 0, signal: null })
-    expect(existsSync(savefile)).toBe(true)
+    // MultiServer 0.6.8 parses --savefile but never reads it (docs/verification/2026-10-16-real-run.md).
+    expect(existsSync(join(root, `AP_${SEED}.apsave`))).toBe(true)
+    expect(existsSync(savefile)).toBe(false)
   })
 
   it('fails with OSError and exit 1 in port-busy mode and on a port in use', async () => {

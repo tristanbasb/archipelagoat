@@ -38,6 +38,7 @@ import type {
 import { throwIfCancelled } from './install-steps'
 import type { Locator } from './locator'
 import { childrenFile, listChildren, readChildren, spawnAp, type ApExit, type ApStream } from './process'
+import { saveFileOf } from './server'
 import type { ApSettings } from './settings'
 
 /** Where a generation stands: a stage code and its percentage, which never goes back. */
@@ -545,13 +546,10 @@ const exists = (file: string): Promise<boolean> =>
   )
 
 /** The session hosts a game: a room or a local game (a stopped one too), or the save of its seed. */
-async function hostsAGame(
-  session: { hosting: unknown; generation: Generation | null },
-  output: string,
-): Promise<boolean> {
+async function hostsAGame(session: { hosting: unknown; generation: Generation | null }): Promise<boolean> {
   if (session.hosting !== null) return true
-  const seed = session.generation?.seedName
-  return seed !== undefined && (await exists(path.join(output, `${seed}.apsave`)))
+  const zipPath = session.generation?.zipPath
+  return zipPath !== undefined && (await exists(saveFileOf(zipPath)))
 }
 
 /**
@@ -577,7 +575,7 @@ export async function runGeneration(
   const isServing = deps.isServing ?? ((id: string) => serverRunsFor(ctx.platform.paths.dataRoot, id))
   if (isServing(sessionId)) throw new AppError('GENERATION_PREFLIGHT', { reason: 'hosting' })
   const ws = workspacePaths(ctx.platform.paths.dataRoot, sessionId)
-  if (opts.replace !== true && (await hostsAGame(session, ws.output))) {
+  if (opts.replace !== true && (await hostsAGame(session))) {
     throw new AppError('GENERATION_PREFLIGHT', { reason: 'game-in-progress' })
   }
   const install = await deps.locator.detect()

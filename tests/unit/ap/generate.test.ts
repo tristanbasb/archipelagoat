@@ -601,7 +601,8 @@ describe('runGeneration', () => {
     const first = await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
     // A generation with nothing hosted yet is replaced without asking.
     await within(runGeneration(core.ctx, deps, id, taskSpy().handle), 15_000)
-    writeFileSync(join(wsOf(id).output, `${first.seedName}.apsave`), 'save')
+    // Where MultiServer 0.6.8 saves, whatever --savefile says: next to AP_<seed>.zip.
+    writeFileSync(join(wsOf(id).output, `AP_${first.seedName}.apsave`), 'save')
 
     await expect(runGeneration(core.ctx, deps, id, taskSpy().handle)).rejects.toMatchObject({
       code: 'GENERATION_PREFLIGHT',
