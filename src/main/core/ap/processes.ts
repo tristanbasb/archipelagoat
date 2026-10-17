@@ -66,6 +66,23 @@ export function parsePsOutput(text: string): ProcessInfo[] {
 // Case-sensitive on purpose: `ArchipelaGOAT` (this app) is not an Archipelago program.
 const isArchipelago = (name: string): boolean => name.startsWith('Archipelago')
 
+/**
+ * `exec`, whose process listings (`tasklist`, `ps`) leave out every Archipelago program: for the test
+ * environment, where Archipelago is faked or absent (GOAT_FAKE_AP_DIR), so that a real Archipelago the
+ * machine runs neither locks the settings nor blocks an install of a test. The fakes run as `node`.
+ */
+export function withoutApProcesses(exec: ExecFn): ExecFn {
+  return async (command, args, opts) => {
+    const result = await exec(command, args, opts)
+    if (command !== 'tasklist' && command !== 'ps') return result
+    const keep = (line: string): boolean => {
+      const [row] = command === 'tasklist' ? parseTasklistCsv(line) : parsePsOutput(line)
+      return row === undefined || !isArchipelago(row.name)
+    }
+    return { ...result, stdout: result.stdout.split('\n').filter(keep).join('\n') }
+  }
+}
+
 /** Every running program whose name starts with `Archipelago`. Throws when the listing fails. */
 export async function listApProcesses(exec: ExecFn, os: OS): Promise<ProcessInfo[]> {
   const [command, args, parse] =

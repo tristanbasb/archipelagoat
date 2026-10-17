@@ -240,6 +240,7 @@ export async function createTestCore(opts: TestCoreOptions): Promise<TestCore> {
       { createServices },
       { registerHandlers },
       { createIpcRegistry },
+      { withoutApProcesses },
     ] = await Promise.all([
       import('@main/core/config'),
       import('@main/core/events'),
@@ -252,6 +253,7 @@ export async function createTestCore(opts: TestCoreOptions): Promise<TestCore> {
       import('@main/services'),
       import('@main/ipc'),
       import('@main/ipc/registry'),
+      import('@main/core/ap/processes'),
     ])
 
     const logs: LogEntry[] = []
@@ -269,7 +271,9 @@ export async function createTestCore(opts: TestCoreOptions): Promise<TestCore> {
     const ctx: CoreContext = {
       platform,
       log,
-      exec,
+      // As src/main/index.ts in a test run with a fake Archipelago: a real one the machine runs does not
+      // lock the settings of a flow.
+      exec: opts.fakeApDir === undefined ? exec : withoutApProcesses(exec),
       http: createHttp({
         userAgent: apUserAgent(platform.appVersion),
         cacheDir: join(platform.paths.dataRoot, 'catalog'),

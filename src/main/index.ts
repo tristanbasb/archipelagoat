@@ -5,7 +5,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { createConfigStore } from '@main/core/config'
 import type { CoreContext } from '@main/core/context'
 import { createEventBus } from '@main/core/events'
-import { exec } from '@main/core/exec'
+import { withoutApProcesses } from '@main/core/ap/processes'
+import { exec as systemExec } from '@main/core/exec'
 import { consoleSink, createFileSink, createLogger } from '@main/core/logger'
 import { createSecretStore } from '@main/core/secrets'
 import { apUserAgent, createHttp } from '@main/core/system/http'
@@ -24,6 +25,8 @@ app.setName('ArchipelaGOAT')
 
 // 2. Test-only overrides, honoured for an unpackaged app or with GOAT_E2E=1 only.
 const testEnv = !app.isPackaged || process.env.GOAT_E2E === '1'
+// A test run with a fake Archipelago (or none) ignores the real one the machine may run.
+const exec = testEnv && process.env.GOAT_FAKE_AP_DIR ? withoutApProcesses(systemExec) : systemExec
 const userDataOverride = testEnv ? process.env.GOAT_USER_DATA : undefined
 if (userDataOverride) {
   mkdirSync(userDataOverride, { recursive: true })

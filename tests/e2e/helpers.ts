@@ -195,7 +195,9 @@ export async function appEnv(
       ? {}
       : Object.fromEntries(Object.entries(proxies).map(([key, value]) => [key.toLowerCase(), value]))),
   })
-  if (dirs.fakeAp) env.GOAT_FAKE_AP_DIR = dirs.fakeAp
+  // Without the fake, no Archipelago at all: a real install (or a running Archipelago) on the machine
+  // must not change what a test sees (`none` turns the app's detection off, test environment only).
+  env.GOAT_FAKE_AP_DIR = dirs.fakeAp ?? 'none'
   if (opts.webhostUrl) env.GOAT_WEBHOST_URL = opts.webhostUrl
   return env
 }

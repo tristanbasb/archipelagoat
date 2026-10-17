@@ -49,6 +49,12 @@ export interface LocatorOptions {
   exeOverride?: (name: string) => ExeRef | null
   /** A fake install (copy of GOAT_FAKE_AP_DIR): `detect()` returns it and looks nowhere else. */
   fakeRoot?: string
+  /**
+   * No system detection at all (GOAT_FAKE_AP_DIR=none, test environment only): no registry, no
+   * ProgramData, no managed folder or AppImage search, so a test run sees no Archipelago whatever the
+   * machine has. A folder the user picks (ap:setCustomPath) still counts.
+   */
+  noDetection?: boolean
   fs?: LocatorFs
   /** XDG_DATA_HOME, XDG_CACHE_HOME, LOCALAPPDATA, ProgramData; process.env by default. */
   env?: NodeJS.ProcessEnv
@@ -378,6 +384,7 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
         path: override,
       })
     }
+    if (opts.noDetection === true) return null
     return os === 'win32' ? findWindows() : findLinux()
   }
 
@@ -440,9 +447,13 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
   }
 }
 
+/** The GOAT_FAKE_AP_DIR value that asks for no Archipelago at all (see LocatorOptions.noDetection). */
+export const NO_AP = 'none'
+
 /**
  * GOAT_FAKE_AP_DIR, honoured in the test environment only: a temporary copy of that folder (removed
- * on quit), whose `<name>.mjs` scripts stand in for Archipelago's programs and run with Node.
+ * on quit), whose `<name>.mjs` scripts stand in for Archipelago's programs and run with Node; `none`
+ * turns the system detection off instead.
  */
 export function fakeApFromEnv(
   ctx: CoreContext,
@@ -452,6 +463,7 @@ export function fakeApFromEnv(
   const testEnv = !ctx.platform.isPackaged || env.GOAT_E2E === '1'
   const source = testEnv ? env.GOAT_FAKE_AP_DIR : undefined
   if (!source) return null
+  if (source === NO_AP) return { noDetection: true }
   const root = mkdtempSync(path.join(ctx.platform.paths.temp, 'goat-fake-ap-'))
   cpSync(source, root, { recursive: true })
   ctx.lifecycle.onBeforeQuit(() => rm(root, { recursive: true, force: true, maxRetries: 3 }), {

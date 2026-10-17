@@ -13,6 +13,7 @@ import {
   stopOrphan,
   parsePsOutput,
   parseTasklistCsv,
+  withoutApProcesses,
 } from '@main/core/ap/processes'
 import type { ExecFn } from '@main/core/exec'
 import type { Logger } from '@main/core/logger'
@@ -153,6 +154,22 @@ describe('system process lists', () => {
       { pid: 4343, name: 'ArchipelagoGene' },
       { pid: 77, name: 'node' },
     ])
+  })
+
+  it('withoutApProcesses hides every Archipelago program from the listings of a test run', async () => {
+    const exec: ExecFn = (cmd) =>
+      Promise.resolve({
+        code: 0,
+        stdout: cmd === 'tasklist' ? TASKLIST : cmd === 'ps' ? PS : 'other',
+        stderr: '',
+      })
+    const hidden = withoutApProcesses(exec)
+    expect(await listApProcesses(hidden, 'win32')).toEqual([])
+    expect(await listApProcesses(hidden, 'linux')).toEqual([])
+    // The rest of the listing stays, and so does any other command's output.
+    expect((await hidden('tasklist', [])).stdout).toContain('"ArchipelaGOAT.exe","5000"')
+    expect((await hidden('ps', [])).stdout).toContain(' 5000 archipelagoat')
+    expect((await hidden('reg', [])).stdout).toBe('other')
   })
 
   it('listApProcesses keeps the Archipelago programs (not ArchipelaGOAT) from tasklist or ps', async () => {

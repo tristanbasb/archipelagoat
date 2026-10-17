@@ -828,6 +828,28 @@ describe('GOAT_FAKE_AP_DIR', () => {
     expect(existsSync(join(source, 'manifest.json'))).toBe(true)
   })
 
+  it('GOAT_FAKE_AP_DIR=none turns the system detection off, a folder picked by hand excepted', async () => {
+    const PROGRAMDATA = 'C:\\ProgramData\\Archipelago'
+    // A machine with Archipelago installed: registry key and ProgramData.
+    const exec = registryExec({ [AP_UNINSTALL_KEY]: { InstallLocation: PROGRAMDATA } })
+    const core = coreFor('win32', exec)
+    const fs = memFs('win32', { files: winLauncher(PROGRAMDATA) })
+    const opts = fakeApFromEnv(core.ctx, { GOAT_FAKE_AP_DIR: 'none' }, {})
+    expect(opts).toEqual({ noDetection: true })
+    const locator = createLocator(core.ctx, { ...opts, fs, env: {} })
+    expect(await locator.detect()).toBeNull()
+    expect(exec.scripts).toEqual([])
+
+    // The user's own choice still counts (the app's own screens set it).
+    core.ctx.config.updateInternal({ apPathOverride: PROGRAMDATA })
+    locator.invalidate()
+    expect((await locator.detect())?.root).toBe(PROGRAMDATA)
+    // Never outside the test environment.
+    expect(
+      fakeApFromEnv(createTestContext(dir, { isPackaged: true }).ctx, { GOAT_FAKE_AP_DIR: 'none' }, {}),
+    ).toBeNull()
+  })
+
   it('is honoured only in the test environment', () => {
     const packaged = createTestContext(dir, { isPackaged: true })
     expect(fakeApFromEnv(packaged.ctx, { GOAT_FAKE_AP_DIR: source }, {})).toBeNull()
