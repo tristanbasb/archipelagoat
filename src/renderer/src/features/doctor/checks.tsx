@@ -98,14 +98,19 @@ export function isPassing(check: DoctorCheck): boolean {
 }
 
 /** Skip reasons with their own sentence; any other one reads as "not checked". */
-const SKIP_TEXTS: ReadonlySet<string> = new Set(['ap-not-installed', 'release-unavailable'])
+const SKIP_TEXTS: ReadonlySet<string> = new Set([
+  'ap-not-installed',
+  'release-unavailable',
+  'version-unknown',
+  'probe-failed',
+])
 
 /** The check's name and the sentence that describes its state, never "all is well" for a skipped one. */
 export function checkText(check: DoctorCheck, t: TFunction): { title: string; text: string } {
   const title = t(`doctor.${check.id}.title`, check.params)
   const skipped = skipReason(check)
   if (skipped !== null) {
-    return { title, text: t(`doctor.skipped.${SKIP_TEXTS.has(skipped) ? skipped : 'other'}`) }
+    return { title, text: t(`doctor.skipped.${SKIP_TEXTS.has(skipped) ? skipped : 'other'}`, check.params) }
   }
   return { title, text: t(`doctor.${check.id}.${check.severity === 'ok' ? 'ok' : 'problem'}`, check.params) }
 }

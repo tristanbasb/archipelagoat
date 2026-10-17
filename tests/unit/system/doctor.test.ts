@@ -237,12 +237,13 @@ describe('runDoctor', () => {
       fix: null,
     })
 
+    // A version that cannot be read is not compared: not "a new version is available".
     install = { ...install, version: null }
     expect(byId(await runDoctor(deps()), 'ap-update')).toEqual({
       id: 'ap-update',
-      severity: 'info',
-      params: { installed: 'unknown', latest: '0.6.8' },
-      fix: { kind: 'navigate', to: '/install' },
+      severity: 'ok',
+      params: { installed: 'unknown', latest: '0.6.8', skipped: 'version-unknown' },
+      fix: null,
     })
   })
 
@@ -409,17 +410,26 @@ describe('runDoctor', () => {
     })
   })
 
-  it('a check that fails is a note with its error, and secrets never reach the params', async () => {
+  it('a check that crashes is reported as not run, with its error, and secrets never reach the params', async () => {
     const checks = await runDoctor(
       deps({
         listProcesses: () => Promise.reject(new Error('cannot reach https://joueur:hunter2@example.org/x')),
+        freeBytes: () => Promise.reject(new Error('statfs failed')),
       }),
     )
+    // Never its problem sentence ("Archipelago programs are open", "little disk space is left").
     expect(byId(checks, 'ap-processes')).toEqual({
       id: 'ap-processes',
-      severity: 'info',
-      params: { error: `cannot reach https://joueur:${MASK}@example.org/x` },
+      severity: 'ok',
+      params: { skipped: 'probe-failed', error: `cannot reach https://joueur:${MASK}@example.org/x` },
       fix: null,
+    })
+    expect(byId(checks, 'disk-space')).toMatchObject({
+      severity: 'ok',
+      params: {
+        skipped: 'probe-failed',
+        error: expect.stringContaining('cannot read the free space') as string,
+      },
     })
   })
 })

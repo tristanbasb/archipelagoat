@@ -472,6 +472,8 @@
     "skipped": {
       "ap-not-installed": "Vérifié une fois Archipelago installé.",
       "release-unavailable": "Pas vérifié\u00a0: la dernière version ne peut pas être lue pour le moment.",
+      "version-unknown": "Pas vérifié\u00a0: la version installée d’Archipelago ne peut pas être lue.",
+      "probe-failed": "Pas vérifié\u00a0: la vérification elle-même a échoué ({{error}}).",
       "other": "Pas vérifié."
     }
   },

@@ -169,6 +169,21 @@ describe('doctor screen', () => {
     )
   })
 
+  it('says a check that could not run was not checked, never its problem sentence', async () => {
+    const checks = withChecks({
+      'disk-space': { params: { skipped: 'probe-failed', error: 'statfs failed' } },
+      'ap-update': { params: { installed: 'unknown', latest: '0.6.8', skipped: 'version-unknown' } },
+    })
+    await renderDoctor({ 'doctor:run': () => checks })
+    const passing = await screen.findByRole('region', { name: 'Tout va bien' })
+    const disk = within(passing).getByText('Espace disque').closest('li')
+    expect(disk).toHaveTextContent('la vérification elle-même a échoué (statfs failed)')
+    expect(screen.queryByText(/Il reste peu d’espace/)).toBeNull()
+    const update = within(passing).getByText('Mise à jour d’Archipelago').closest('li')
+    expect(update).toHaveTextContent('la version installée d’Archipelago ne peut pas être lue')
+    expect(screen.queryByText(/nouvelle version/)).toBeNull()
+  })
+
   it('says a check waits for Archipelago while it is not installed', async () => {
     const checks = withChecks({
       'ap-installed': { severity: 'error', fix: { kind: 'navigate', to: '/install' } },

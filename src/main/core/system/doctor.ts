@@ -176,8 +176,9 @@ function runners(deps: DoctorDeps): Record<DoctorCheckId, Runner> {
       const params = { installed: found.version ?? 'unknown', latest: latest.version }
       const installed = semver.coerce(found.version)
       const newest = semver.coerce(latest.version)
-      // A version that cannot be read (no manifest.json) cannot be compared: worth a look.
-      if (!installed || !newest) return check('ap-update', 'info', params, INSTALL_SCREEN)
+      // A version that cannot be read (no manifest.json) cannot be compared: not checked, which says
+      // so, rather than "a new version is available".
+      if (!installed || !newest) return check('ap-update', 'ok', { ...params, skipped: 'version-unknown' })
       return semver.lt(installed, newest)
         ? check('ap-update', 'warning', params, INSTALL_SCREEN)
         : check('ap-update', 'ok', params)
@@ -306,7 +307,8 @@ export async function runDoctor(deps: DoctorDeps): Promise<DoctorCheck[]> {
         return await all[id](run)
       } catch (error) {
         ctx.log.warn(`doctor: the ${id} check failed`, error)
-        return check(id, 'info', { error: errorText(error) })
+        // Not run: never read as the check's problem sentence ("little disk space is left"…).
+        return check(id, 'ok', { skipped: 'probe-failed', error: errorText(error) })
       }
     }),
   )
