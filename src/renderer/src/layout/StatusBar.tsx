@@ -66,8 +66,11 @@ function useServerPill(): Pill {
     }
   }
   const busy = local.find((server) => server.status === 'starting' || server.status === 'stopping')
-  if (busy)
-    return { status: 'busy', label: t('shell.status.serverStarting'), to: `/play/${busy.sessionId}`, hint }
+  if (busy) {
+    const label =
+      busy.status === 'starting' ? t('shell.status.serverStarting') : t('shell.status.serverStopping')
+    return { status: 'busy', label, to: `/play/${busy.sessionId}`, hint }
+  }
   const crashed = local.find((server) => server.status === 'crashed')
   if (crashed)
     return { status: 'error', label: t('shell.status.serverCrashed'), to: `/play/${crashed.sessionId}`, hint }

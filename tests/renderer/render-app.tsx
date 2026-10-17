@@ -1,6 +1,6 @@
 // Renders the real app (or one piece of it) for renderer tests, on top of the goat mock.
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
-import { render, screen, type RenderResult } from '@testing-library/react'
+import { cleanup, render, screen, type RenderResult } from '@testing-library/react'
 import userEvent, { type UserEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { I18nextProvider } from 'react-i18next'
@@ -30,6 +30,8 @@ export interface RenderAppResult extends RenderResult {
 }
 
 afterEach(() => {
+  // Unmount before resetting the hash, so no router reacts to it after the test.
+  cleanup()
   window.location.hash = ''
 })
 

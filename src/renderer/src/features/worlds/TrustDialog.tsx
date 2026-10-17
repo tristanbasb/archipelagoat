@@ -171,7 +171,7 @@ function PlanReview({ plan, error, acked, onAck }: PlanReviewProps): React.JSX.E
           label={t(`trust.${plan.trust}.label`)}
           description={t(`trust.${plan.trust}.description`)}
         />
-        <Badge tone="neutral" icon={<IconFileCode />} outline>
+        <Badge tone="neutral" icon={<IconFileCode />} outline title={t('worldInstall.version')}>
           {manifest?.worldVersion ?? t('worldInstall.versionUnknown')}
         </Badge>
       </div>

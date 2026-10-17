@@ -30,8 +30,8 @@ interface Job {
   installing: boolean
 }
 
-/** Lists that change when a world is installed. */
-const AFFECTED = ['worlds:list', 'catalog:list', 'studio:games'] as const
+/** Lists that change when a world is installed, removed or switched on or off. */
+export const WORLD_QUERIES = ['worlds:list', 'catalog:list', 'studio:games'] as const
 
 export function useWorldInstall(): WorldInstall {
   const { t } = useTranslation()
@@ -116,7 +116,7 @@ export function useWorldInstall(): WorldInstall {
             }
           : { tone: 'ok', title: t('worldInstall.installed', { game }) },
       )
-      for (const name of AFFECTED) void queryClient.invalidateQueries({ queryKey: [name] })
+      for (const name of WORLD_QUERIES) void queryClient.invalidateQueries({ queryKey: [name] })
       finish(current, true)
     } catch (error) {
       patch(current.id, { installing: false, installError: toAppErrorData(error) })

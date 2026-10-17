@@ -1,6 +1,5 @@
 {
   "common": {
-    "appName": "ArchipelaGOAT",
     "unofficial": "Compagnon non officiel pour Archipelago",
     "close": "Fermer",
     "closeDialog": "Fermer la fenêtre",
@@ -55,6 +54,7 @@
       "apHint": "Installation et mises à jour d’Archipelago",
       "serverOff": "Serveur arrêté",
       "serverStarting": "Serveur en démarrage",
+      "serverStopping": "Serveur en arrêt",
       "serverLocal": "Serveur local :{{port}}",
       "serverWeb": "archipelago.gg",
       "serverCrashed": "Serveur planté",

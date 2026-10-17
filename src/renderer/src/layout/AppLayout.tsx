@@ -9,6 +9,7 @@ import { BootScreen } from '../features/boot/BootScreen'
 import { useEvent } from '../hooks/useEvent'
 import { useOpenRequests } from '../hooks/useOpenRequests'
 import { useShortcuts } from '../hooks/useShortcuts'
+import { WORLD_QUERIES } from '../hooks/useWorldInstall'
 import { useConfig } from '../stores/config'
 import { DropOverlay } from './DropOverlay'
 import { FileChoiceDialog } from './FileChoiceDialog'
@@ -19,10 +20,8 @@ import { StatusBar } from './StatusBar'
 import { TitleBar } from './TitleBar'
 import './AppLayout.css'
 
-/** Lists that change when a world is installed, removed or switched on or off. */
-const WORLD_QUERIES = ['worlds:list', 'studio:games', 'catalog:list'] as const
-
-const SHORTCUTS_OF = (navigate: (to: string) => void): Record<string, () => void> =>
+/** Ctrl+1…7 open the rail entries, in order. */
+const railShortcuts = (navigate: (to: string) => void): Record<string, () => void> =>
   Object.fromEntries(NAV_ITEMS.map((item, index) => [`Ctrl+${index + 1}`, () => navigate(item.to)]))
 
 export function AppLayout(): React.JSX.Element {
@@ -35,7 +34,7 @@ export function AppLayout(): React.JSX.Element {
   const [bootDone, setBootDone] = useState(false)
 
   useOpenRequests()
-  useShortcuts(SHORTCUTS_OF((to) => void navigate(to)))
+  useShortcuts(railShortcuts((to) => void navigate(to)))
   useEvent('worlds:changed', () => {
     for (const name of WORLD_QUERIES) void queryClient.invalidateQueries({ queryKey: [name] })
   })

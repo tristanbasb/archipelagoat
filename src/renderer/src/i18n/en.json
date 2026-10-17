@@ -1,6 +1,5 @@
 {
   "common": {
-    "appName": "ArchipelaGOAT",
     "unofficial": "Unofficial companion for Archipelago",
     "close": "Close",
     "closeDialog": "Close dialog",
@@ -55,6 +54,7 @@
       "apHint": "Archipelago install and updates",
       "serverOff": "Server off",
       "serverStarting": "Server starting",
+      "serverStopping": "Server stopping",
       "serverLocal": "Local server :{{port}}",
       "serverWeb": "archipelago.gg",
       "serverCrashed": "Server crashed",
