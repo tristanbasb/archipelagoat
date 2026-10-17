@@ -1,0 +1,184 @@
+/* ---- Entry: the link panel and the patch drop side by side ---------------------------------- */
+
+.join-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(250px, 1fr);
+  gap: var(--sp-6);
+  align-items: stretch;
+}
+
+.join-entry__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--sp-3);
+}
+
+.join-entry__frame {
+  min-height: var(--control-lg);
+}
+
+.join-entry__frame svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--tone);
+}
+
+.join-entry__frame .input {
+  height: calc(var(--control-lg) - 4px);
+}
+
+.join-entry__hint {
+  margin-top: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  line-height: 1.6;
+}
+
+.join-entry__error {
+  margin-top: var(--sp-4);
+}
+
+.join-entry__drop {
+  height: 100%;
+}
+
+/* ---- History: the rooms joined lately -------------------------------------------------------- */
+
+.join-history__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: var(--sp-2) var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-history__item {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.join-history__open {
+  --pb-color: var(--line);
+  --pb-fill: var(--bg-1);
+  --pb-step: var(--corner-sm);
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  background: none;
+  text-align: left;
+  transition: filter var(--dur) var(--ease-out);
+}
+
+.join-history__open:hover {
+  --pb-color: color-mix(in srgb, var(--neon-cyan) 60%, transparent);
+  --pb-fill: color-mix(in srgb, var(--neon-cyan) 7%, var(--bg-1));
+}
+
+.join-history__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: color-mix(in srgb, var(--neon-cyan) 12%, var(--bg-2));
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--neon-cyan) 35%, transparent);
+  color: var(--neon-cyan);
+  clip-path: var(--clip-corner);
+}
+
+.join-history__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.join-history__main {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.join-history__label,
+.join-history__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.join-history__label {
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.join-history__meta {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.join-history__slot {
+  color: color-mix(in srgb, var(--neon-cyan) 78%, #ffffff);
+}
+
+.join-history__slot + .join-history__game::before {
+  content: '·';
+  margin: 0 6px;
+  color: var(--text-mute);
+}
+
+.join-history__when {
+  flex: none;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  white-space: nowrap;
+}
+
+.join-history__go {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-mute);
+  transition:
+    color var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.join-history__open:hover .join-history__go,
+.join-history__open:focus-visible .join-history__go {
+  color: var(--neon-cyan);
+  transform: translateX(3px);
+}
+
+.join-history__forget {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  border: 0;
+  background: none;
+  color: var(--text-mute);
+  transition: color var(--dur) var(--ease-out);
+}
+
+.join-history__forget:hover {
+  color: var(--neon-pink);
+}
+
+.join-history__forget svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 1100px) {
+  .join-entry {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,72 @@
+.readiness__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One check: a lit status tile, what it is, and the action that fixes it. */
+.check-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-3);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 7%, var(--bg-1)) 0%, var(--bg-1) 45%);
+  box-shadow: inset 3px 0 0 var(--tone-line);
+}
+
+.check-row[data-state='missing'] {
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+
+.check-row__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 2px var(--tone-line);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.check-row__icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+.check-row:is([data-state='ok'], [data-state='missing'], [data-state='vault']) .check-row__icon svg {
+  filter: var(--drop-glow);
+}
+
+.check-row__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.check-row__title {
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.check-row__detail {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.check-row:is([data-state='missing'], [data-state='vault']) .check-row__detail {
+  color: var(--tone-ink);
+}
+
+.check-row[data-state='na'] .check-row__title {
+  color: var(--text-dim);
+}
+
+.check-row__progress,
+.check-row__error {
+  grid-column: 1 / -1;
+}

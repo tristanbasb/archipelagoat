@@ -1,0 +1,186 @@
+.join-screen__stepper {
+  width: min(400px, 38vw);
+}
+
+.join-screen__stack {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+/* ---- What is being joined ------------------------------------------------------------------ */
+
+.join-target {
+  --pb-color: var(--tone-line);
+  --pb-fill: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tone) 12%, var(--bg-2)) 0%,
+    var(--bg-2) 55%,
+    color-mix(in srgb, var(--bg-2) 60%, var(--bg-1)) 100%
+  );
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.join-target__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 2px var(--tone-line);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.join-target__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.join-target__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.join-target__kind {
+  color: var(--tone-ink);
+  font-size: var(--fs-12);
+}
+
+.join-target__value {
+  overflow: hidden;
+  font-size: var(--fs-14);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.join-target__slot {
+  display: grid;
+  flex: none;
+  gap: 2px;
+  max-width: 34%;
+  padding-inline: var(--sp-4);
+  border-left: 1px solid var(--line-strong);
+  text-align: right;
+}
+
+.join-target__slot-name,
+.join-target__slot-game {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.join-target__slot-name {
+  color: var(--tone-ink);
+  font-weight: 700;
+  text-shadow: var(--text-glow);
+}
+
+.join-target__slot-game {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.join-target__actions {
+  display: flex;
+  flex: none;
+  gap: var(--sp-2);
+}
+
+/* ---- Preparing -------------------------------------------------------------------------------- */
+
+.join-preparing__body {
+  margin-top: var(--sp-4);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+/* ---- The plan: warnings, then the checklist beside the launch column -------------------------- */
+
+.join-plan {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.join-plan__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: var(--sp-6);
+  align-items: start;
+}
+
+.join-plan__main,
+.join-plan__side {
+  display: grid;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+.join-warnings {
+  --pb-color: var(--tone-line);
+  --pb-fill: color-mix(in srgb, var(--tone) 8%, var(--bg-2));
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.join-warnings ul {
+  display: grid;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.join-warnings__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.join-warnings__icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--tone);
+  filter: var(--drop-glow);
+}
+
+.join-warnings__item p:first-child {
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.join-warnings__fix {
+  margin-top: var(--sp-1);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.join-warnings__fix code {
+  padding: 1px 6px;
+  background: var(--tone-soft);
+  color: var(--tone-ink);
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .join-plan__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* JOUER first when the columns stack. */
+  .join-plan__side {
+    order: -1;
+  }
+}
+
+/* A panel given the focus when its step comes up: the region is announced, no ring is drawn. */
+.join-screen [data-step-focus][tabindex='-1']:focus {
+  outline: none;
+}
