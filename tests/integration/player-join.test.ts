@@ -1,11 +1,13 @@
 // The player's side, end to end: a room link resolved, the room read (and woken) on the mock site, the
 // slot's patch downloaded and routed to the BizHawk Client, the checklist, then the fake client started
 // with the patch.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ApInstall, JoinPlan } from '@shared/types'
 import { EMERALD_MD5, makePatchZip, makeSeedZip, patchManifest } from '../helpers/make-patch.mjs'
+import { waitForExit } from '../helpers/process'
 import { startMockWebhost, type MockWebhost } from '../mock-webhost/server'
 import { createFakeApInstall, createTestCore, type TestCore } from './harness'
 
@@ -15,6 +17,8 @@ let tmp: string
 let site: MockWebhost
 let active: TestCore | undefined
 let savedRecord: string | undefined
+/** The client the test started, detached in the install's folder. */
+let clientPid: number | undefined
 
 /** The organizer's side, as another identity: uploads a seed and opens its room (not started yet). */
 async function openRoom(dir: string): Promise<string> {
@@ -37,6 +41,7 @@ async function openRoom(dir: string): Promise<string> {
 
 beforeEach(async () => {
   savedRecord = process.env.FAKE_RECORD
+  clientPid = undefined
   tmp = mkdtempSync(join(tmpdir(), 'goat-int-join-'))
   // The room has no port until it is woken up and polled once more.
   site = await startMockWebhost({ portDelayPolls: 1 })
@@ -60,7 +65,11 @@ afterEach(async () => {
   await active?.cleanup()
   active = undefined
   await site.close()
-  rmSync(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  // Under Windows a program running in a folder makes it undeletable (EPERM) until it exits, and the
+  // product does not wait for a client it starts: the test does, so that the folder can go. Only the
+  // async `rm` retries on EPERM (rmSync does not).
+  if (clientPid !== undefined) await waitForExit(clientPid)
+  await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
 it('player: resolve room url → prepare → patch routed to bizhawk → play spawns fake client with patch', async () => {
@@ -126,6 +135,7 @@ it('player: resolve room url → prepare → patch routed to bizhawk → play sp
   const record = join(tmp, 'client-record.json')
   process.env.FAKE_RECORD = record
   const { pid } = await core.call('join:play', { planId: plan.planId })
+  clientPid = pid
   expect(pid).toBeGreaterThan(0)
   await vi.waitFor(() => expect(existsSync(record)).toBe(true), { timeout: 15_000, interval: 100 })
   await vi.waitFor(() => JSON.parse(readFileSync(record, 'utf8')) as unknown, { timeout: 5_000 })

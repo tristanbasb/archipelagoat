@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createLocator, type Locator } from '@main/core/ap/locator'
@@ -38,6 +39,7 @@ import type {
 import { makeShims } from '../../fake-ap/make-shims.mjs'
 import { createTestContext, silentLogger, type TestCore } from '../../helpers/core'
 import { EMERALD_MD5, makePatchZip, patchManifest } from '../../helpers/make-patch.mjs'
+import { waitForExit } from '../../helpers/process'
 import { startMockWebhost, type MockWebhost, type MockWebhostOptions } from '../../mock-webhost/server'
 
 const ROOM_ID = 'aBcDeFgHiJkLmNoPqRsTuV'
@@ -79,6 +81,8 @@ let settings: { set: ReturnType<typeof vi.fn<JoinDeps['settings']['set']>> }
 let vault: { resolveRomForEntry: ReturnType<typeof vi.fn<Vault['resolveRomForEntry']>> }
 let bizhawk: { state: ReturnType<typeof vi.fn<Bizhawk['state']>> }
 let loadedGames: string[]
+/** The clients a test really started (no fake spawn): they run detached, in the install's folder. */
+const clients: number[] = []
 
 beforeEach(async () => {
   root = mkdtempSync(join(tmpdir(), 'goat join é-'))
@@ -116,9 +120,18 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await mock.close()
-  // A client the test started runs detached in the install's folder, and may still be exiting.
-  rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  // Under Windows a program running in a folder makes it undeletable (EPERM) until it exits, and the
+  // product does not wait for a client it starts: the test does, so that the folder can go. A client
+  // that never exits fails here, with its pid. Only the async `rm` retries on EPERM (rmSync does not).
+  await Promise.all(clients.splice(0).map((pid) => waitForExit(pid)))
+  await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
+
+/** Marks a client the test really started: `afterEach` waits for it to exit. */
+function started<T extends { pid: number }>(client: T): T {
+  clients.push(client.pid)
+  return client
+}
 
 async function startMock(opts?: MockWebhostOptions): Promise<void> {
   if (mock) await mock.close()
@@ -824,7 +837,7 @@ describe('play', () => {
     const join_ = makeJoin()
     const path = await localPatch()
     const plan = await join_.prepare({ kind: 'patch', path }, null, fakeTask())
-    const { pid } = await join_.play(plan.planId)
+    const { pid } = started(await join_.play(plan.planId))
 
     expect(pid).toBeGreaterThan(0)
     expect(await recorded()).toMatchObject({
@@ -835,12 +848,14 @@ describe('play', () => {
   })
 
   it('textClient starts ArchipelagoTextClient with connect, name and password', async () => {
-    const { pid } = await makeJoin().textClient({
-      host: 'archipelago.gg',
-      port: 51234,
-      slot: 'Goat Two',
-      password: 'hunter2',
-    })
+    const { pid } = started(
+      await makeJoin().textClient({
+        host: 'archipelago.gg',
+        port: 51234,
+        slot: 'Goat Two',
+        password: 'hunter2',
+      }),
+    )
     expect(pid).toBeGreaterThan(0)
     expect(await recorded()).toMatchObject({
       program: 'ArchipelagoTextClient',
@@ -851,12 +866,14 @@ describe('play', () => {
   it('textClient without a slot leaves the name out: the Text Client asks for it', async () => {
     // `localhost:38281`, the address the live screen shows, names no slot (the real run of
     // docs/verification/2026-10-16-real-run.md); CommonClient then logs `Enter slot name:`.
-    const { pid } = await makeJoin().textClient({
-      host: 'localhost',
-      port: 38281,
-      slot: null,
-      password: null,
-    })
+    const { pid } = started(
+      await makeJoin().textClient({
+        host: 'localhost',
+        port: 38281,
+        slot: null,
+        password: null,
+      }),
+    )
     expect(pid).toBeGreaterThan(0)
     expect(await recorded()).toMatchObject({
       program: 'ArchipelagoTextClient',
