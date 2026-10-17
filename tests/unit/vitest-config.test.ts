@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vitest/config'
 import type { CacheKeyIdGenerator, CacheKeyIdGeneratorContext, VitestPluginContext } from 'vitest/node'
+// .mjs names vitest.config.mts (TypeScript and Vite map the emitted extension back to the source).
 import config from '../../vitest.config.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -34,7 +35,7 @@ describe('vitest fs module cache', () => {
   it('never caches a module that uses import.meta.glob, whatever its spelling', () => {
     expect(isCached('typed.ts', "import.meta.glob<{ default: F }>(['./*.ts'], { eager: true })")).toBe(false)
     expect(isCached('plain.ts', "import.meta.glob('./*.service.ts', { eager: true })")).toBe(false)
-    expect(isCached('plain.ts', 'export const answer = 42')).toBe(true)
+    expect(isCached('answer.ts', 'export const answer = 42')).toBe(true)
   })
 
   it('covers every module of src and tests that uses import.meta.glob', () => {
