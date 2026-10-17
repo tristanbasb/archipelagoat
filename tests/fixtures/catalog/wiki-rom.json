@@ -1,0 +1,22 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "categorymembers": [
+      {
+        "pageid": 217,
+        "ns": 0,
+        "title": "Donkey Kong Country 3"
+      },
+      {
+        "pageid": 70,
+        "ns": 0,
+        "title": "A Link to the Past"
+      },
+      {
+        "pageid": 253,
+        "ns": 0,
+        "title": "Ocarina of Time"
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "categorymembers": [
+      {
+        "pageid": 179,
+        "ns": 0,
+        "title": "Celeste"
+      },
+      {
+        "pageid": 453,
+        "ns": 0,
+        "title": "Gauntlet Legends"
+      },
+      {
+        "pageid": 114,
+        "ns": 0,
+        "title": "Pokemon Crystal"
+      },
+      {
+        "pageid": 133,
+        "ns": 0,
+        "title": "Super Mario Sunshine"
+      }
+    ]
+  }
+}
