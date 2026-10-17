@@ -1,0 +1,296 @@
+/* The wizard: header, a stepper band, the current step and its sticky nav bar. */
+.wizard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The stepper in a faint band, like the stage map of an arcade cabinet. */
+.wizard__stepper {
+  margin-bottom: var(--sp-6);
+  padding: var(--sp-4) var(--sp-2) var(--sp-3);
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--neon-violet) 6%, transparent) 50%,
+      transparent
+    ),
+    color-mix(in srgb, var(--bg-1) 72%, transparent);
+  border-block: 1px solid var(--line);
+}
+
+.wizard__step {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+  outline: none;
+  animation: wizard-step-in 280ms var(--ease-out) backwards;
+}
+
+@keyframes wizard-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.wizard__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-12);
+  color: var(--neon-violet);
+}
+
+/* ---- Step nav ------------------------------------------------------------------------------ */
+
+/* Sticks to the bottom of the screen area, so next is always one look away. */
+.step-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-top: var(--sp-2);
+  padding: var(--sp-5) 0 var(--sp-4);
+  /* Frosted rather than opaque, so the floor grid of the screen still shows through. */
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--bg-0) 94%, transparent) 30%);
+  backdrop-filter: blur(4px);
+  mask-image: linear-gradient(to bottom, transparent, #000 10px);
+}
+
+.step-nav--static {
+  position: relative;
+  background: none;
+  backdrop-filter: none;
+  mask-image: none;
+}
+
+.step-nav::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--line),
+    color-mix(in srgb, var(--neon-violet) 40%, var(--line)),
+    var(--line)
+  );
+}
+
+.step-nav__end {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+  margin-left: auto;
+}
+
+.step-nav__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 60ch;
+  color: color-mix(in srgb, var(--neon-yellow) 78%, #ffffff);
+  font-size: var(--fs-13);
+  text-align: right;
+}
+
+.step-nav__reason svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.step-nav__next .neon-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.step-nav__chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.step-nav__next:hover:not(:disabled) .step-nav__chevron {
+  transform: translateX(2px);
+}
+
+/* ---- Small icon buttons (remove, dismiss, reveal) ------------------------------------------ */
+
+.icon-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.icon-btn:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--text);
+}
+
+.icon-btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--neon-pink) 14%, transparent);
+  color: var(--neon-pink);
+}
+
+.icon-btn:disabled {
+  opacity: 0.5;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---- /session/new --------------------------------------------------------------------------- */
+
+.new-session {
+  display: grid;
+  grid-template-columns: minmax(0, 720px);
+  gap: var(--sp-6);
+  align-items: start;
+}
+
+.new-session[data-resume] {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .new-session[data-resume] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.new-session__form {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.new-session__body {
+  color: var(--text-dim);
+}
+
+.new-session__field-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--neon-yellow);
+}
+
+.new-session__submit {
+  justify-self: start;
+}
+
+.resume-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resume-row {
+  --pb-color: var(--line);
+  --pb-fill: var(--bg-1);
+  --pb-step: var(--corner-sm);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon name pill'
+    'icon meta go';
+  align-items: center;
+  gap: 2px var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3);
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.resume-row:hover {
+  --pb-color: color-mix(in srgb, var(--neon-cyan) 55%, transparent);
+  --pb-fill: color-mix(in srgb, var(--neon-cyan) 7%, var(--bg-1));
+}
+
+.resume-row__icon {
+  grid-area: icon;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: color-mix(in srgb, var(--neon-cyan) 14%, transparent);
+  color: var(--neon-cyan);
+  clip-path: var(--clip-corner);
+}
+
+.resume-row__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.resume-row__text {
+  display: contents;
+}
+
+.resume-row__name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resume-row__meta {
+  grid-area: meta;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-12);
+}
+
+.resume-row__go {
+  grid-area: go;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: color-mix(in srgb, var(--neon-cyan) 78%, #ffffff);
+  font-size: var(--fs-12);
+}
+
+.resume-row__go svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.resume-row:hover .resume-row__go svg {
+  transform: translateX(2px);
+}
+
+.resume-row .status-pill {
+  grid-area: pill;
+  justify-self: end;
+}

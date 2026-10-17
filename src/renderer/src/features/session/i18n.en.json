@@ -1,1 +1,327 @@
-{}
+{
+  "eyebrow": "STAGE {{n}}",
+  "status": {
+    "draft": "Draft",
+    "generated": "Generated",
+    "hosting": "Live",
+    "finished": "Finished"
+  },
+  "stepsLabel": "Game steps",
+  "steps": {
+    "players": "Players",
+    "check": "Check",
+    "rules": "Rules",
+    "generate": "Generation",
+    "host": "Hosting"
+  },
+  "hints": {
+    "players": "Gather every player’s YAML.",
+    "check": "Making sure everything is ready before generating.",
+    "rules": "Choose how the game is played.",
+    "generate": "Archipelago shuffles everyone’s worlds together.",
+    "host": "Choose where the game server runs."
+  },
+  "nav": {
+    "label": "Next and previous steps",
+    "back": "Back",
+    "next": "Next",
+    "saving": "Saving…"
+  },
+  "load": {
+    "loading": "Loading the game…",
+    "notFoundTitle": "Game not found",
+    "notFoundBody": "It may have been deleted. You can start a new one.",
+    "newGame": "New game"
+  },
+  "new": {
+    "eyebrow": "PLAYER 1",
+    "title": "New game",
+    "body": "Give it a name: you will add the players right after.",
+    "nameLabel": "Game name",
+    "defaultName": "Game of {{date}}",
+    "create": "Create the game",
+    "creating": "Creating…",
+    "resumeEyebrow": "CONTINUE?",
+    "resumeTitle": "Resume a game",
+    "players_one": "{{count}} player",
+    "players_other": "{{count}} players",
+    "updated": "Changed on {{date}}",
+    "resume": "Resume",
+    "watch": "Open the live game"
+  },
+  "players": {
+    "dropTitle": "Drop the players’ YAML files here",
+    "dropHint": ".yaml, .yml or .txt files, or a .zip of YAML files",
+    "browse": "Browse…",
+    "pickTitle": "Add player YAML files",
+    "pickFilter": "Player YAML files",
+    "importing": "Importing…",
+    "studio": "Make mine in the Studio",
+    "title": "Players",
+    "count_one": "{{count}} player",
+    "count_other": "{{count}} players",
+    "listLabel": "Player files",
+    "emptyTitle": "No players yet",
+    "emptyBody": "Each player sends you their YAML: drop them all here.",
+    "slot": "P{{n}}",
+    "noName": "No name",
+    "noDocs": "No player in this file.",
+    "remove": "Remove {{name}}",
+    "removed": "Removed from the game: {{name}}",
+    "fileOk": "Ready",
+    "fileWarnings_one": "{{count}} warning",
+    "fileWarnings_other": "{{count}} warnings",
+    "fileErrors_one": "{{count}} error",
+    "fileErrors_other": "{{count}} errors",
+    "ignoredTitle": "Ignored files",
+    "ignoredBody": "These are not player YAML files: they were not added.",
+    "dismiss": "Hide the list",
+    "needPlayers": "Add at least one YAML to continue."
+  },
+  "check": {
+    "checking": "Checking the game…",
+    "recheck": "Check again",
+    "summaryLabel": "Check summary",
+    "summary": {
+      "players": "Players",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "worlds": "Missing worlds",
+      "roms": "ROMs needed"
+    },
+    "readyTitle": "All set",
+    "readyBody": "Nothing blocking: you can move on to the rules.",
+    "readyWarnings": "Nothing blocking, but have a look at the warnings below.",
+    "blocked": "Cannot continue: {{reasons}}.",
+    "blockedUnknown": "Cannot continue: the check reports a blocking problem.",
+    "reasons": {
+      "errors_one": "{{count}} error to fix",
+      "errors_other": "{{count}} errors to fix",
+      "worlds_one": "{{count}} world to install",
+      "worlds_other": "{{count}} worlds to install",
+      "roms_one": "{{count}} ROM to provide",
+      "roms_other": "{{count}} ROMs to provide"
+    },
+    "worldsTitle": "Missing worlds",
+    "worldsBody": "No installed world handles these games.",
+    "installAll": "Install the missing worlds",
+    "install": "Install",
+    "installLabel": "Install {{game}}",
+    "fromCatalog": "Catalog",
+    "notInCatalog": "Not in the catalog: ask the player for the .apworld file.",
+    "pickFile": "Choose the file…",
+    "pickFileLabel": "Choose the .apworld file for {{game}}",
+    "pickTitle": "APWorld for {{game}}",
+    "romsTitle": "ROMs",
+    "romsBody": "These games need their ROM to be generated. It stays on your PC: nothing is downloaded or shared.",
+    "rom": {
+      "vault": "ROM found in the vault",
+      "settings": "ROM ready",
+      "missing": "ROM missing",
+      "bad-hash": "Wrong version of the ROM"
+    },
+    "openVault": "Open the ROM vault",
+    "filesOk_one": "{{count}} file without problems",
+    "filesOk_other": "{{count}} files without problems",
+    "sessionTitle": "Whole game",
+    "rename": "Rename",
+    "renameLabel": "Rename {{name}}",
+    "fixInStudio": "Fix in the Studio",
+    "unnamed": "Unnamed player",
+    "severity": {
+      "error": "Error",
+      "warning": "Warning"
+    }
+  },
+  "rename": {
+    "eyebrow": "NAME ENTRY",
+    "title": "Rename {{name}}",
+    "label": "New name",
+    "hint": "16 characters at most, different from the other players’ names.",
+    "tooLong": "16 characters at most.",
+    "numeric": "A name cannot be made of digits only.",
+    "multiDoc": "The other players of this file are kept as they are.",
+    "confirm": "Rename",
+    "saving": "Renaming…",
+    "unreadable": "This file cannot be read back here: fix it in the Studio.",
+    "done": "Player renamed: {{name}}"
+  },
+  "rules": {
+    "presetsLabel": "Preset",
+    "presets": {
+      "casual": {
+        "title": "Casual",
+        "body": "With friends: cheap hints, and each world releases its items when its player is done."
+      },
+      "async": {
+        "title": "Async",
+        "body": "Over several days: the server never stops on its own, everyone plays at their pace."
+      },
+      "race": {
+        "title": "Race",
+        "body": "For a competition: no spoiler, race mode and the same version for everyone."
+      }
+    },
+    "custom": "Custom",
+    "passwordsTitle": "Passwords",
+    "password": "Players’ password",
+    "passwordHint": "Asked from every player to connect. Empty: no password.",
+    "serverPassword": "Admin password",
+    "serverPasswordHint": "To run the server remotely (!admin). Empty: disabled.",
+    "secretsUnavailable": "The saved passwords could not be read back.",
+    "show": "Show the password",
+    "hide": "Hide the password",
+    "advanced": "Advanced settings",
+    "groups": {
+      "hints": "Hints",
+      "commands": "Player commands",
+      "game": "Game"
+    },
+    "hintCost": "Hint cost",
+    "hintCostHint": "As a % of the world’s locations: 10 gives a hint every 10%.",
+    "locationCheckPoints": "Points per location checked",
+    "locationCheckPointsHint": "The points that pay for hints.",
+    "releaseMode": "Release (!release)",
+    "releaseModeHint": "Sends the items left in your world to the other players.",
+    "collectMode": "Collect (!collect)",
+    "collectModeHint": "Grabs at once your items left in the other worlds.",
+    "modes": {
+      "auto": "Automatic on goal",
+      "enabled": "Always allowed",
+      "disabled": "Disabled",
+      "goal": "Allowed after goal",
+      "auto-enabled": "Automatic, and allowed before"
+    },
+    "remainingMode": "Remaining items (!remaining)",
+    "remaining": {
+      "enabled": "Always",
+      "goal": "After goal",
+      "disabled": "Never"
+    },
+    "countdownMode": "Countdown (!countdown)",
+    "countdown": {
+      "auto": "Auto",
+      "enabled": "Always",
+      "disabled": "Never"
+    },
+    "countdownHint": "Auto: allowed under 30 players. The host can always run /countdown.",
+    "itemCheat": "Allow !getitem",
+    "itemCheatHint": "Players can give themselves items: that is cheating.",
+    "spoiler": "Spoiler file",
+    "spoilers": {
+      "0": "None",
+      "1": "Basic",
+      "2": "Playthrough",
+      "3": "Full"
+    },
+    "spoilerHint": "Basic: where each item is. Playthrough: plus a solution. Full: plus the path to each item.",
+    "race": "Race mode",
+    "raceHint": "Flags the game as a race; games that support it encrypt their ROMs.",
+    "autoShutdown": "Auto shutdown (minutes)",
+    "autoShutdownHint": "Stops the server after this long without a new location checked. 0: never.",
+    "compatibility": "Client versions",
+    "compatibilities": {
+      "2": "All",
+      "0": "Exact version"
+    },
+    "compatibilityHint": "Exact version: every client must run exactly the server’s version.",
+    "plando": "Plando allowed",
+    "plandoHint": "What the YAML files may place by hand.",
+    "plandoKinds": {
+      "bosses": "Bosses",
+      "items": "Items",
+      "texts": "Texts",
+      "connections": "Connections"
+    }
+  },
+  "generate": {
+    "eyebrow": "PRESS START",
+    "idleTitle": "Ready to generate",
+    "idleBody": "Archipelago reads the YAML files, spreads the items across every world and prepares one file per player. It takes from a few seconds to a few minutes.",
+    "start": "Start the generation",
+    "regenerate": "Generate again",
+    "players_one": "{{count}} player",
+    "players_other": "{{count}} players",
+    "games_one": "{{count}} game",
+    "games_other": "{{count}} games",
+    "preset": "Rules: {{preset}}",
+    "runningEyebrow": "LOADING",
+    "running": "Generating",
+    "stageWaiting": "Starting…",
+    "elapsed": "Elapsed: {{time}}",
+    "cancel": "Cancel",
+    "cancelLabel": "Cancel the generation",
+    "cancelledTitle": "Generation cancelled",
+    "cancelledBody": "Nothing was kept. Start again whenever you like.",
+    "log_one": "Generation log ({{count}} line)",
+    "log_other": "Generation log ({{count}} lines)",
+    "logLabel": "Archipelago output",
+    "retry": "Generate again",
+    "backToCheck": "Back to the check",
+    "backToRules": "Back to the rules",
+    "successEyebrow": "STAGE CLEAR",
+    "success": "Game generated",
+    "successBody": "Every player has a slot. All that is left is hosting the game.",
+    "seed": "Seed",
+    "duration": "Duration",
+    "slotsLabel": "Game slots",
+    "slot": "Slot",
+    "player": "Player",
+    "game": "Game",
+    "patch": "Patch file",
+    "noPatch": "None",
+    "needPlayersTitle": "Nobody to play",
+    "needPlayers": "Add players before generating.",
+    "toPlayers": "Add players",
+    "needGeneration": "Generate the game to continue."
+  },
+  "host": {
+    "noGenerationTitle": "No generated game yet",
+    "noGenerationBody": "Generate the game before choosing where to host it.",
+    "toGenerate": "Go to the generation",
+    "liveTitle": "This game is already hosted",
+    "liveWeb": "It runs on archipelago.gg.",
+    "liveLocal": "It runs on this PC.",
+    "openLive": "Open the live game",
+    "chooseLabel": "Where to host the game",
+    "recommended": "Recommended for the Internet",
+    "web": {
+      "eyebrow": "ONLINE",
+      "title": "archipelago.gg",
+      "body": "Archipelago’s official site runs the server for you.",
+      "pointSetup": "Nothing to set up on your router",
+      "pointConnect": "Players connect to archipelago.gg, on a port the site gives",
+      "pointSleep": "The room sleeps when nobody plays; one click wakes it up",
+      "action": "Host on archipelago.gg",
+      "stages": {
+        "upload": "Sending to archipelago.gg…",
+        "room": "Opening the room…",
+        "wake": "Waking the room up…",
+        "port": "Waiting for the room’s port…"
+      }
+    },
+    "local": {
+      "eyebrow": "LAN",
+      "title": "On this PC",
+      "badge": "LAN, or the Internet with port forwarding",
+      "body": "The server runs here, as long as the app stays open.",
+      "pointLan": "Great when everyone is on the same network",
+      "pointPort": "For the Internet: forward the server’s TCP port on your router",
+      "pointConsole": "You keep control of the server console",
+      "action": "Start the local server",
+      "starting": "Starting the server…"
+    }
+  },
+  "consent": {
+    "eyebrow": "ONLINE",
+    "title": "Host on archipelago.gg?",
+    "intro": "The generated game (its zip file) will be sent to archipelago.gg, which will run the server.",
+    "passwords": "The zip holds the game’s passwords in plain text: the site can read them.",
+    "passwordsSet": "This game has a password.",
+    "passwordsNone": "This game has no password.",
+    "public": "Anyone who has the link can reach the room.",
+    "eachTime": "This question comes back every time you host on the site.",
+    "ack": "I understand",
+    "confirm": "Send and host"
+  }
+}

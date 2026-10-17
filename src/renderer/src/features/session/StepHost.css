@@ -1,0 +1,167 @@
+/* Step 5: two cards, archipelago.gg (lit, recommended) and this PC. */
+.host-step {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.host-live {
+  --pb-color: color-mix(in srgb, var(--neon-green) 55%, transparent);
+  --pb-fill:
+    radial-gradient(
+      120% 160% at 0% 0%,
+      color-mix(in srgb, var(--neon-green) 12%, transparent),
+      transparent 60%
+    ),
+    var(--bg-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.host-live__icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  color: var(--neon-green);
+  filter: var(--drop-glow);
+}
+
+.host-live__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.host-live__title {
+  font-weight: 700;
+}
+
+.host-live__body {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.host-live .neon-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.host-live .neon-btn__label svg {
+  width: 16px;
+  height: 16px;
+}
+
+.host-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-6);
+}
+
+@media (max-width: 900px) {
+  .host-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.host-card {
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    radial-gradient(110% 70% at 100% 0%, color-mix(in srgb, var(--tone) 15%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-5) var(--sp-6);
+}
+
+.host-card--featured {
+  --pb-color: var(--tone);
+  filter: var(--drop-glow);
+}
+
+.host-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.host-card__heading {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.host-card__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 32%, transparent);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.host-card__icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.host-card__eyebrow {
+  color: var(--tone-ink);
+}
+
+.host-card__title {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.host-card__badge {
+  display: flex;
+}
+
+.host-card__body {
+  color: var(--text-dim);
+}
+
+.host-card__points {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.host-card__points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  font-size: var(--fs-13);
+}
+
+.host-card__point-icon {
+  display: inline-flex;
+  flex: none;
+  margin-top: 2px;
+  color: var(--tone);
+}
+
+.host-card__point-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.host-card__action {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.host-card__action > .neon-btn {
+  width: 100%;
+}

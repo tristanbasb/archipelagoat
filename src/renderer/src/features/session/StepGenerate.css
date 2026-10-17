@@ -1,0 +1,299 @@
+/* Step 4: an arcade cabinet screen: press start, the stage bar, then stage clear. */
+.generate-step {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.gen-cabinet {
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    radial-gradient(80% 120% at 50% 0%, color-mix(in srgb, var(--tone) 17%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-10) var(--sp-8);
+  text-align: center;
+}
+
+.gen-cabinet__press {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+  animation: gen-blink 1.1s steps(1, end) infinite;
+}
+
+@keyframes gen-blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.gen-cabinet__title {
+  font-size: var(--fs-28);
+  line-height: 1.2;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 40%, transparent);
+}
+
+.gen-cabinet__body {
+  max-width: 64ch;
+  color: var(--text-dim);
+}
+
+.gen-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gen-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-size: var(--fs-12);
+  clip-path: var(--clip-corner-sm);
+}
+
+.gen-chips svg {
+  width: 14px;
+  height: 14px;
+  color: var(--neon-violet);
+}
+
+.gen-cabinet__start {
+  margin-top: var(--sp-2);
+}
+
+/* Running: the bar takes the width of the screen. */
+.gen-cabinet--running {
+  justify-items: stretch;
+}
+
+.gen-cabinet--running .gen-cabinet__press,
+.gen-cabinet--running .gen-cabinet__title {
+  justify-self: center;
+}
+
+.gen-cabinet__bar {
+  text-align: left;
+}
+
+.gen-cabinet__bar .progress__label {
+  color: var(--text);
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+/* One lit block per named stage, under the life bar. */
+.stage-track {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0 6px;
+  list-style: none;
+}
+
+.stage-track__node {
+  height: 6px;
+  background: var(--bg-3);
+}
+
+.stage-track__node[data-state='done'] {
+  background: color-mix(in srgb, var(--neon-green) 70%, transparent);
+}
+
+.stage-track__node[data-state='current'] {
+  background: var(--neon-violet);
+  box-shadow: var(--glow-violet);
+  animation: gen-blink 0.8s steps(1, end) infinite;
+}
+
+.gen-cabinet__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.gen-cabinet__elapsed {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Log ------------------------------------------------------------------------------------ */
+
+.gen-log__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2) var(--sp-1) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  list-style: none;
+  cursor: pointer;
+}
+
+.gen-log__summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A pixel arrow that turns down when the log is open. */
+.gen-log__summary::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-block: 5px solid transparent;
+  border-left: 6px solid var(--neon-violet);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.gen-log[open] .gen-log__summary::before {
+  transform: rotate(90deg);
+}
+
+.gen-log__summary:hover {
+  color: var(--text);
+}
+
+.gen-log .terminal {
+  --terminal-height: 320px;
+  margin-top: var(--sp-2);
+}
+
+/* ---- Stage clear ---------------------------------------------------------------------------- */
+
+.gen-clear {
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    radial-gradient(90% 140% at 0% 0%, color-mix(in srgb, var(--tone) 15%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: grid;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
+}
+
+.gen-clear__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.gen-clear__eyebrow {
+  display: block;
+  margin-bottom: var(--sp-2);
+  color: var(--neon-yellow);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+  animation: gen-clear-flash 1.2s steps(6, end) 1;
+}
+
+@keyframes gen-clear-flash {
+  0%,
+  33%,
+  66% {
+    opacity: 1;
+  }
+  16%,
+  50%,
+  83% {
+    opacity: 0;
+  }
+}
+
+.gen-clear__title {
+  color: var(--tone-ink);
+  font-size: var(--fs-28);
+  line-height: 1.2;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 45%, transparent);
+}
+
+.gen-clear__body {
+  margin-top: var(--sp-1);
+  color: var(--text-dim);
+}
+
+.gen-clear__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: 0;
+}
+
+.gen-clear__facts div {
+  min-width: 140px;
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--bg-0) 60%, transparent);
+  box-shadow: inset 2px 0 0 var(--tone-line);
+}
+
+.gen-clear__facts dt {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.gen-clear__facts dd {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gen-slots {
+  overflow-x: auto;
+}
+
+.gen-slots table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-13);
+}
+
+.gen-slots th {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line-strong);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-align: left;
+}
+
+.gen-slots td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.gen-slots tbody tr:hover {
+  background: color-mix(in srgb, var(--neon-green) 5%, transparent);
+}
+
+.gen-slots__num {
+  color: color-mix(in srgb, var(--neon-green) 78%, #ffffff);
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  line-height: 1;
+}
+
+.gen-slots__name {
+  font-weight: 700;
+}
+
+.gen-slots__patch {
+  max-width: 340px;
+  overflow: hidden;
+  color: var(--neon-cyan);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gen-slots__patch[data-none] {
+  color: var(--text-dim);
+}

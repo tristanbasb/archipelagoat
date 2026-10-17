@@ -1,0 +1,49 @@
+/* Square neon confetti falling in steps, fluttering as they go. Under the dialogs and toasts. */
+.pixel-confetti {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) - 1);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pixel-confetti__piece {
+  position: absolute;
+  top: -24px;
+  left: var(--x);
+  width: var(--size);
+  height: var(--size);
+  background: var(--color);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color) 70%, transparent);
+  animation:
+    confetti-fall var(--dur) steps(36, end) var(--delay) both,
+    confetti-flutter 0.56s steps(4, end) var(--delay) infinite;
+}
+
+.pixel-confetti__piece[data-wide] {
+  width: calc(var(--size) * 2);
+}
+
+@keyframes confetti-fall {
+  from {
+    translate: 0 0;
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  to {
+    translate: var(--drift) 108vh;
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-flutter {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+  50% {
+    scale: 1 0.25;
+  }
+}
