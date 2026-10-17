@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { CoreContext } from '@main/core/context'
 import { registerHandlers } from '@main/ipc'
-import { createIpcRegistry } from '@main/ipc/registry'
+import { createIpcRegistry, type HandlerModule } from '@main/ipc/registry'
 import { createServices } from '@main/services'
 import { createServiceRegistry } from '@main/services/registry'
 import { createTestContext } from '../../helpers/core'
@@ -100,6 +101,26 @@ describe('services and handlers wiring', () => {
   })
 
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
+
+  it('registerHandlers runs every handler module of src/main/ipc', async () => {
+    const ipcDir = fileURLToPath(new URL('../../../src/main/ipc/', import.meta.url))
+    const files = readdirSync(ipcDir).filter(
+      (f) => f.endsWith('.ts') && !['index.ts', 'registry.ts'].includes(f),
+    )
+    expect(files).toContain('app.ts')
+    const services = createServices(createTestContext(dir).ctx)
+
+    // What each module registers when it is imported on its own…
+    const expected: string[] = []
+    for (const file of files) {
+      const module = (await import(/* @vite-ignore */ join(ipcDir, file))) as { default: HandlerModule }
+      module.default((name) => void expected.push(name), services)
+    }
+    // …is exactly what the glob of src/main/ipc/index.ts registers.
+    const registered: string[] = []
+    registerHandlers(services, (name) => void registered.push(name))
+    expect(registered.sort()).toEqual(expected.sort())
+  })
 
   it('app:openPath rejects paths outside allowed roots and accepts a root added by a provider', async () => {
     const core = createTestContext(dir)
