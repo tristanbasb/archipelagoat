@@ -24,8 +24,31 @@ export type EditorMode = 'simple' | 'weighted' | 'raw'
 
 const isObject = (value: unknown): value is object => typeof value === 'object' && value !== null
 
-export const isRandom = (value: unknown): boolean =>
-  typeof value === 'string' && value.trim().toLowerCase().startsWith(RANDOM)
+/**
+ * Whether Archipelago reads `value` as its own random pick for this option (Options.py, from_text),
+ * as the validator does. A value that names one of the option's choices (`randomize_recipe`), or a
+ * special name of a named range, never does. Toggle takes `random` as it is, Choice and TextChoice
+ * in any case; only a Range takes every `random…` text (`random-low`, `random-range-1-10`). Raw
+ * kinds have no random pick.
+ */
+export function isRandom(option: OptionSchema, value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  const text = value.toLowerCase()
+  if (option.choices.some((choice) => choice.toLowerCase() === text)) return false
+  switch (option.kind) {
+    case 'toggle':
+      return value === RANDOM
+    case 'choice':
+    case 'text-choice':
+      return text === RANDOM
+    case 'named-range':
+      return !Object.hasOwn(option.specialNames, text) && text.startsWith(RANDOM)
+    case 'range':
+      return text.startsWith(RANDOM)
+    default:
+      return false
+  }
+}
 
 export const isRawKind = (option: OptionSchema): boolean => RAW_KINDS.has(option.kind)
 
@@ -43,12 +66,15 @@ export function simpleValue(option: OptionSchema, value: OptionValue | undefined
   return value?.mode === 'value' ? value.value : option.default
 }
 
-/** On, off, random, or null for a value that is none of them. */
+/**
+ * On, off, random, or null for a value that is none of them. Toggle.from_text takes `random` alone,
+ * as it is: `random-low` or `Random` is refused, not a random pick.
+ */
 export function toggleState(value: unknown): boolean | 'random' | null {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') return value !== 0
   if (typeof value !== 'string') return null
-  if (isRandom(value)) return 'random'
+  if (value === RANDOM) return 'random'
   const text = value.trim().toLowerCase()
   if (TOGGLE_ON.has(text)) return true
   if (TOGGLE_OFF.has(text)) return false

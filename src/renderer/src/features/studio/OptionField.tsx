@@ -88,7 +88,7 @@ export const OptionField = memo(function OptionField({
   const mode = editorMode(option, value)
   const weightable = !isRawKind(option)
   const current = simpleValue(option, value)
-  const random = mode === 'simple' && isRandom(current)
+  const random = mode === 'simple' && isRandom(option, current)
   const modified = isModified(option, value)
   const errors = issues.some((issue) => issue.severity === 'error')
   const { summary, more } = docSummary(option.doc)
@@ -290,7 +290,8 @@ function ChoiceControl({
 }): React.JSX.Element {
   const { t } = useTranslation()
   const picked = pickedChoice(option, value)
-  const outside = !ownText && picked === null && value !== null && value !== undefined && !isRandom(value)
+  const outside =
+    !ownText && picked === null && value !== null && value !== undefined && !isRandom(option, value)
   if (option.choices.length <= MAX_SEGMENTS) {
     return (
       <div className="option-choice">

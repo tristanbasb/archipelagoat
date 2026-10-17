@@ -644,4 +644,26 @@ describe('YAML studio', () => {
     await user.click(amount.getByRole('button', { name: 'Valeur par défaut pour Amount' }))
     expect(amount.getByRole('slider', { name: 'Amount' })).toHaveValue('5')
   })
+
+  it('shows a choice named like a random pick as that choice, not as random', async () => {
+    // Factorio's silo: `randomize_recipe` is a choice; only `random` is Archipelago's pick.
+    const silo = option('silo', 'choice', 'vanilla', { choices: ['vanilla', 'spawn', 'randomize_recipe'] })
+    const schema: GameSchema = { ...SCHEMA, groups: [{ name: 'Game Options', options: [silo] }], presets: {} }
+    const { user } = await renderApp({
+      route: '/studio',
+      handlers: handlers({ 'studio:schema': () => schema }),
+      config: NO_FX,
+    })
+    await startNew(user)
+    const card = within(await screen.findByRole('region', { name: 'Silo' }))
+    const dice = card.getByRole('button', { name: 'Aléatoire pour Silo' })
+    await user.click(card.getByRole('radio', { name: 'Randomize recipe' }))
+    expect(card.getByRole('radio', { name: 'Randomize recipe' })).toHaveAttribute('aria-checked', 'true')
+    expect(card.queryByText('Tirage au hasard')).not.toBeInTheDocument()
+    expect(dice).toHaveAttribute('aria-pressed', 'false')
+    // The dice still leaves it to Archipelago.
+    await user.click(dice)
+    expect(card.getByText('Tirage au hasard')).toBeInTheDocument()
+    expect(dice).toHaveAttribute('aria-pressed', 'true')
+  })
 })

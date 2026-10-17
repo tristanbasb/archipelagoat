@@ -2,6 +2,7 @@ import {
   editorMode,
   humanize,
   isModified,
+  isRandom,
   issueTarget,
   randomize,
   removeOption,
@@ -94,6 +95,11 @@ describe('studio editor ops', () => {
       toSimple(DEATH_LINK, doc({ death_link: { mode: 'weighted', weights: { false: 0, true: 50 } } })).options
         .death_link,
     ).toEqual({ mode: 'value', value: true })
+    // A toggle key that is not Archipelago's random stays as written, for the validator to flag.
+    expect(
+      toSimple(DEATH_LINK, doc({ death_link: { mode: 'weighted', weights: { 'random-low': 50 } } })).options
+        .death_link,
+    ).toEqual({ mode: 'value', value: 'random-low' })
     expect(
       toSimple(
         BALANCING,
@@ -155,8 +161,48 @@ describe('studio editor ops', () => {
     for (const off of [false, 0, 'false', 'off', 'no', 'disabled', 'none'])
       expect(toggleState(off)).toBe(false)
     expect(toggleState('random')).toBe('random')
-    expect(toggleState('random-low')).toBe('random')
+    // Toggle.from_text takes `random` alone, as it is: the validator refuses the rest.
+    for (const other of ['random-low', 'Random', 'randomize']) expect(toggleState(other)).toBeNull()
     expect(toggleState('maybe')).toBeNull()
+  })
+
+  it('isRandom reads a random pick as each kind does, and never a choice', () => {
+    const SILO = option('silo', 'choice', 'vanilla', { choices: ['vanilla', 'spawn', 'randomize_recipe'] })
+    const SCRUBS = option('shuffle_scrubs', 'choice', 'off', {
+      choices: ['off', 'low', 'regular', 'random_prices'],
+    })
+    const SHOP = option('randomize_shop_inventories', 'text-choice', 'default', {
+      choices: ['default', 'randomize_by_shop_type'],
+    })
+    const AMOUNT = option('amount', 'range', 5, { range: { min: 1, max: 10 } })
+    const COUNT = option('count', 'named-range', 0, {
+      range: { min: 0, max: 9 },
+      specialNames: { random_start: 3 },
+    })
+    // Real choices that start like a random pick are choices.
+    expect(isRandom(SILO, 'randomize_recipe')).toBe(false)
+    expect(isRandom(SILO, 'Randomize_Recipe')).toBe(false)
+    expect(isRandom(SCRUBS, 'random_prices')).toBe(false)
+    expect(isRandom(SHOP, 'randomize_by_shop_type')).toBe(false)
+    // Choice and TextChoice take `random` alone, in any case.
+    expect(isRandom(SILO, 'random')).toBe(true)
+    expect(isRandom(SHOP, 'Random')).toBe(true)
+    expect(isRandom(SILO, 'random-low')).toBe(false)
+    expect(isRandom(SHOP, 'random_text')).toBe(false)
+    // Toggle takes `random` as it is.
+    expect(isRandom(DEATH_LINK, 'random')).toBe(true)
+    expect(isRandom(DEATH_LINK, 'Random')).toBe(false)
+    expect(isRandom(DEATH_LINK, 'random-low')).toBe(false)
+    // A Range takes every random… text, but a special name stays a special name.
+    for (const text of ['random', 'random-low', 'Random-High', 'random-range-2-8']) {
+      expect(isRandom(AMOUNT, text)).toBe(true)
+    }
+    expect(isRandom(BALANCING, 'random-middle')).toBe(true)
+    expect(isRandom(COUNT, 'random_start')).toBe(false)
+    // Not text, or a kind edited as YAML: never.
+    expect(isRandom(AMOUNT, 5)).toBe(false)
+    expect(isRandom(SILO, null)).toBe(false)
+    expect(isRandom(MYSTERY, 'random')).toBe(false)
   })
 
   it('withPreset starts from the defaults, keeps the player, then sets the preset', () => {
