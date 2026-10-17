@@ -201,7 +201,8 @@ export interface Bizhawk {
   /**
    * The pinned release, downloaded, verified and extracted (task `bizhawk-install`); resolves with the new
    * state. It also takes the place of a folder chosen with `setPath`. An install asked while another one
-   * runs joins it (and its task, which is the one that reports and can be cancelled).
+   * runs joins it (and its task, which is the one that reports and can be cancelled). An asset the API
+   * gives no digest for is refused (INSTALL_FAILED `no-digest`) before anything is downloaded.
    */
   install(task: TaskHandle): Promise<BizhawkState>
   /**
@@ -442,10 +443,9 @@ export function createBizhawk(ctx: CoreContext, deps: BizhawkDeps): Bizhawk {
     const { assets } = await fetchReleaseByTag(ctx.http, BIZHAWK_REPO, BIZHAWK_TAG)
     const asset = assets.find((a) => a.name === assetName)
     if (!asset) throw new AppError('NOT_FOUND', undefined, { detail: assetName })
+    // The archive is executed afterwards: without the digest of the API there is nothing to trust it by.
     if (asset.sha256 === null) {
-      ctx.log.warn('bizhawk: GitHub gives no digest for the asset: only its size is checked', {
-        asset: assetName,
-      })
+      throw new AppError('INSTALL_FAILED', { reason: 'no-digest' }, { detail: assetName })
     }
 
     const archive = path.join(dataRoot, 'downloads', 'bizhawk', assetName)

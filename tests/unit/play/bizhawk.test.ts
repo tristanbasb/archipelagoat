@@ -788,15 +788,41 @@ describe.each<OS>(['win32', 'linux'])('install (%s)', (os) => {
     expect(readdirSync(join(dataRoot(), 'downloads', 'bizhawk'))).toEqual([])
   })
 
-  it('installs an asset the API gives no digest for, after checking its size', async () => {
+  it('refuses an asset the API gives no digest for, before requesting the archive', async () => {
     const archive = await archiveFor(os)
     serveRelease(os, archive, { digest: null })
     const { bizhawk } = setup(os, { http: makeHttp() })
-    expect(await bizhawk.install(task())).toMatchObject({ installed: true, managed: true })
 
-    rmSync(managedDir(), { recursive: true })
-    serveRelease(os, archive, { digest: null, size: archive.length + 1 })
+    const error = await failure(bizhawk.install(task()))
+
+    expect(error.code).toBe('INSTALL_FAILED')
+    expect(error.params).toMatchObject({ reason: 'no-digest' })
+    expect(error.detail).toBe(BIZHAWK_ASSETS[os])
+    // Only the release was asked for: the archive was never requested, nothing was written.
+    expect(requestedPaths()).toEqual([RELEASE_PATH])
+    expect(existsSync(managedDir())).toBe(false)
+    expect(existsSync(join(dataRoot(), 'downloads', 'bizhawk'))).toBe(false)
+  })
+
+  it('keeps the install it has when the API gives no digest for the asset', async () => {
+    const archive = await archiveFor(os)
+    serveRelease(os, archive)
+    await setup(os, { http: makeHttp() }).bizhawk.install(task())
+
+    serveRelease(os, archive, { digest: null })
     const error = await failure(setup(os, { http: makeHttp() }).bizhawk.install(task()))
+
+    expect(error.params).toMatchObject({ reason: 'no-digest' })
+    // The refusal comes before the old install is replaced.
+    expect(existsSync(join(managedDir(), LAUNCHER[os]))).toBe(true)
+  })
+
+  it('refuses an archive of another size than the one of the API', async () => {
+    const archive = await archiveFor(os)
+    serveRelease(os, archive, { size: archive.length + 1 })
+
+    const error = await failure(setup(os, { http: makeHttp() }).bizhawk.install(task()))
+
     expect(error.code).toBe('DOWNLOAD_HASH_MISMATCH')
     expect(error.params).toMatchObject({ expectedSize: archive.length + 1, actualSize: archive.length })
     expect(existsSync(managedDir())).toBe(false)
