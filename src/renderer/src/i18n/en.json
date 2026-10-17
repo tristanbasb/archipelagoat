@@ -212,6 +212,7 @@
     "WORLD_INVALID": "This file is not a valid APWorld",
     "WORLD_INCOMPATIBLE": "This world is not compatible with your Archipelago version",
     "WORLD_CORRUPT_BLOCKING": "A broken world is blocking Archipelago",
+    "WORLD_CORRUPT_BLOCKING_file": "The broken world {{file}} is blocking Archipelago",
     "YAML_PARSE": "This YAML cannot be read",
     "GENERATION_PREFLIGHT": "The game is not ready to generate",
     "GENERATION_FAILED": "Generation failed",
@@ -264,6 +265,7 @@
       "WORLD_INVALID": "An .apworld is a zip archive holding a world’s Python folder. Check that you downloaded the right file.",
       "WORLD_INCOMPATIBLE": "Look for a version of the world made for your Archipelago version, or update Archipelago.",
       "WORLD_CORRUPT_BLOCKING": "A corrupted APWorld keeps Archipelago from starting. Set it aside from the Worlds screen or the health check.",
+      "WORLD_CORRUPT_BLOCKING_file": "{{file}} is a corrupted APWorld and keeps Archipelago from starting. Set it aside from the Worlds screen or the health check.",
       "YAML_PARSE": "A syntax error prevents reading it (often a tab or a missing colon). Fix it in the studio.",
       "GENERATION_PREFLIGHT": "Some checks failed before starting. Fix the reported points in the Check step.",
       "GENERATION_FAILED": "Archipelago stopped on an error. The log has the details.",
@@ -459,6 +461,14 @@
     "upload": "Sending to archipelago.gg",
     "room": "Opening the room",
     "wake": "Waking the room up",
-    "port": "Waiting for the room’s port"
+    "port": "Waiting for the room’s port",
+    "uninstall": "Uninstalling",
+    "scan": "Checking the installed worlds",
+    "generate": "Writing the templates",
+    "done": "Done",
+    "list": "Looking for files",
+    "hash": "Computing fingerprints",
+    "release": "Looking up the version",
+    "extract": "Extracting the files"
   }
 }

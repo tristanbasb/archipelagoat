@@ -42,4 +42,42 @@ describe('describeError', () => {
     })
     expect(describeError({ code: 'NOT_A_CODE' }).title).toBe('Unexpected error')
   })
+
+  describe('WORLD_CORRUPT_BLOCKING', () => {
+    it('names the corrupt world file in French when the error carries it', () => {
+      const described = describeError({ code: 'WORLD_CORRUPT_BLOCKING', params: { file: 'broken.apworld' } })
+      expect(described.title).toBe('Le monde cassé broken.apworld bloque Archipelago')
+      expect(described.body).toContain('broken.apworld')
+      expect(described.action).toEqual({ labelKey: 'errors.actions.worlds', to: '/worlds' })
+    })
+
+    it('names the corrupt world file in English when the error carries it', async () => {
+      await i18n.changeLanguage('en')
+      const described = describeError({ code: 'WORLD_CORRUPT_BLOCKING', params: { file: 'broken.apworld' } })
+      expect(described.title).toBe('The broken world broken.apworld is blocking Archipelago')
+      expect(described.body).toContain('broken.apworld')
+    })
+
+    it.each(['fr', 'en'] as const)('keeps the generic text without a file (%s)', async (lang) => {
+      await i18n.changeLanguage(lang)
+      const generic = describeError({ code: 'WORLD_CORRUPT_BLOCKING' })
+      expect(generic.title).toBe(i18n.t('errors.WORLD_CORRUPT_BLOCKING'))
+      for (const params of [{}, { file: '' }]) {
+        const described = describeError({ code: 'WORLD_CORRUPT_BLOCKING', params })
+        expect(described.title).toBe(generic.title)
+        expect(described.body).toBe(generic.body)
+      }
+      for (const text of [generic.title, generic.body]) {
+        expect(text).not.toContain('…')
+        expect(text).not.toContain('{{')
+        expect(text).not.toContain('apworld')
+      }
+    })
+
+    it('leaves an error whose file has no dedicated text as it is', () => {
+      const described = describeError({ code: 'NOT_FOUND', params: { file: 'EmuHawk.exe' } })
+      expect(described.title).toBe(i18n.t('errors.NOT_FOUND'))
+      expect(described.body).toBe(i18n.t('errors.help.NOT_FOUND'))
+    })
+  })
 })

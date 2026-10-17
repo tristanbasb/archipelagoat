@@ -1,5 +1,6 @@
 // Turns any error into translated text: what went wrong (`errors.<CODE>`), how to fix it
-// (`errors.help.<CODE>`) and, when there is one, the screen that fixes it.
+// (`errors.help.<CODE>`) and, when there is one, the screen that fixes it. The `params` fill the
+// text's {{variables}}; a `file` param picks the variant naming it (`errors.<CODE>_file`) when there is one.
 import type { TFunction } from 'i18next'
 import type { ErrorCode } from '@shared/codes'
 import { isAppErrorData, type AppErrorData } from '@shared/errors'
@@ -63,9 +64,13 @@ export const ERROR_ACTIONS: Partial<Record<ErrorCode, ErrorAction>> = {
 export function describeError(e: unknown, t: TFunction = i18n.t): DescribedError {
   const data: AppErrorData = isAppErrorData(e) ? e : { code: 'AP_UNKNOWN', detail: String(e) }
   const params = data.params ?? {}
+  // A file name selects the `<CODE>_file` text, which says which file; without one, or for a code that
+  // has no such text, the plain text applies (i18next falls back to it).
+  const options =
+    typeof params.file === 'string' && params.file !== '' ? { ...params, context: 'file' } : params
   const described: DescribedError = {
-    title: t(`errors.${data.code}`, params),
-    body: t(`errors.help.${data.code}`, params),
+    title: t(`errors.${data.code}`, options),
+    body: t(`errors.help.${data.code}`, options),
   }
   const action = ERROR_ACTIONS[data.code]
   if (action) described.action = action

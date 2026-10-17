@@ -32,7 +32,7 @@ import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useTask } from '../../hooks/useTask'
 import { describeError } from '../../lib/errors'
 import { invoke } from '../../lib/goat'
-import { errorPanelProps } from './error-props'
+import { bizhawkErrorPanelProps, errorPanelProps } from './error-props'
 import { useRunningTask } from './useRunningTask'
 import './BizhawkCard.css'
 
@@ -268,7 +268,7 @@ export function BizhawkCard(): React.JSX.Element {
         </div>
       )}
 
-      {actionError && <ErrorPanel {...errorPanelProps(actionError, t)} />}
+      {actionError && <ErrorPanel {...bizhawkErrorPanelProps(actionError, t)} />}
 
       {state && (
         <div className="bizhawk-card__actions">

@@ -111,7 +111,13 @@
     "chooseTitle": "Choose the BizHawk folder",
     "chosen": "BizHawk found",
     "forget": "Forget this path",
-    "forgotten": "BizHawk path forgotten"
+    "forgotten": "BizHawk path forgotten",
+    "installErrors": {
+      "remove-old": "BizHawk could not replace the previous version, whose files are probably still in use. Close BizHawk (EmuHawk) and any client that opened it, then start the install again.",
+      "extract": "BizHawk’s archive could not be unpacked. Check that there is enough disk space and that your antivirus is not blocking ArchipelaGOAT’s folder, then start the install again.",
+      "launcher-missing": "The archive was unpacked, but BizHawk’s launcher (EmuHawk) is not in it or was deleted, often by an antivirus. Allow ArchipelaGOAT’s folder in your antivirus and start the install again, or install BizHawk yourself and pick it with “$t(screens.vault.bizhawk.choose)”.",
+      "no-digest": "GitHub did not provide the checksum of BizHawk’s archive, and ArchipelaGOAT will not run what it cannot verify. Try again later, or install BizHawk yourself and pick it with “$t(screens.vault.bizhawk.choose)”."
+    }
   },
   "games": {
     "eyebrow": "GAME LIST",

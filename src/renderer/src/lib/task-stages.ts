@@ -16,6 +16,18 @@ export const TASK_STAGES = [
   'quarantine',
   'install',
   'detect',
+  // ap-uninstall (Task 9)
+  'uninstall',
+  // templates (Task 12)
+  'scan',
+  'generate',
+  'done',
+  // rom-scan (Task 18)
+  'list',
+  'hash',
+  // bizhawk-install (Task 19), besides its download
+  'release',
+  'extract',
   // webhost-host (Task 17)
   'upload',
   'room',

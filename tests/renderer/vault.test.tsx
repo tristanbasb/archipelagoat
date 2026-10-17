@@ -259,6 +259,54 @@ describe('VaultScreen', () => {
     await waitFor(() => expect(within(card).queryByRole('alert')).toBeNull())
   })
 
+  describe('a failed BizHawk install', () => {
+    /** Starts the install from the card, fails the task with `error`, and returns the alert of the card. */
+    async function failInstall(error: ReturnType<typeof goatError>, lang: 'fr' | 'en' = 'fr') {
+      const goat = installGoatMock(handlers({ 'bizhawk:install': () => ({ taskId: 'bh-3' }) }))
+      const { user } = await renderWithProviders(<VaultScreen />, { lang })
+      const card = await screen.findByRole('region', { name: 'BizHawk' })
+      await user.click(
+        await within(card).findByRole('button', {
+          name: lang === 'fr' ? 'Installer BizHawk 2.11.1' : 'Install BizHawk 2.11.1',
+        }),
+      )
+      await waitFor(() => expect(goat.inputsOf('bizhawk:install')).toHaveLength(1))
+      goat.emit('task:failed', { taskId: 'bh-3', kind: 'bizhawk-install', error })
+      return within(await within(card).findByRole('alert'))
+    }
+
+    it.each([
+      ['remove-old', /Ferme BizHawk \(EmuHawk\).*relance l’installation/],
+      ['extract', /n’a pas pu être décompressée.*espace disque.*antivirus/],
+      ['launcher-missing', /lanceur de BizHawk \(EmuHawk\).*antivirus.*« Choisir un BizHawk existant »/],
+      ['no-digest', /n’a pas donné l’empreinte.*« Choisir un BizHawk existant »/],
+    ])('explains the %s failure and how to fix it', async (reason, explanation) => {
+      const alert = await failInstall(
+        goatError('INSTALL_FAILED', { reason }, { detail: 'EBUSY: resource busy or locked' }),
+      )
+      expect(alert.getByText('L’installation a échoué')).toBeInTheDocument()
+      expect(alert.getByText(explanation)).toBeInTheDocument()
+      // The generic advice is replaced, and the technical detail stays available.
+      expect(alert.queryByText(/Le log donne le détail/)).toBeNull()
+      expect(alert.getByText('EBUSY: resource busy or locked')).toBeInTheDocument()
+    })
+
+    it('explains it in English', async () => {
+      const alert = await failInstall(goatError('INSTALL_FAILED', { reason: 'remove-old' }), 'en')
+      expect(alert.getByText('The installation failed')).toBeInTheDocument()
+      expect(alert.getByText(/Close BizHawk \(EmuHawk\) and any client that opened it/)).toBeInTheDocument()
+    })
+
+    it.each([
+      ['without a reason', undefined],
+      ['with a reason it does not know', { reason: 'Fatal error during installation' }],
+    ])('keeps the generic text %s', async (_label, params) => {
+      const alert = await failInstall(goatError('INSTALL_FAILED', params))
+      expect(alert.getByText('L’installation a échoué')).toBeInTheDocument()
+      expect(alert.getByText(/Le log donne le détail/)).toBeInTheDocument()
+    })
+  })
+
   it('uses an existing BizHawk folder and can forget it', async () => {
     const external: BizhawkState = {
       installed: true,

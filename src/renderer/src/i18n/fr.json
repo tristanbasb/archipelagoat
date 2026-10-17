@@ -212,6 +212,7 @@
     "WORLD_INVALID": "Ce fichier n’est pas un APWorld valide",
     "WORLD_INCOMPATIBLE": "Ce monde n’est pas compatible avec ta version d’Archipelago",
     "WORLD_CORRUPT_BLOCKING": "Un monde cassé bloque Archipelago",
+    "WORLD_CORRUPT_BLOCKING_file": "Le monde cassé {{file}} bloque Archipelago",
     "YAML_PARSE": "Ce YAML est illisible",
     "GENERATION_PREFLIGHT": "La partie n’est pas prête à être générée",
     "GENERATION_FAILED": "La génération a échoué",
@@ -264,6 +265,7 @@
       "WORLD_INVALID": "Un .apworld est une archive zip qui contient le dossier Python d’un monde. Vérifie que tu as téléchargé le bon fichier.",
       "WORLD_INCOMPATIBLE": "Cherche une version du monde faite pour ta version d’Archipelago, ou mets Archipelago à jour.",
       "WORLD_CORRUPT_BLOCKING": "Un APWorld corrompu empêche Archipelago de démarrer. Mets-le de côté depuis l’écran Mondes ou le diagnostic.",
+      "WORLD_CORRUPT_BLOCKING_file": "{{file}} est un APWorld corrompu et empêche Archipelago de démarrer. Mets-le de côté depuis l’écran Mondes ou le diagnostic.",
       "YAML_PARSE": "Une erreur de syntaxe empêche de le lire (souvent une tabulation ou un deux-points oublié). Corrige-le dans le Studio.",
       "GENERATION_PREFLIGHT": "Des vérifications ont échoué avant le lancement. Corrige les points signalés à l’étape Vérification.",
       "GENERATION_FAILED": "Archipelago s’est arrêté sur une erreur. Le log contient le détail.",
@@ -459,6 +461,14 @@
     "upload": "Envoi sur archipelago.gg",
     "room": "Création de la room",
     "wake": "Réveil de la room",
-    "port": "Attente du port de la room"
+    "port": "Attente du port de la room",
+    "uninstall": "Désinstallation",
+    "scan": "Vérification des mondes installés",
+    "generate": "Écriture des templates",
+    "done": "Terminé",
+    "list": "Recherche des fichiers",
+    "hash": "Calcul des empreintes",
+    "release": "Recherche de la version",
+    "extract": "Extraction des fichiers"
   }
 }

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { CHECK_CODES, DOCTOR_CHECK_IDS, ERROR_CODES, GENERATE_STAGE_IDS, ISSUE_CODES } from '@shared/codes'
 import type { TaskKind, TrustTier } from '@shared/types'
 import { resources } from '@renderer/i18n'
+import { BIZHAWK_INSTALL_REASONS } from '@renderer/features/vault/error-props'
 import { ERROR_ACTIONS } from '@renderer/lib/errors'
 import { TASK_STAGES } from '@renderer/lib/task-stages'
 
@@ -62,6 +63,14 @@ function mainStageLiterals(): string[] {
   return [...stages].sort()
 }
 
+/** Every reason the BizHawk install gives to an INSTALL_FAILED, e.g. { reason: 'remove-old' }. */
+function bizhawkInstallReasons(): string[] {
+  const code = readFileSync(join(MAIN_DIR, 'core/play/bizhawk.ts'), 'utf8')
+  return [
+    ...new Set([...code.matchAll(/\breason:\s*['"`]([^'"`]+)['"`]/g)].map((match) => match[1] ?? '')),
+  ].sort()
+}
+
 describe('i18n resources', () => {
   it('fr.json and en.json have identical key sets', () => {
     expect([...fr.keys()].sort()).toEqual([...en.keys()].sort())
@@ -116,6 +125,13 @@ describe('i18n resources', () => {
     // The world inspection's stages, at least, are found.
     expect(literals).toEqual(expect.arrayContaining(['download', 'inspect']))
     for (const stage of literals) expect(TASK_STAGES, `progress('${stage}')`).toContain(stage)
+  })
+
+  it('explains every reason the BizHawk install fails for', () => {
+    const reasons = bizhawkInstallReasons()
+    expect(reasons).toEqual(expect.arrayContaining(['remove-old', 'launcher-missing']))
+    for (const reason of reasons) expect(BIZHAWK_INSTALL_REASONS, `reason: '${reason}'`).toContain(reason)
+    for (const reason of BIZHAWK_INSTALL_REASONS) expectText(`screens.vault.bizhawk.installErrors.${reason}`)
   })
 
   it('has a label for every error action describeError offers', () => {

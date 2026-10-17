@@ -111,7 +111,13 @@
     "chooseTitle": "Choisis le dossier de BizHawk",
     "chosen": "BizHawk trouvé",
     "forget": "Oublier ce chemin",
-    "forgotten": "Chemin de BizHawk oublié"
+    "forgotten": "Chemin de BizHawk oublié",
+    "installErrors": {
+      "remove-old": "BizHawk n’a pas pu remplacer l’ancienne version, dont les fichiers sont sans doute encore utilisés. Ferme BizHawk (EmuHawk) et les clients qui l’ont ouvert, puis relance l’installation.",
+      "extract": "L’archive de BizHawk n’a pas pu être décompressée. Vérifie qu’il reste assez d’espace disque et que ton antivirus ne bloque pas le dossier d’ArchipelaGOAT, puis relance l’installation.",
+      "launcher-missing": "L’archive est décompressée, mais le lanceur de BizHawk (EmuHawk) n’y est pas ou a été supprimé, souvent par un antivirus. Autorise le dossier d’ArchipelaGOAT dans ton antivirus puis relance l’installation, ou installe BizHawk toi-même et choisis-le avec « $t(screens.vault.bizhawk.choose) ».",
+      "no-digest": "GitHub n’a pas donné l’empreinte de l’archive de BizHawk, et ArchipelaGOAT n’exécute pas ce qu’il ne peut pas vérifier. Réessaie plus tard, ou installe BizHawk toi-même et choisis-le avec « $t(screens.vault.bizhawk.choose) »."
+    }
   },
   "games": {
     "eyebrow": "GAME LIST",
