@@ -9,6 +9,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+/** This folder, where the scripts the shims import live (the harness finds the fixtures from it). */
+export const FAKE_AP_DIR = fileURLToPath(new URL('.', import.meta.url))
+
 /** Program name → script of this folder that plays it. */
 export const SHIMS = {
   ArchipelagoGenerate: 'ArchipelagoGenerate.mjs',
