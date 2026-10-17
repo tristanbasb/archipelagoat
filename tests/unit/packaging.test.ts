@@ -85,17 +85,33 @@ describe('electron-builder.yml', () => {
 
 describe('.github/workflows/release.yml', () => {
   const workflow = readFileSync(root('.github/workflows/release.yml'), 'utf8')
-  const release = parse(workflow) as {
-    on: { push: { tags: string[] } }
-    jobs: Record<string, { strategy: { matrix: Json }; steps: { run?: string }[] }>
-  }
+  type Job = { needs?: string; strategy?: { matrix: Json }; steps: { run?: string }[] }
+  const release = parse(workflow) as { on: { push: { tags: string[] } }; jobs: Record<string, Job> }
   const runs = Object.values(release.jobs).flatMap((job) => job.steps.flatMap((step) => step.run ?? []))
+  const runsOf = (name: string): string =>
+    (release.jobs[name]?.steps ?? []).map((s) => s.run ?? '').join('\n')
 
   it('runs on v* tags, on Windows and Linux', () => {
     expect(release.on.push.tags).toEqual(['v*'])
-    expect(Object.values(release.jobs)[0]?.strategy.matrix).toMatchObject({
+    expect(release.jobs.release?.strategy?.matrix).toMatchObject({
       os: ['windows-latest', 'ubuntu-latest'],
     })
+  })
+
+  it('creates the draft once, before both builds publish into it', () => {
+    expect(runsOf('draft')).toMatch(/gh release create "\$GITHUB_REF_NAME" --draft --verify-tag/)
+    expect(release.jobs.release?.needs).toBe('draft')
+  })
+
+  it('adds the SHA256SUMS.txt the README promises, once both builds are in the draft', () => {
+    const checksums = release.jobs.checksums
+    expect(checksums?.needs).toBe('release')
+    const steps = runsOf('checksums')
+    expect(steps).toMatch(/gh release download "\$GITHUB_REF_NAME" --dir dist/)
+    for (const pattern of ['*.exe', '*.AppImage', '*.deb', '*.tar.gz'])
+      expect(steps).toContain(`'${pattern}'`)
+    expect(steps).toContain('node scripts/checksums.mjs dist')
+    expect(steps).toMatch(/gh release upload "\$GITHUB_REF_NAME" dist\/SHA256SUMS\.txt/)
   })
 
   it('publishes the artifacts to a draft GitHub release', () => {

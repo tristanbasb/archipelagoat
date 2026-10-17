@@ -1,6 +1,11 @@
 # Builds the installers on a v* tag and publishes them to a draft GitHub release (spec §8): the NSIS
-# installer and the portable exe on Windows, the AppImage, the deb and the tar.gz on Linux. A maintainer
-# reviews the draft and publishes it by hand.
+# installer and the portable exe on Windows, the AppImage, the deb and the tar.gz on Linux, then the
+# SHA256SUMS.txt the README tells users to check them against. A maintainer reviews the draft and
+# publishes it by hand.
+#
+# The draft is created first, once: the two builds then publish into that same draft (each one would
+# otherwise create its own when it finds none, and a published draft would miss the other system's
+# installers and update metadata). The checksums are computed last, from the files of the draft.
 #
 # The github provider is given here only: electron-builder resolves it from the checkout's remote,
 # which a local build does not have (electron-builder.yml). With it, the builds also get the
@@ -14,9 +19,25 @@ on:
 permissions:
   contents: write
 
+env:
+  GH_REPO: ${{ github.repository }}
+
 jobs:
+  draft:
+    name: Create the draft release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create the draft both builds publish into
+        run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --notes ""
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   release:
     name: Build and publish (${{ matrix.os }})
+    needs: draft
     strategy:
       fail-fast: false
       matrix:
@@ -46,5 +67,32 @@ jobs:
       - name: Package and publish (Linux)
         if: runner.os == 'Linux'
         run: npx electron-builder --linux --publish always -c.publish.provider=github -c.publish.releaseType=draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  checksums:
+    name: SHA256SUMS.txt
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Download the artifacts of the draft
+        run: >-
+          gh release download "$GITHUB_REF_NAME" --dir dist
+          --pattern '*.exe' --pattern '*.AppImage' --pattern '*.deb' --pattern '*.tar.gz'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write SHA256SUMS.txt
+        run: node scripts/checksums.mjs dist
+
+      - name: Add it to the draft
+        run: gh release upload "$GITHUB_REF_NAME" dist/SHA256SUMS.txt --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
