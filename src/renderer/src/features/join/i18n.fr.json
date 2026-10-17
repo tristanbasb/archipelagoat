@@ -145,6 +145,7 @@
     "asleep": "La room dort\u00a0: elle se réveille dès qu’un joueur se connecte.",
     "textClient": "Text Client",
     "textClientHint": "Suis la partie, discute et demande des indices.",
+    "textClientAsksSlot": "Le Text Client te demandera ton nom de slot.",
     "textClientStarted": "Text Client lancé"
   },
   "clients": {

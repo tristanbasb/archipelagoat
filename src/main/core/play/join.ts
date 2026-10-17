@@ -273,7 +273,8 @@ export interface JoinDeps {
 export interface TextClientOptions {
   host: string
   port: number
-  slot: string
+  /** Null for an address without one (`localhost:38281`): the Text Client asks the player for it. */
+  slot: string | null
   password: string | null
 }
 
@@ -295,7 +296,10 @@ export interface Join {
    * other errors of the settings stop the launch). INVALID_INPUT when no client opens the slot.
    */
   play(planId: string): Promise<{ pid: number }>
-  /** `ArchipelagoTextClient --connect host:port --name slot [--password pw]`. */
+  /**
+   * `ArchipelagoTextClient --connect host:port [--name slot] [--password pw]`. Without a slot, the
+   * client asks for it in its window (`Enter slot name:`, CommonClient.py:531-535).
+   */
   textClient(opts: TextClientOptions): Promise<{ pid: number }>
 }
 
@@ -608,7 +612,8 @@ export function createJoin(ctx: CoreContext, deps: JoinDeps): Join {
 
     async textClient({ host, port, slot, password }) {
       const install = await requireInstall()
-      const args = ['--connect', `${host}:${port}`, '--name', slot]
+      const args = ['--connect', `${host}:${port}`]
+      if (slot) args.push('--name', slot)
       if (password) args.push('--password', password)
       return launch(install, TEXT_CLIENT, args)
     },

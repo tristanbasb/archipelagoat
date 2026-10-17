@@ -848,6 +848,22 @@ describe('play', () => {
     })
   })
 
+  it('textClient without a slot leaves the name out: the Text Client asks for it', async () => {
+    // `localhost:38281`, the address the live screen shows, names no slot (the real run of
+    // docs/verification/2026-10-16-real-run.md); CommonClient then logs `Enter slot name:`.
+    const { pid } = await makeJoin().textClient({
+      host: 'localhost',
+      port: 38281,
+      slot: null,
+      password: null,
+    })
+    expect(pid).toBeGreaterThan(0)
+    expect(await recorded()).toMatchObject({
+      program: 'ArchipelagoTextClient',
+      argv: ['--connect', 'localhost:38281'],
+    })
+  })
+
   it('a client that cannot start is AP_NOT_INSTALLED', async () => {
     const missing: JoinDeps['locator'] = {
       detect: () => locator.detect(),
@@ -966,6 +982,9 @@ describe('join handlers', () => {
     expect(service.textClient).toHaveBeenCalledWith({ host: 'h', port: 2, slot: 's', password: null })
     await call('join:textClient', { host: 'h', port: 2, slot: 's', password: 'pw' })
     expect(service.textClient).toHaveBeenLastCalledWith({ host: 'h', port: 2, slot: 's', password: 'pw' })
+    // An address without a slot: the Text Client asks the player for it.
+    expect(await call('join:textClient', { host: 'h', port: 2 })).toEqual({ ok: true, value: { pid: 8 } })
+    expect(service.textClient).toHaveBeenLastCalledWith({ host: 'h', port: 2, slot: null, password: null })
 
     service.resolve.mockImplementation(() => {
       throw new AppError('JOIN_BAD_INPUT')

@@ -21,6 +21,6 @@ export default function registerJoinHandlers(register: RegisterHandler, services
   register('join:play', ({ planId }) => join().play(planId))
 
   register('join:textClient', ({ host, port, slot, password }) =>
-    join().textClient({ host, port, slot, password: password ?? null }),
+    join().textClient({ host, port, slot: slot ?? null, password: password ?? null }),
   )
 }

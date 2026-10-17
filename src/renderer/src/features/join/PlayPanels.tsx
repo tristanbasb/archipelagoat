@@ -139,9 +139,10 @@ export function ConnectionPanel({
   const password = passwordOf(plan)
   const { host, port } = plan.connect
 
+  // Without a slot (`localhost:38281`), the Text Client asks the player for it.
   const openTextClient = (): void => {
-    if (port === null || slot === null) return
-    textClient.mutate({ host, port, slot, ...(password ? { password } : {}) })
+    if (port === null) return
+    textClient.mutate({ host, port, ...(slot !== null ? { slot } : {}), ...(password ? { password } : {}) })
   }
 
   return (
@@ -190,13 +191,19 @@ export function ConnectionPanel({
         <NeonButton
           variant="secondary"
           icon={<IconTerminal2 />}
-          disabled={port === null || slot === null}
+          disabled={port === null}
           loading={textClient.isPending}
           onClick={openTextClient}
         >
           {t('screens.join.connection.textClient')}
         </NeonButton>
-        <span className="connection-panel__hint">{t('screens.join.connection.textClientHint')}</span>
+        <span className="connection-panel__hint">
+          {t(
+            slot === null
+              ? 'screens.join.connection.textClientAsksSlot'
+              : 'screens.join.connection.textClientHint',
+          )}
+        </span>
       </div>
     </PixelPanel>
   )

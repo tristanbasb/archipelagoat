@@ -145,6 +145,7 @@
     "asleep": "The room is asleep: it wakes up as soon as a player connects.",
     "textClient": "Text Client",
     "textClientHint": "Follow the game, chat and ask for hints.",
+    "textClientAsksSlot": "The Text Client will ask for your slot name.",
     "textClientStarted": "Text Client started"
   },
   "clients": {

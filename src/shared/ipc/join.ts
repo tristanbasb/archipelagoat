@@ -28,6 +28,12 @@ export const joinChannels = {
   'join:refresh': channel(z.strictObject({ planId }))<JoinPlan>(),
   'join:play': channel(z.strictObject({ planId }))<{ pid: number }>(),
   'join:textClient': channel(
-    z.strictObject({ host: nonEmpty, port: Port, slot: nonEmpty, password: z.string().optional() }),
+    z.strictObject({
+      host: nonEmpty,
+      port: Port,
+      /** Without it, the Text Client asks the player for the slot name. */
+      slot: nonEmpty.optional(),
+      password: z.string().optional(),
+    }),
   )<{ pid: number }>(),
 }

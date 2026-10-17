@@ -453,6 +453,37 @@ describe('join screen', () => {
     )
   })
 
+  it('opens the Text Client for host:port without a slot, which asks the player for it', async () => {
+    // `localhost:38281`, as the live screen shows it: no slot in the address (real run,
+    // docs/verification/2026-10-16-real-run.md), where the button used to stay disabled.
+    const address: JoinTarget = {
+      kind: 'address',
+      host: 'localhost',
+      port: 38281,
+      slot: null,
+      password: null,
+      game: null,
+    }
+    const { goat, user } = await openPlan(
+      plan({
+        target: address,
+        slot: null,
+        patchPath: null,
+        route: { suffix: '', client: 'none', exe: null, tier: 'guided' },
+        connect: { host: 'localhost', port: 38281, slot: null, hasPassword: false },
+        tutorialUrl: null,
+      }),
+      { 'join:textClient': () => ({ pid: 78 }) },
+    )
+
+    const panel = screen.getByRole('region', { name: 'Connexion' })
+    expect(within(panel).getByText('Le Text Client te demandera ton nom de slot.')).toBeInTheDocument()
+    await user.click(within(panel).getByRole('button', { name: 'Text Client' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('join:textClient')).toEqual([{ host: 'localhost', port: 38281 }]),
+    )
+  })
+
   it('remembers joined rooms without their password and rejoins from the history', async () => {
     const uri = 'archipelago://Goat:hunter2@archipelago.gg:38281'
     const target: JoinTarget = {
