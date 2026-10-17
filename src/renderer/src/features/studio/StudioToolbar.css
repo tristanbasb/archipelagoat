@@ -1,0 +1,58 @@
+/* The action bar: sticky at the top of the screen while the options scroll under it. */
+
+.studio-toolbar {
+  --pb-color: color-mix(in srgb, var(--neon-violet) 38%, var(--line));
+  --pb-fill: color-mix(in srgb, var(--bg-1) 88%, transparent);
+  --pb-step: var(--corner-sm);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-4);
+  min-height: 52px;
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-2) var(--sp-3);
+  backdrop-filter: blur(6px);
+}
+
+.studio-toolbar__source {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.studio-toolbar__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: color-mix(in srgb, var(--neon-violet) 16%, transparent);
+  color: var(--neon-violet);
+  clip-path: var(--clip-corner);
+}
+
+.studio-toolbar__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.studio-toolbar__file {
+  min-width: 0;
+  max-width: 280px;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}

@@ -1,0 +1,76 @@
+/* A foldable group of options: a header bar, then the option rows. */
+
+.option-group {
+  --pb-color: var(--line);
+  --pb-fill: linear-gradient(180deg, var(--bg-2) 0%, color-mix(in srgb, var(--bg-2) 45%, var(--bg-1)) 100%);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.option-group[data-expanded] {
+  --pb-color: color-mix(in srgb, var(--neon-violet) 32%, var(--line));
+}
+
+.option-group__heading {
+  margin: 0;
+}
+
+.option-group__toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  width: 100%;
+  padding: var(--sp-4) var(--sp-5);
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.option-group__toggle:focus-visible {
+  outline-offset: -4px;
+}
+
+.option-group__chevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--neon-violet);
+  transform: rotate(-90deg);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.option-group[data-expanded] .option-group__chevron {
+  transform: none;
+}
+
+.option-group__title {
+  font-size: var(--fs-16);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.option-group__toggle:hover .option-group__title {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--neon-violet) 55%, transparent);
+}
+
+.option-group__count {
+  margin-right: auto;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.option-group__body {
+  padding: 0 var(--sp-2) var(--sp-2);
+}
+
+.option-group__hint {
+  margin: 0 var(--sp-3) var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+:where(.fx-off, .fx-no-glow) .option-group__toggle:hover .option-group__title {
+  text-shadow: none;
+}

@@ -1,0 +1,84 @@
+/* The options: a filter and fold-all bar, then the group cards. */
+
+.option-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+.option-list__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.option-list__filter {
+  flex: 1 1 260px;
+}
+
+.option-list__search {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+  transition: color var(--dur) var(--ease-out);
+}
+
+.option-list__filter .input-frame:focus-within .option-list__search {
+  color: var(--neon-yellow);
+}
+
+.option-list__filter .input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.option-list__clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: calc(var(--sp-1) * -1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+}
+
+.option-list__clear:hover {
+  color: var(--text);
+}
+
+.option-list__clear svg {
+  width: 16px;
+  height: 16px;
+}
+
+.option-list__fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-md);
+  padding: 0 var(--sp-3);
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.option-list__fold:hover {
+  color: var(--text);
+}
+
+.option-list__fold svg {
+  width: 16px;
+  height: 16px;
+}
+
+.option-list__none {
+  padding: var(--sp-8) var(--sp-4);
+  color: var(--text-dim);
+  text-align: center;
+}

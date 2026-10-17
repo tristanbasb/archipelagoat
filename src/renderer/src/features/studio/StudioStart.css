@@ -1,0 +1,47 @@
+/* Nothing to edit yet: one card, a game to pick. */
+
+.studio-start {
+  max-width: 680px;
+  margin: var(--sp-6) auto 0;
+}
+
+.studio-start .pixel-panel__body {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.studio-start__body {
+  color: var(--text-dim);
+}
+
+.studio-start__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+}
+
+.studio-start__picking {
+  color: var(--neon-violet);
+}
+
+/* "or", between two neon rules. */
+.studio-start__or {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  color: var(--text-mute);
+  font-size: var(--fs-12);
+}
+
+.studio-start__or::before,
+.studio-start__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+
+.studio-start__open {
+  justify-self: center;
+}

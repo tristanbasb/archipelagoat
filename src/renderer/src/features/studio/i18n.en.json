@@ -1,1 +1,217 @@
-{}
+{
+  "eyebrow": "EDIT MODE",
+  "subtitle": "Create or touch up a player YAML, one option at a time, with a live preview.",
+  "source": {
+    "new": "New YAML",
+    "session": "Player of a game",
+    "unsaved": "Not saved",
+    "saved": "Saved"
+  },
+  "actions": {
+    "label": "YAML actions",
+    "new": "New",
+    "open": "Open",
+    "save": "Save",
+    "saving": "Saving…",
+    "saveAndBack": "Save and go back",
+    "backToSession": "Back to the game",
+    "export": "Export",
+    "addToSession": "Add to a game",
+    "shortcut": "Ctrl+S saves"
+  },
+  "start": {
+    "eyebrow": "PRESS START",
+    "title": "Pick a game to start",
+    "body": "The Studio starts from the game's template: every option at its default, for you to adjust.",
+    "or": "or",
+    "open": "Open an existing YAML",
+    "loading": "Loading the game…"
+  },
+  "player": {
+    "eyebrow": "PLAYER 1",
+    "title": "Player",
+    "name": "Player name",
+    "nameHint": "16 characters at most. {number} becomes a number when the name is already taken.",
+    "nameTooLong": "Too long: 16 characters at most.",
+    "description": "Description",
+    "descriptionPlaceholder": "E.g. quick race, no traps"
+  },
+  "docs": {
+    "label": "Players in this file",
+    "unnamed": "Player {{n}}"
+  },
+  "game": {
+    "label": "Game",
+    "placeholder": "Search your games…",
+    "empty": "No game matches",
+    "loading": "Loading the games…",
+    "loadError": "The list of games could not be read",
+    "source": {
+      "local": "Local template",
+      "site": "archipelago.gg template",
+      "none": "No template"
+    },
+    "notInstalled": "Not installed",
+    "toWorlds": "See in Worlds",
+    "multi": "This file picks its game at random among several, and is saved as it is. Picking a game here makes it a YAML of that game alone: its section becomes editable, the others stay in the file.",
+    "noneTitle": "No game available",
+    "noneBody": "Install Archipelago, or a world, to create a YAML.",
+    "toInstall": "Install Archipelago",
+    "changeTitle": "Change game?",
+    "changeBody": "The options of {{from}} will be replaced by those of {{to}}, at their defaults.",
+    "changeConfirm": "Change game",
+    "changed": "Game changed to {{game}}",
+    "schemaError": "The template of {{game}} could not be read"
+  },
+  "templates": {
+    "title": "No template for {{game}} yet",
+    "body": "Archipelago can write a template for each of your installed worlds. The Studio will then offer every option of this game.",
+    "generate": "Generate the templates",
+    "generating": "Generating the templates…",
+    "failed": "Generating the templates failed",
+    "fallback": "Meanwhile, the options already in the file can still be edited as YAML."
+  },
+  "presets": {
+    "label": "Presets",
+    "defaults": "Defaults",
+    "applied": "Preset “{{name}}” applied",
+    "reset": "Defaults restored",
+    "undo": "Undo",
+    "hint": "A preset starts over from the game's defaults."
+  },
+  "options": {
+    "filter": "Filter the options",
+    "filterPlaceholder": "Name or description…",
+    "clearFilter": "Clear the filter",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "noMatch": "No option matches “{{query}}”",
+    "count_one": "{{count}} option",
+    "count_other": "{{count}} options",
+    "modified_one": "{{count}} changed",
+    "modified_other": "{{count}} changed",
+    "problems_one": "{{count}} problem",
+    "problems_other": "{{count}} problems",
+    "groups": {
+      "game": "Game options",
+      "items": "Items and locations",
+      "unknown": "Other options of the file",
+      "file": "Options of the file"
+    },
+    "unknownHint": "This game's template does not know these options: they are kept as they are.",
+    "fileHint": "Without a template, each option is edited as YAML."
+  },
+  "option": {
+    "mode": "Mode of {{option}}",
+    "simple": "Simple",
+    "weighted": "Weighted",
+    "random": "Random for {{option}}",
+    "reset": "Default value for {{option}}",
+    "info": "Description of {{option}}",
+    "default": "Default",
+    "modified": "Changed",
+    "unknown": "Unknown to the template",
+    "on": "On",
+    "off": "Off",
+    "randomTitle": "Random pick",
+    "randomBody": "Archipelago will pick the value when it generates the game.",
+    "randomKinds": "Random pick of {{option}}",
+    "randomValues": {
+      "random": "Random",
+      "random-low": "Rather low",
+      "random-middle": "Rather middle",
+      "random-high": "Rather high"
+    },
+    "current": "Current value: {{value}}",
+    "otherValue": "Other value",
+    "textHint": "One of the suggested values, or your own text.",
+    "ownText": "Other text for {{option}}",
+    "ownTextPlaceholder": "Or your own text…",
+    "rawHint": "In YAML: a list (“- item”) or “key: value” pairs.",
+    "rawLocked": "This value does not fit the visual control: it stays as YAML.",
+    "rawBack": "Back to the visual control",
+    "weights": "Weights of {{option}}",
+    "weightsHint": "The bigger a weight, the more likely its value is picked.",
+    "add": "Add {{value}}",
+    "remove": "Remove {{value}}",
+    "values": "Values of {{option}}",
+    "custom": "Other value to add",
+    "customPlaceholder": "Number or name",
+    "customAdd": "Add"
+  },
+  "preview": {
+    "title": "YAML preview",
+    "eyebrow": "LIVE",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyLabel": "Copy the YAML",
+    "pending": "Updating…",
+    "empty": "The preview shows up as soon as you pick a game.",
+    "error": "The preview could not be computed"
+  },
+  "check": {
+    "title": "Check",
+    "eyebrow": "CHECK",
+    "ok": "No problem found",
+    "pending": "Checking…",
+    "errors_one": "{{count}} error",
+    "errors_other": "{{count}} errors",
+    "warnings_one": "{{count}} warning",
+    "warnings_other": "{{count}} warnings",
+    "error": "Error",
+    "warning": "Warning",
+    "value": "Value: {{value}}",
+    "range": "expected between {{min}} and {{max}}",
+    "name": "Player name",
+    "game": "Game",
+    "general": "File",
+    "reasons": {
+      "empty-list": "an empty list leaves nothing to pick",
+      "weight": "each weight must be a positive number",
+      "negative-random-range": "Archipelago misreads a negative random-range: it always picks the last bound",
+      "merge-tag": "Archipelago does not read YAML merges (<<)",
+      "format": "a brace stands alone: write it twice to keep it in the name",
+      "aliases": "too many nested YAML aliases (& and *)"
+    }
+  },
+  "save": {
+    "done": "Saved to {{file}}",
+    "exported": "Exported to {{file}}",
+    "sessionDone": "Player updated in the game",
+    "invalidRaw": "A YAML block is invalid",
+    "invalidRawBody": "Fix it before saving: otherwise that option would be lost."
+  },
+  "session": {
+    "title": "Add to a game",
+    "eyebrow": "NEW CHALLENGER",
+    "body": "The YAML is copied into the chosen game, like a dropped file.",
+    "listLabel": "Games being set up",
+    "empty": "No game being set up",
+    "emptyBody": "Create a game from the Game screen, then come back to add this YAML.",
+    "create": "Create a game",
+    "players_one": "{{count}} player",
+    "players_other": "{{count}} players",
+    "status": {
+      "draft": "Being set up",
+      "generated": "Generated"
+    },
+    "adding": "Adding…",
+    "added": "Added to “{{name}}”",
+    "open": "Open the game"
+  },
+  "load": {
+    "failed": "This YAML could not be opened",
+    "unreadable": "This file does not read as a player YAML",
+    "empty": "This file holds no player",
+    "line": "line {{line}}",
+    "dismiss": "Close"
+  },
+  "discard": {
+    "title": "Discard your changes?",
+    "openTitle": "Open {{file}}?",
+    "body": "The current YAML is not saved: its changes will be lost.",
+    "confirm": "Discard",
+    "openConfirm": "Open anyway",
+    "keep": "Keep my YAML"
+  }
+}
