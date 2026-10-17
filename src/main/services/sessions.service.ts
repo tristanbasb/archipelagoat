@@ -22,6 +22,11 @@ import type {} from './worlds.service'
 export interface Sessions extends SessionStore, SessionValidator {
   /** The ROMs the generation of these games needs, resolved by the vault (Task 16 asks before a start). */
   resolveRomNeeds(games: readonly string[]): Promise<RomNeed[]>
+  /**
+   * Adds a check `delete` asks first: a session one check calls busy is refused with AP_RUNNING (the
+   * servers service: a local server of that session runs).
+   */
+  addBusyCheck(check: (id: string) => boolean): void
 }
 
 declare module '@main/services/registry' {
@@ -44,15 +49,22 @@ defineService(
     const vault: RomNeedDeps['vault'] = {
       resolveRomForEntry: (entry, md5s) => get('vault').resolveRomForEntry(entry, md5s),
     }
+    const busyChecks: ((id: string) => boolean)[] = []
     const store = createSessionStore(ctx, {
       validationContext: (games, plando) => buildValidationContext(validation, games, plando),
+      isBusy: (id) => busyChecks.some((check) => check(id)),
     })
     const validator = createSessionValidator(store, {
       ...validation,
       catalog: { lookupByGame: (game) => get('catalog').lookupByGame(game) },
       vault,
     })
-    return { ...store, ...validator, resolveRomNeeds: (games) => resolveRomNeeds(games, { vault }) }
+    return {
+      ...store,
+      ...validator,
+      resolveRomNeeds: (games) => resolveRomNeeds(games, { vault }),
+      addBusyCheck: (check) => void busyChecks.push(check),
+    }
   },
   { eager: false },
 )

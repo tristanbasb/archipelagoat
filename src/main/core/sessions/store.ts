@@ -43,6 +43,8 @@ export interface SessionStoreDeps {
   validationContext(games: string[], plandoEnabled: readonly string[]): Promise<ValidationContext>
   /** Default: the current time. */
   now?: () => Date
+  /** True while session `id` is in use (its local server runs): `delete` then answers AP_RUNNING. */
+  isBusy?: (id: string) => boolean
 }
 
 /** A player file with its text and what its import found: what the validation reads. */
@@ -60,7 +62,7 @@ export interface SessionStore {
   /** NOT_FOUND for an unknown id, a malformed one, or a session.json that cannot be read. */
   get(id: string): Promise<Session>
   update(id: string, patch: { name?: string; rules?: Rules }): Promise<Session>
-  /** Moves the folder to `dataRoot/backups` and forgets the passwords. */
+  /** Moves the folder to `dataRoot/backups` and forgets the passwords; AP_RUNNING while it is busy. */
   delete(id: string): Promise<void>
   /**
    * Imports the player files of `paths` (YAML, YAML .txt, zips of them). Every path goes through
@@ -398,6 +400,8 @@ export function createSessionStore(ctx: CoreContext, deps: SessionStoreDeps): Se
     delete(id) {
       return exclusive(id, async () => {
         const { ws } = await read(id)
+        if (deps.isBusy?.(id))
+          throw new AppError('AP_RUNNING', undefined, { detail: `session ${id} is in use` })
         await moveWorkspaceToBackups(ws.dir, backupsRoot)
         ctx.secrets.set(secretKey(id, 'password'), null)
         ctx.secrets.set(secretKey(id, 'serverPassword'), null)
