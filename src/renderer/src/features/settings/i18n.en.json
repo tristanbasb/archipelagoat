@@ -83,7 +83,7 @@
     "encrypted": "Your secrets are encrypted by the system keyring before they are saved.",
     "noKeyring": "The system keyring is not available: secrets cannot be encrypted.",
     "plaintext": "Remember secrets in plain text",
-    "plaintextHint": "Otherwise ArchipelaGOAT refuses to save them and asks for them again.",
+    "plaintextHint": "Otherwise ArchipelaGOAT refuses to save them and asks for them again. Turning it off deletes the ones already kept in plain text.",
     "confirmEyebrow": "WARNING",
     "confirmTitle": "Remember secrets in plain text?",
     "confirmBody": "The GitHub token, the archipelago.gg sign-in and server passwords will be written unencrypted in the app folder.",

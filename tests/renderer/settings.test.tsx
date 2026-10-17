@@ -251,7 +251,9 @@ describe('settings screen', () => {
     expect(goat.inputsOf('app:setConfig')).toEqual([{ allowPlaintextSecrets: true }])
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
 
-    // Turning it back off needs no confirmation.
+    // Turning it back off needs no confirmation, and deletes the secrets kept in clear: the panel
+    // reads again what is left.
+    const reads = goat.inputsOf('app:secretsStatus').length
     await user.click(plaintext)
     await waitFor(() => expect(plaintext).toHaveAttribute('aria-checked', 'false'))
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -259,6 +261,7 @@ describe('settings screen', () => {
       { allowPlaintextSecrets: true },
       { allowPlaintextSecrets: false },
     ])
+    await waitFor(() => expect(goat.inputsOf('app:secretsStatus').length).toBeGreaterThan(reads))
   })
 
   it('clear catalog cache calls app:clearData', async () => {

@@ -162,6 +162,9 @@ async function main(): Promise<void> {
       os,
     ),
   }
+  // A secret kept in clear is encrypted once a keyring exists, and dropped once the user withdraws
+  // the permission to keep it so.
+  bus.on('config:changed', () => ctx.secrets.migrate())
   lifecycle.onCloseRequested(() => ({ servers: [], tasks: tasks.list().map((task) => task.kind) }))
   // Quitting cancels what still runs, so each task sees its abort signal and stops cleanly.
   lifecycle.onBeforeQuit(() => {

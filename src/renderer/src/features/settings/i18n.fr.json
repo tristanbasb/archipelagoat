@@ -83,7 +83,7 @@
     "encrypted": "Tes secrets sont chiffrés par le trousseau du système avant d’être enregistrés.",
     "noKeyring": "Le trousseau du système n’est pas disponible\u00a0: les secrets ne peuvent pas être chiffrés.",
     "plaintext": "Mémoriser les secrets en clair",
-    "plaintextHint": "Sinon, ArchipelaGOAT refuse de les enregistrer et te les redemande.",
+    "plaintextHint": "Sinon ArchipelaGOAT refuse de les enregistrer et te les redemande. Désactiver efface ceux déjà gardés en clair.",
     "confirmEyebrow": "WARNING",
     "confirmTitle": "Mémoriser les secrets en clair\u00a0?",
     "confirmBody": "Le jeton GitHub, la connexion à archipelago.gg et les mots de passe de serveur seront écrits sans chiffrement dans le dossier de l’app.",

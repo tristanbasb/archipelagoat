@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { Badge, Modal, NeonButton, PixelPanel, Spinner, Toggle, useToast } from '../../design/components'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useConfig } from '../../stores/config'
-import { useConfigPatch } from './feedback'
+import { useConfigPatch, useErrorToast } from './feedback'
 import { SettingRow, SettingsError } from './parts'
 
 export function SecretsPanel(): React.JSX.Element {
@@ -25,6 +25,10 @@ export function SecretsPanel(): React.JSX.Element {
   const config = useConfig()
   const patch = useConfigPatch()
   const status = useIpcQuery('app:secretsStatus', undefined)
+  const showError = useErrorToast()
+  // The secrets kept in clear are deleted with the permission: the panel then reads what is left.
+  const withdrawPlaintext = (): void =>
+    void config.set({ allowPlaintextSecrets: false }).then(() => status.refetch(), showError)
   const [draft, setDraft] = useState('')
   const [confirming, setConfirming] = useState(false)
   const store = useIpcMutation('app:setGithubToken', { invalidates: ['app:secretsStatus'] })
@@ -151,7 +155,7 @@ export function SecretsPanel(): React.JSX.Element {
                   description={k('plaintextHint')}
                   checked={config.allowPlaintextSecrets}
                   tone="yellow"
-                  onChange={(on) => (on ? setConfirming(true) : patch({ allowPlaintextSecrets: false }))}
+                  onChange={(on) => (on ? setConfirming(true) : withdrawPlaintext())}
                 />
               </SettingRow>
             </>

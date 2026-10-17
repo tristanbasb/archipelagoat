@@ -47,6 +47,40 @@ describe('secret store', () => {
     expect(createSecretStore(file, platform, config).get('github.token')).toBe(TOKEN)
   })
 
+  it('encrypts the secrets kept in clear as soon as a keyring is there', () => {
+    const locked = fakePlatform(dir, { canEncrypt: () => false }).platform
+    config.update({ allowPlaintextSecrets: true })
+    createSecretStore(file, locked, config).set('github.token', TOKEN)
+    createSecretStore(file, locked, config).set('session.s1.password', 'hunter2')
+    expect(readFileSync(file, 'utf8')).toContain(TOKEN)
+
+    // The next start finds a keyring: the file no longer holds them in clear, they still read.
+    const secrets = createSecretStore(file, fakePlatform(dir).platform, config)
+    expect(secrets.get('github.token')).toBe(TOKEN)
+    const text = readFileSync(file, 'utf8')
+    expect(text).not.toContain(TOKEN)
+    expect(text).not.toContain('hunter2')
+    expect(text).not.toContain('"plain"')
+    expect(secrets.get('session.s1.password')).toBe('hunter2')
+  })
+
+  it('deletes the secrets kept in clear once plaintext is no longer allowed', () => {
+    const locked = fakePlatform(dir, { canEncrypt: () => false }).platform
+    config.update({ allowPlaintextSecrets: true })
+    const secrets = createSecretStore(file, locked, config)
+    secrets.set('github.token', TOKEN)
+
+    config.update({ allowPlaintextSecrets: false })
+    // Not given out any more, even before the file is cleaned.
+    expect(secrets.get('github.token')).toBeNull()
+    expect(secrets.has('github.token')).toBe(false)
+    secrets.migrate()
+    expect(readFileSync(file, 'utf8')).not.toContain(TOKEN)
+    // Allowing it again brings nothing back.
+    config.update({ allowPlaintextSecrets: true })
+    expect(secrets.get('github.token')).toBeNull()
+  })
+
   it('set(key, null) removes the secret, even without encryption', () => {
     const { platform } = fakePlatform(dir)
     createSecretStore(file, platform, config).set('github.token', TOKEN)
