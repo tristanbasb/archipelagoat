@@ -24,6 +24,14 @@ export interface WizardRuns extends SessionRuns {
 
 const saved = new Map<string, SessionRuns>()
 
+/** The session whose wizard started this task (its generation or its hosting); null when none did. */
+export function sessionOfTask(taskId: string): string | null {
+  for (const [sessionId, runs] of saved) {
+    if (runs.generation?.taskId === taskId || runs.hostTaskId === taskId) return sessionId
+  }
+  return null
+}
+
 /** What the wizard of this session left running; a success that ended meanwhile is not celebrated. */
 function restore(sessionId: string): SessionRuns {
   const { tasks } = useTasksStore.getState()

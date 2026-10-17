@@ -1,7 +1,7 @@
 // The status bar: Archipelago version, server state, running tasks, health check and language.
 import { IconLanguage, IconStethoscope } from '@tabler/icons-react'
 import type { TFunction } from 'i18next'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { useShallow } from 'zustand/react/shallow'
@@ -9,6 +9,7 @@ import type { ApInstall, Lang, ServerState, SessionSummary } from '@shared/types
 import { Spinner, StatusPill, type Status } from '../design/components'
 import { useEvent } from '../hooks/useEvent'
 import { useIpcQuery } from '../hooks/useIpc'
+import { invoke } from '../lib/goat'
 import { stageLabel } from '../lib/task-stages'
 import { useConfig } from '../stores/config'
 import { useTasksStore, type TaskEntry } from '../stores/tasks'
@@ -52,6 +53,28 @@ function useServerPill(): Pill {
       return next
     })
   })
+  // What runs already when the bar mounts (a reloaded renderer, an orphan server reported at startup
+  // before the window listened): asked once per locally hosted session. An event wins over it.
+  const localIds = (sessions.data ?? [])
+    .filter((session) => session.hostingMode === 'local')
+    .map((session) => session.id)
+  // Session ids hold no space: one string keeps the effect from running on every render.
+  const localKey = localIds.join(' ')
+  useEffect(() => {
+    let live = true
+    for (const sessionId of localKey === '' ? [] : localKey.split(' ')) {
+      invoke('server:get', { sessionId }).then(
+        (state) => {
+          if (!live || state === null || state.status === 'stopped') return
+          setServers((current) => (current[sessionId] ? current : { ...current, [sessionId]: state }))
+        },
+        () => undefined,
+      )
+    }
+    return () => {
+      live = false
+    }
+  }, [localKey])
 
   const local = Object.values(servers)
   const hint = t('shell.status.serverHint')
@@ -71,6 +94,9 @@ function useServerPill(): Pill {
     return { status: 'busy', label, to: `/play/${busy.sessionId}`, hint }
   }
   const crashed = local.find((server) => server.status === 'crashed')
+  // A server an earlier run of the app left running still serves its players.
+  if (crashed?.error?.params?.orphanPid !== undefined)
+    return { status: 'warn', label: t('shell.status.serverOrphan'), to: `/play/${crashed.sessionId}`, hint }
   if (crashed)
     return { status: 'error', label: t('shell.status.serverCrashed'), to: `/play/${crashed.sessionId}`, hint }
   const web = (sessions.data ?? []).find(

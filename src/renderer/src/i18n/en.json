@@ -58,6 +58,7 @@
       "serverLocal": "Local server :{{port}}",
       "serverWeb": "archipelago.gg",
       "serverCrashed": "Server crashed",
+      "serverOrphan": "Server from an earlier session",
       "serverHint": "Open the live game",
       "tasksMore": "+{{count}}",
       "doctor": "Health check",
@@ -123,6 +124,19 @@
   "tasks": {
     "running": "Running tasks: {{count}}",
     "withStage": "{{kind}} · {{stage}}",
+    "open": "Open",
+    "failed": "Failed: {{kind}}",
+    "done": {
+      "ap-install": "Archipelago is installed",
+      "ap-uninstall": "Archipelago is uninstalled",
+      "templates": "The templates are generated",
+      "world-prepare": "The world is ready to install",
+      "generate": "The game is generated",
+      "webhost-host": "The room is open on archipelago.gg",
+      "join-prepare": "Everything is ready to join",
+      "rom-scan": "The ROM scan is over",
+      "bizhawk-install": "BizHawk is installed"
+    },
     "kinds": {
       "ap-install": "Installing Archipelago",
       "ap-uninstall": "Uninstalling Archipelago",

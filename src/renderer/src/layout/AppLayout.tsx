@@ -8,6 +8,7 @@ import { BootScreen } from '../features/boot/BootScreen'
 import { useEventInvalidation } from '../hooks/useEventInvalidation'
 import { useOpenRequests } from '../hooks/useOpenRequests'
 import { useShortcuts } from '../hooks/useShortcuts'
+import { useTaskEndToasts } from '../hooks/useTaskEndToasts'
 import { useConfig } from '../stores/config'
 import { DropOverlay } from './DropOverlay'
 import { FileChoiceDialog } from './FileChoiceDialog'
@@ -32,6 +33,7 @@ export function AppLayout(): React.JSX.Element {
 
   useOpenRequests()
   useEventInvalidation()
+  useTaskEndToasts()
   useShortcuts(railShortcuts((to) => void navigate(to)))
 
   // A new screen starts at its top.

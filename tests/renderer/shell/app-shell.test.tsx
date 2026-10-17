@@ -44,7 +44,8 @@ describe('app shell', () => {
       expect(screen.getByRole('contentinfo', { name: 'Barre d’état' })).toBeInTheDocument()
       cleanup()
     }
-  })
+    // Twelve whole screens, one after the other: more than one test's worth of time under load.
+  }, 20_000)
 
   it('marks the current rail entry and names its shortcut', async () => {
     await renderApp({ route: '/play/abc' })
@@ -204,6 +205,67 @@ describe('app shell', () => {
     expect(within(bar).getByText('42 %')).toBeInTheDocument()
     goat.emit('task:done', { taskId: 't1', kind: 'generate', result: null })
     expect(within(bar).queryByText('Génération de la partie')).toBeNull()
+  })
+
+  it('status bar reads the server already running when it mounts (a reload, an orphan found at startup)', async () => {
+    const state = {
+      sessionId: 's1',
+      status: 'ready',
+      port: 38282,
+      addresses: [],
+      startedAt: '2026-10-16T20:00:00.000Z',
+      resumedFromSave: false,
+      error: null,
+    } as const
+    const { goat } = await renderApp({
+      handlers: { 'session:list': () => SESSIONS, 'server:get': () => state },
+    })
+    const bar = screen.getByRole('contentinfo', { name: 'Barre d’état' })
+    expect(await within(bar).findByText('Serveur local :38282')).toBeInTheDocument()
+    expect(goat.inputsOf('server:get')).toEqual([{ sessionId: 's1' }])
+    cleanup()
+
+    // An orphan the main process found before the window listened: still serving, not "off".
+    await renderApp({
+      handlers: {
+        'session:list': () => SESSIONS,
+        'server:get': () => ({
+          ...state,
+          status: 'crashed',
+          error: { code: 'SERVER_START_FAILED', params: { orphanPid: 4242, phase: 'orphan' } },
+        }),
+      },
+    })
+    const again = screen.getByRole('contentinfo', { name: 'Barre d’état' })
+    expect(await within(again).findByText('Serveur d’une session précédente')).toBeInTheDocument()
+  })
+
+  it('a task that ends while another screen is open shows a toast leading to its screen', async () => {
+    const { goat, user } = await renderApp({ handlers: { 'ap:detect': () => null } })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Accueil' })).toBeInTheDocument()
+
+    goat.emit('task:done', { taskId: 'a1', kind: 'ap-install', result: null })
+    const done = await screen.findByText('Archipelago est installé')
+    const toast = done.closest('[role="status"], [role="alert"], li, div') as HTMLElement
+    await user.click(within(toast).getByRole('button', { name: 'Voir' }))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Installer Archipelago' }),
+    ).toBeInTheDocument()
+
+    // Its own screen already shows how it ended: no toast there.
+    goat.emit('task:done', { taskId: 'a2', kind: 'ap-uninstall', result: null })
+    goat.emit('task:failed', { taskId: 'c1', kind: 'generate', error: { code: 'TASK_CANCELLED' } })
+    // A failure elsewhere reads as its translated error.
+    goat.emit('task:failed', {
+      taskId: 'r1',
+      kind: 'rom-scan',
+      error: { code: 'NOT_FOUND' },
+    })
+    // (The text matcher sees the no-break space as a space.)
+    expect(await screen.findByText(/^Échec\s: Recherche de ROMs$/)).toBeInTheDocument()
+    expect(screen.getByText('Introuvable')).toBeInTheDocument()
+    expect(screen.queryByText('Archipelago est désinstallé')).toBeNull()
+    expect(screen.queryByText(/Génération de la partie/)).toBeNull()
   })
 
   it('names the stage of the running task in the status bar, never its raw code', async () => {

@@ -230,7 +230,7 @@ describe('WorldsScreen', () => {
       id: 'w-rd',
       module: 'rhythm_doctor',
       fileName: 'rhythm_doctor-v0.0.11.apworld',
-      path: `${CUSTOM_DIR}\rhythm_doctor-v0.0.11.apworld`,
+      path: `${CUSTOM_DIR}\\rhythm_doctor-v0.0.11.apworld`,
       game: 'Rhythm Doctor',
       states: ['bad-name'],
     })
