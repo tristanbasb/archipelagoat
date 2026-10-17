@@ -339,7 +339,7 @@ describe('installLinux and uninstallLinux', () => {
   it('installs into another folder, under its Archipelago subfolder', async () => {
     const chosen = join(root, 'Jeux é')
     const install = await installLinux(core.ctx, { release: release(archive), targetRoot: chosen }, task)
-    expect(install).toMatchObject({ kind: 'custom', root: posix.normalize(join(chosen, 'Archipelago')) })
+    expect(install).toMatchObject({ kind: 'linux-targz', root: posix.normalize(join(chosen, 'Archipelago')) })
     expect(existsSync(join(chosen, 'Archipelago', 'ArchipelagoLauncher'))).toBe(true)
     expect(existsSync(installRoot())).toBe(false)
   })

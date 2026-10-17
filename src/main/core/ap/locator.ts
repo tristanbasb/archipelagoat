@@ -56,6 +56,13 @@ export interface LocatorOptions {
   now?: () => number
 }
 
+/**
+ * Next to an install folder the app filled from the Linux tar.gz: the files its releases brought
+ * (installer-linux.ts). It tells an install the app made, and keeps updating and uninstalling, from a
+ * folder the user picked by hand.
+ */
+export const LINUX_INSTALL_RECORD = 'archipelagoat-files.json'
+
 /** How long an answer is trusted before `detect()` looks again, in the background. */
 const FOUND_TTL_MS = 30_000
 /** Nothing found: looked for again sooner (an install made outside the app while it is open). */
@@ -362,7 +369,10 @@ export function createLocator(ctx: CoreContext, opts: LocatorOptions = {}): Loca
     // A folder the user chose wins: it is an explicit choice.
     const override = ctx.config.get().apPathOverride
     if (override) {
-      const install = await attempt(override, 'custom')
+      // A folder the app installed the tar.gz into (a custom install folder on Linux) stays its own.
+      // (The folder is a path of this machine: the host's own path rules read it.)
+      const madeByApp = os === 'linux' && fs.exists(path.join(path.dirname(override), LINUX_INSTALL_RECORD))
+      const install = await attempt(override, madeByApp ? 'linux-targz' : 'custom')
       if (install) return install
       log.warn('locator: the chosen Archipelago folder holds no install, looking elsewhere', {
         path: override,

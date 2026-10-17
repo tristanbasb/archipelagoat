@@ -6,9 +6,16 @@ import { channel, nonEmpty, voidInput } from './contract'
 export const apChannels = {
   'ap:detect': channel(voidInput)<ApInstall | null>(),
   'ap:latestRelease': channel(z.strictObject({ force: z.boolean().optional() }))<ApRelease>(),
-  /** Task result: `ApInstall`. */
+  /**
+   * Task result: `ApInstall`. `allowUnverified` confirms the install of a release file GitHub gives no
+   * SHA-256 for (only its size is checked then): without it, such a file is refused (spec §3.3).
+   */
   'ap:install': channel(
-    z.strictObject({ desktopIcons: z.boolean(), customDir: nonEmpty.optional() }),
+    z.strictObject({
+      desktopIcons: z.boolean(),
+      customDir: nonEmpty.optional(),
+      allowUnverified: z.boolean().optional(),
+    }),
   )<TaskRef>(),
   /** Task result: `null`. */
   'ap:uninstall': channel(z.strictObject({ purgeUserData: z.boolean() }))<TaskRef>(),

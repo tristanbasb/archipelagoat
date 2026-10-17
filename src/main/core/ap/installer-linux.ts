@@ -32,13 +32,13 @@ import {
   throwIfCancelled,
   userDataTargets,
 } from './install-steps'
-import { createLocator, type Locator } from './locator'
+import { createLocator, LINUX_INSTALL_RECORD, type Locator } from './locator'
 
 /** The release's single top folder (brief §1.3), also the install folder inside `targetRoot`. */
 const AP_FOLDER = 'Archipelago'
 
 /** Next to the install folder: `{ "files": [...] }`, the paths (with `/`) the releases installed. */
-const RECORD_FILE = 'archipelagoat-files.json'
+const RECORD_FILE = LINUX_INSTALL_RECORD
 
 /** The oldest glibc the builds of Archipelago are made for. */
 const MIN_GLIBC: readonly [number, number] = [2, 35]
@@ -167,7 +167,8 @@ export interface LinuxInstallOptions {
  * Downloads and verifies the tar.gz (task stages `download`, `verify`), backs up the settings of the
  * install already in `targetRoot/Archipelago` (`backup`), then extracts the release to
  * `targetRoot/.staging-<version>` and applies it (`install`). Returns the install, of kind
- * `linux-managed` in the default folder and `custom` anywhere else.
+ * `linux-managed` in the default folder and `linux-targz` anywhere else: either way the app made it,
+ * and keeps updating and uninstalling it (the record next to it says so).
  */
 export async function installLinux(
   ctx: CoreContext,
@@ -176,7 +177,7 @@ export async function installLinux(
 ): Promise<ApInstall> {
   const managedRoot = path.join(ctx.platform.paths.dataRoot, 'archipelago')
   const targetRoot = opts.targetRoot ?? managedRoot
-  const kind = path.resolve(targetRoot) === path.resolve(managedRoot) ? 'linux-managed' : 'custom'
+  const kind = path.resolve(targetRoot) === path.resolve(managedRoot) ? 'linux-managed' : 'linux-targz'
   const locator = opts.locator ?? createLocator(ctx)
   const installRoot = path.join(targetRoot, AP_FOLDER)
 

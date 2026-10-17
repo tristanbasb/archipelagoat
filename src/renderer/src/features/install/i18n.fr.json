@@ -18,7 +18,7 @@
     "kinds": {
       "windows-installer": "Installateur officiel",
       "linux-managed": "Installation gérée par l’app",
-      "linux-targz": "Archive tar.gz",
+      "linux-targz": "Gérée par l’app, dans ton dossier",
       "linux-appimage": "AppImage",
       "custom": "Dossier choisi à la main"
     }
@@ -130,6 +130,7 @@
       "starting": "Préparation…",
       "download": "Téléchargement de la version officielle depuis GitHub.",
       "verify": "Vérification de l’empreinte SHA-256 du fichier.",
+      "verifySize": "Vérification de la taille du fichier (GitHub n’a pas publié son empreinte).",
       "backup": "Sauvegarde de host.yaml, d’options.yaml et de la liste de tes mondes.",
       "quarantine": "Mise de côté des APWorlds corrompus, qui bloqueraient l’installateur.",
       "installWin": "Accepte la demande d’autorisation de Windows (UAC). Une petite fenêtre vc_redist peut aussi apparaître\u00a0: c’est normal.",
@@ -189,5 +190,12 @@
     "6": "installateur arrêté par un débogueur",
     "7": "l’installateur ne peut pas continuer (étape de préparation)",
     "8": "l’installateur ne peut pas continuer, et un redémarrage est nécessaire"
+  },
+  "unverified": {
+    "eyebrow": "ATTENTION",
+    "title": "Installer sans empreinte vérifiée\u00a0?",
+    "body": "GitHub n’a pas publié l’empreinte SHA-256 de {{file}}\u00a0: l’app peut seulement vérifier sa taille avant de le lancer.",
+    "note": "Il vient quand même de la release officielle d’Archipelago, en https. Tu peux aussi réessayer plus tard.",
+    "confirm": "Installer quand même"
   }
 }

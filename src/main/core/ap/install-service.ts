@@ -2,6 +2,7 @@
 // as tasks (spec §3.4-3.5). Task stages of an install: `download`, `verify`, `backup`, `quarantine`
 // (Windows only: the Linux release has no settings step to block), `install`, `detect`. An install
 // result is the `ApInstall`, announced by `ap:installed`; an uninstall result is null.
+import path from 'node:path'
 import type { CoreContext } from '@main/core/context'
 import { assertUserPath } from '@main/core/system/user-path'
 import type { TaskHandle } from '@main/core/tasks'
@@ -26,9 +27,12 @@ export interface InstallService {
   /**
    * Installs or updates to the latest release. `customDir` (a path from the renderer) is where the
    * Windows installer puts Archipelago, or the folder that receives `Archipelago/` on Linux, which
-   * detection then uses first.
+   * detection then uses first. Without it, a Linux install the app made in such a folder
+   * (`linux-targz`) is updated where it is. A release file without a SHA-256 is refused
+   * (INSTALL_FAILED `no-digest`, before any download) unless `allowUnverified`: the installer runs
+   * elevated, and the user must know that only its size is checked (spec §3.3).
    */
-  install(opts: { desktopIcons: boolean; customDir: string | null }): TaskRef
+  install(opts: { desktopIcons: boolean; customDir: string | null; allowUnverified?: boolean }): TaskRef
   /** Uninstalls the copy the official installer or the app made; never a folder picked by hand. */
   uninstall(opts: { purgeUserData: boolean }): TaskRef
 }
@@ -64,6 +68,7 @@ export function createInstallService(ctx: CoreContext, deps: InstallServiceDeps)
   async function install(
     desktopIcons: boolean,
     customDir: string | null,
+    allowUnverified: boolean,
     task: TaskHandle,
   ): Promise<ApInstall> {
     throwIfCancelled(task.signal)
@@ -73,6 +78,10 @@ export function createInstallService(ctx: CoreContext, deps: InstallServiceDeps)
         : await assertUserPath(customDir, { mustExist: false, kind: 'dir', access: 'write' })
     await refuseIfRunning()
     const release = await fetchLatestApRelease(ctx.http)
+    const asset = os === 'win32' ? release.windows : release.linuxTarGz
+    if (asset && asset.sha256 === null && !allowUnverified) {
+      throw new AppError('INSTALL_FAILED', { reason: 'no-digest' }, { detail: asset.name })
+    }
 
     if (os === 'win32') {
       const current = await locator.detect()
@@ -82,9 +91,12 @@ export function createInstallService(ctx: CoreContext, deps: InstallServiceDeps)
         task,
       )
     } else {
+      // An update of a copy the app installed in a folder of the user's choice stays in that folder.
+      const current = dir === null ? await locator.detect() : null
+      const targetRoot = dir ?? (current?.kind === 'linux-targz' ? path.dirname(current.root) : null)
       const installed = await installLinux(
         ctx,
-        { release, ...(dir === null ? {} : { targetRoot: dir }), locator, beforeInstall: refuseIfRunning },
+        { release, ...(targetRoot === null ? {} : { targetRoot }), locator, beforeInstall: refuseIfRunning },
         task,
       )
       // A folder of the user's choice: detection must look there first.
@@ -108,7 +120,7 @@ export function createInstallService(ctx: CoreContext, deps: InstallServiceDeps)
     const remove =
       os === 'win32' && current.kind === 'windows-installer'
         ? uninstallWindows
-        : os === 'linux' && current.kind === 'linux-managed'
+        : os === 'linux' && (current.kind === 'linux-managed' || current.kind === 'linux-targz')
           ? uninstallLinux
           : null
     if (!remove) {
@@ -119,6 +131,8 @@ export function createInstallService(ctx: CoreContext, deps: InstallServiceDeps)
     await refuseIfRunning()
     task.progress('uninstall', null)
     await remove(ctx, current, { purgeUserData })
+    // Detection no longer looks in a folder the app emptied.
+    if (current.kind === 'linux-targz') ctx.config.updateInternal({ apPathOverride: null })
     locator.invalidate()
     ctx.bus.emit('worlds:changed', null)
     return null
@@ -127,8 +141,10 @@ export function createInstallService(ctx: CoreContext, deps: InstallServiceDeps)
   return {
     latest: (force = false) => fetchLatestApRelease(ctx.http, { force }),
 
-    install: ({ desktopIcons, customDir }) =>
-      ctx.tasks.start('ap-install', (task) => exclusive(() => install(desktopIcons, customDir, task))),
+    install: ({ desktopIcons, customDir, allowUnverified = false }) =>
+      ctx.tasks.start('ap-install', (task) =>
+        exclusive(() => install(desktopIcons, customDir, allowUnverified, task)),
+      ),
 
     uninstall: ({ purgeUserData }) =>
       ctx.tasks.start('ap-uninstall', (task) => exclusive(() => uninstall(purgeUserData, task))),

@@ -497,9 +497,53 @@ describe('install on Linux', () => {
 
     const extracted = posix.normalize(join(customDir, 'Archipelago'))
     expect(core.ctx.config.get().apPathOverride).toBe(extracted)
-    expect(result).toMatchObject({ kind: 'custom', root: extracted, version: '0.6.8' })
+    // The app made it: it stays the app's to update and uninstall, unlike a folder picked by hand.
+    expect(result).toMatchObject({ kind: 'linux-targz', root: extracted, version: '0.6.8' })
     expect(existsSync(join(customDir, 'Archipelago', 'ArchipelagoLauncher'))).toBe(true)
     expect(installed).toEqual([result])
+    // Detected again (the next start, an invalidation), it is still the app's.
+    locator.invalidate()
+    expect(await locator.detect()).toMatchObject({ kind: 'linux-targz', root: extracted })
+  })
+
+  it('updates a copy it installed in a custom folder where it is, then uninstalls it', async () => {
+    const customDir = join(root, 'Jeux é')
+    const locator = createLocator(core.ctx)
+    const installer = service(locator)
+    await succeeded(installer.install({ desktopIcons: true, customDir }))
+    const extracted = posix.normalize(join(customDir, 'Archipelago'))
+    write(join(extracted, 'Players', 'Ann.yaml'), 'name: Ann')
+
+    // An update without a folder goes to that copy, not to the managed folder.
+    const updated = (await succeeded(installer.install({ desktopIcons: true, customDir: null }))) as ApInstall
+    expect(updated).toMatchObject({ kind: 'linux-targz', root: extracted })
+    expect(existsSync(join(dataRoot(), 'archipelago'))).toBe(false)
+    expect(existsSync(join(extracted, 'Players', 'Ann.yaml'))).toBe(true)
+
+    expect(await succeeded(installer.uninstall({ purgeUserData: false }))).toBeNull()
+    expect(readdirSync(extracted)).toEqual(['Players'])
+    // Detection no longer looks in the folder it emptied.
+    expect(core.ctx.config.get().apPathOverride).toBeNull()
+    expect(await locator.detect()).toBeNull()
+  })
+
+  it('refuses a release file GitHub gives no SHA-256 for, unless the user accepted it', async () => {
+    const asset: { digest?: string } = releaseJson.assets[1] as { digest?: string }
+    const digest = asset.digest
+    delete asset.digest
+    try {
+      const installer = service(createLocator(core.ctx))
+      const error = await failed(installer.install({ desktopIcons: true, customDir: null }))
+      expect(error).toMatchObject({ code: 'INSTALL_FAILED', params: { reason: 'no-digest' } })
+      // Refused before anything was downloaded.
+      expect(requestsFor(TGZ_NAME)).toBe(0)
+
+      const accepted = installer.install({ desktopIcons: true, customDir: null, allowUnverified: true })
+      expect(await succeeded(accepted)).toMatchObject({ kind: 'linux-managed', version: '0.6.8' })
+      expect(requestsFor(TGZ_NAME)).toBe(1)
+    } finally {
+      asset.digest = digest
+    }
   })
 
   it('uninstalls the managed copy and keeps the user data', async () => {

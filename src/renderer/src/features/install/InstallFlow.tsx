@@ -209,7 +209,10 @@ function InstallProgress({ flow, task, os, headingRef }: InstallProgressProps): 
         ? os === 'win32'
           ? t('screens.install.flow.hints.installWin')
           : t('screens.install.flow.hints.installLinux')
-        : t(`screens.install.flow.hints.${stage}`)
+        : stage === 'verify' && flow.input?.allowUnverified === true
+          ? // No SHA-256 from GitHub: only the size is checked, as the user accepted.
+            t('screens.install.flow.hints.verifySize')
+          : t(`screens.install.flow.hints.${stage}`)
 
   return (
     <FlowFrame

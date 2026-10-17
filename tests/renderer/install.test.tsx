@@ -374,6 +374,44 @@ describe('InstallScreen', () => {
     expect(within(steps).getByText('Vérification').closest('li')).toHaveAttribute('aria-current', 'step')
   })
 
+  it('asks before installing a file GitHub published no checksum for, then says it checks its size', async () => {
+    const latest = release()
+    const unverified = release({ windows: latest.windows && { ...latest.windows, sha256: null } })
+    const { goat, user } = await renderInstall({
+      'ap:latestRelease': () => unverified,
+      'ap:install': () => ({ taskId: 'i1' }),
+    })
+    await user.click(await screen.findByRole('button', { name: INSTALL_BUTTON }))
+    let dialog = await screen.findByRole('dialog', { name: 'Installer sans empreinte vérifiée\u00a0?' })
+    expect(dialog).toHaveTextContent('Setup.Archipelago.0.6.8.exe')
+    await user.click(within(dialog).getByRole('button', { name: 'Annuler' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(goat.inputsOf('ap:install')).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: INSTALL_BUTTON }))
+    dialog = await screen.findByRole('dialog', { name: 'Installer sans empreinte vérifiée\u00a0?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Installer quand même' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('ap:install')).toEqual([{ desktopIcons: true, allowUnverified: true }]),
+    )
+    goat.emit('task:progress', { taskId: 'i1', kind: 'ap-install', stage: 'verify', percent: null })
+    expect(await screen.findByText(/Vérification de la taille du fichier/)).toBeInTheDocument()
+  })
+
+  it('on Linux, keeps updating and uninstalling a copy it installed in a custom folder', async () => {
+    const custom = apInstall({
+      kind: 'linux-targz',
+      version: '0.6.7',
+      root: '/home/joueur/Jeux/Archipelago',
+      paths: pathsOf('/home/joueur/Jeux/Archipelago'),
+    })
+    await renderInstall({ 'ap:detect': () => custom }, { info: { os: 'linux' } })
+    expect(await screen.findByRole('heading', { name: 'Une mise à jour est disponible' })).toBeInTheDocument()
+    expect(screen.queryByText(/ne met pas à jour un dossier choisi à la main/)).toBeNull()
+    expect(screen.getByRole('button', { name: /^Mettre à jour/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Désinstaller Archipelago' })).toBeInTheDocument()
+  })
+
   it('on Linux, offers the managed install for an AppImage and leaves the Windows notes out', async () => {
     const appImage = apInstall({
       kind: 'linux-appimage',

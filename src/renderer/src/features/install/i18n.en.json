@@ -18,7 +18,7 @@
     "kinds": {
       "windows-installer": "Official installer",
       "linux-managed": "Managed by the app",
-      "linux-targz": "tar.gz archive",
+      "linux-targz": "Managed by the app, in your folder",
       "linux-appimage": "AppImage",
       "custom": "Folder picked by hand"
     }
@@ -130,6 +130,7 @@
       "starting": "Getting ready…",
       "download": "Downloading the official release from GitHub.",
       "verify": "Checking the SHA-256 checksum of the file.",
+      "verifySize": "Checking the size of the file (GitHub published no checksum for it).",
       "backup": "Backing up host.yaml, options.yaml and your list of worlds.",
       "quarantine": "Setting aside broken APWorlds, which would block the installer.",
       "installWin": "Accept the Windows permission request (UAC). A small vc_redist window may also show up: that is normal.",
@@ -189,5 +190,12 @@
     "6": "the installer was stopped by a debugger",
     "7": "the installer cannot proceed (preparation step)",
     "8": "the installer cannot proceed, and a restart is needed"
+  },
+  "unverified": {
+    "eyebrow": "WARNING",
+    "title": "Install without a verified checksum?",
+    "body": "GitHub published no SHA-256 checksum for {{file}}: the app can only check its size before it runs it.",
+    "note": "It still comes from the official Archipelago release, over https. You can also try again later.",
+    "confirm": "Install anyway"
   }
 }

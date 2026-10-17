@@ -40,7 +40,7 @@
     "kinds": {
       "windows-installer": "Windows installer",
       "linux-managed": "Installed by ArchipelaGOAT",
-      "linux-targz": "tar.gz archive",
+      "linux-targz": "Installed by ArchipelaGOAT in your folder",
       "linux-appimage": "AppImage"
     },
     "choose": "Choose a folder…",

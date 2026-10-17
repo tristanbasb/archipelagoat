@@ -33,8 +33,8 @@ async function isFile(p: string): Promise<boolean> {
 /**
  * Downloads a release asset to `dataRoot/downloads/<name>` (task stages `download`, then `verify`)
  * and returns its path. A copy already there whose SHA-256 is the release's is used as is. An asset
- * without a digest (GitHub has none for older uploads) is checked by size only: it still comes from
- * the official release, over https.
+ * without a digest (GitHub has none for older uploads) is checked by size only: the caller asks the
+ * user first (InstallService.install `allowUnverified`, spec §3.3).
  */
 export async function fetchReleaseAsset(
   ctx: CoreContext,

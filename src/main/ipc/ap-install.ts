@@ -11,8 +11,14 @@ export default function registerApInstallHandlers(
   register('ap:latestRelease', ({ force }) => installer().latest(force ?? false))
 
   // Tasks: the custom folder is checked by the task itself, before anything else runs.
-  register('ap:install', ({ desktopIcons, customDir }) =>
-    Promise.resolve(installer().install({ desktopIcons, customDir: customDir ?? null })),
+  register('ap:install', ({ desktopIcons, customDir, allowUnverified }) =>
+    Promise.resolve(
+      installer().install({
+        desktopIcons,
+        customDir: customDir ?? null,
+        allowUnverified: allowUnverified === true,
+      }),
+    ),
   )
 
   register('ap:uninstall', ({ purgeUserData }) => Promise.resolve(installer().uninstall({ purgeUserData })))

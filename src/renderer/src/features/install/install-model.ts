@@ -80,7 +80,7 @@ export function apState(installed: ApInstall | null, latest: string | null): ApS
 }
 
 /** Installs the app can remove: the ones the official installer or the app itself made. */
-const REMOVABLE: readonly ApInstallKind[] = ['windows-installer', 'linux-managed']
+const REMOVABLE: readonly ApInstallKind[] = ['windows-installer', 'linux-managed', 'linux-targz']
 
 export function canUninstall(install: ApInstall): boolean {
   return REMOVABLE.includes(install.kind)

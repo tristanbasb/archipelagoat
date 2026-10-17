@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toAppErrorData } from '@shared/errors'
 import type { ApInstall, ApRelease, TaskRef } from '@shared/types'
-import { NeonButton, PixelPanel, Spinner } from '../../design/components'
+import { ConfirmDialog, NeonButton, PixelPanel, Spinner } from '../../design/components'
 import { useEvent } from '../../hooks/useEvent'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useTask } from '../../hooks/useTask'
@@ -43,6 +43,8 @@ export function InstallScreen(): React.JSX.Element {
   const [desktopIcons, setDesktopIcons] = useState<boolean | null>(null)
   const [customDir, setCustomDir] = useState<string | null>(null)
   const [uninstallOpen, setUninstallOpen] = useState(false)
+  /** The install waiting for the user to accept a file without a published checksum. */
+  const [unverified, setUnverified] = useState<InstallInput | null>(null)
   const [flow, setFlow] = useState<Flow | null>(null)
   const task = useTask(flow?.taskId ?? null)
   const status = flow ? flowStatus(flow, task) : null
@@ -108,6 +110,13 @@ export function InstallScreen(): React.JSX.Element {
     desktopIcons: desktopIcons ?? config.desktopIcons,
     ...(customDir ? { customDir } : {}),
   })
+  // The file this system installs from: without a SHA-256 from GitHub, only its size can be checked.
+  const asset = os === 'win32' ? latest?.windows : os === 'linux' ? latest?.linuxTarGz : null
+  const offerInstall = (): void => {
+    const input = installInput()
+    if (asset?.sha256 === null) setUnverified(input)
+    else install(input)
+  }
 
   const retry = (): void => {
     if (!flow) return
@@ -159,7 +168,7 @@ export function InstallScreen(): React.JSX.Element {
             latestStatus={latestStatus}
             os={os}
             offer={offer}
-            onOffer={() => install(installInput())}
+            onOffer={offerInstall}
           />
           {releaseError && <InstallError error={releaseError} onRetry={checkUpdates} />}
           <div className="install-grid">
@@ -199,6 +208,24 @@ export function InstallScreen(): React.JSX.Element {
         </div>
       )}
 
+      <ConfirmDialog
+        open={unverified !== null}
+        tone="yellow"
+        eyebrow={t('screens.install.unverified.eyebrow')}
+        title={t('screens.install.unverified.title')}
+        confirmLabel={t('screens.install.unverified.confirm')}
+        cancelLabel={t('common.cancel')}
+        closeLabel={t('common.closeDialog')}
+        onCancel={() => setUnverified(null)}
+        onConfirm={() => {
+          const input = unverified
+          setUnverified(null)
+          if (input) install({ ...input, allowUnverified: true })
+        }}
+      >
+        <p>{t('screens.install.unverified.body', { file: asset?.name ?? '' })}</p>
+        <p className="confirm-dialog__note">{t('screens.install.unverified.note')}</p>
+      </ConfirmDialog>
       <UninstallDialog
         open={uninstallOpen}
         os={os}
