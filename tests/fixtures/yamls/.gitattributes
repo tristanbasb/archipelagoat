@@ -1,0 +1,2 @@
+# Exact bytes matter here (BOM, CRLF, Windows-1252, UTF-16): no line-ending conversion.
+* -text
