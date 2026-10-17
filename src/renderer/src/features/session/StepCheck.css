@@ -1,0 +1,245 @@
+/* Step 2: the tally, then one panel per kind of problem, each row with its fix. */
+.check-step {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+.check-step__bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: calc(-1 * var(--sp-3));
+}
+
+.check-step__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-10);
+  color: var(--neon-yellow);
+}
+
+.check-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+@media (max-width: 1000px) {
+  .check-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.check-summary .stat-tile__value {
+  font-size: var(--fs-20);
+  font-variant-numeric: tabular-nums;
+}
+
+/* All clear. */
+.check-ready {
+  --pb-color: color-mix(in srgb, var(--neon-green) 55%, transparent);
+  --pb-fill:
+    radial-gradient(
+      120% 160% at 0% 0%,
+      color-mix(in srgb, var(--neon-green) 13%, transparent),
+      transparent 60%
+    ),
+    var(--bg-2);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.check-ready__icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  color: var(--neon-green);
+  filter: var(--drop-glow);
+}
+
+.check-ready__title {
+  color: var(--tone-ink);
+  font-size: var(--fs-16);
+  font-weight: 700;
+}
+
+.check-ready__body {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+/* ---- Worlds and ROMs rows ------------------------------------------------------------------- */
+
+.check-panel__body {
+  margin-bottom: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.check-rows {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-3);
+  background: color-mix(in srgb, var(--bg-0) 55%, transparent);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+}
+
+.check-row[data-state='missing'],
+.check-row[data-state='bad-hash'] {
+  box-shadow: inset 2px 0 0 var(--neon-pink);
+}
+
+.check-row[data-state='vault'],
+.check-row[data-state='settings'] {
+  box-shadow: inset 2px 0 0 var(--neon-green);
+}
+
+.check-row__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: var(--tone-soft);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.check-row__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.check-row__main {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-3);
+  min-width: 0;
+}
+
+.check-row__title {
+  font-weight: 700;
+}
+
+.check-row__hint {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.check-row__path {
+  flex-basis: 100%;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- One file's players and issues ---------------------------------------------------------- */
+
+.check-docs {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.check-doc + .check-doc {
+  padding-top: var(--sp-4);
+  border-top: 1px dashed var(--line);
+}
+
+.check-doc__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.check-doc__name {
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.check-doc__games {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.check-issues {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: color-mix(in srgb, var(--neon-pink) 6%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--neon-pink) 70%, transparent);
+  font-size: var(--fs-13);
+}
+
+.check-issue[data-severity='warning'] {
+  background: color-mix(in srgb, var(--neon-yellow) 5%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+}
+
+.check-issue__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--neon-pink);
+}
+
+.check-issue[data-severity='warning'] .check-issue__icon {
+  color: var(--neon-yellow);
+}
+
+.check-issue__text {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.check-issue__path {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 6px;
+  background: var(--bg-3);
+  color: var(--neon-cyan);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check-step__ok {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: color-mix(in srgb, var(--neon-green) 78%, #ffffff);
+  font-size: var(--fs-13);
+}
+
+.check-step__ok svg {
+  width: 16px;
+  height: 16px;
+}

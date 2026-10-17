@@ -1,0 +1,90 @@
+/* What hosting on archipelago.gg implies, then the box to tick. */
+.consent {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.consent__points {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.consent__points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--tone) 7%, var(--bg-1));
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--tone) 75%, transparent);
+  font-size: var(--fs-13);
+}
+
+.consent__points strong {
+  color: var(--tone-ink);
+}
+
+.consent__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--tone);
+}
+
+.consent__ack {
+  --pb-color: var(--tone-line);
+  --pb-fill: color-mix(in srgb, var(--tone) 6%, var(--bg-1));
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.consent__ack input {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.consent__box {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--tone);
+  background: var(--bg-0);
+  color: var(--bg-0);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.consent__box svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+  opacity: 0;
+}
+
+.consent__ack input:checked + .consent__box {
+  background: var(--tone);
+  box-shadow: var(--glow-sm);
+}
+
+.consent__ack input:checked + .consent__box svg {
+  opacity: 1;
+}
+
+.consent__ack input:focus-visible + .consent__box {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}

@@ -1,0 +1,29 @@
+/* The name entry of the rename dialog: a live character count against the 16 allowed. */
+.rename-form {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.rename-form .input-frame[data-invalid] {
+  --pb-color: var(--neon-pink);
+}
+
+.rename-form__count {
+  flex: none;
+  color: var(--text-mute);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.rename-form__count[data-over] {
+  color: var(--neon-pink);
+}
+
+.rename-form .field__hint[data-problem] {
+  color: color-mix(in srgb, var(--neon-pink) 70%, #ffffff);
+}
+
+.rename-form__note {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}

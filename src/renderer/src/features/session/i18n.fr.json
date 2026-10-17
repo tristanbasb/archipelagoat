@@ -1,1 +1,322 @@
-{}
+{
+  "eyebrow": "STAGE {{n}}",
+  "status": {
+    "draft": "Brouillon",
+    "generated": "Générée",
+    "hosting": "En cours",
+    "finished": "Terminée"
+  },
+  "stepsLabel": "Étapes de la partie",
+  "steps": {
+    "players": "Joueurs",
+    "check": "Vérification",
+    "rules": "Règles",
+    "generate": "Génération",
+    "host": "Hébergement"
+  },
+  "hints": {
+    "players": "Rassemble les YAML de tous les joueurs.",
+    "check": "On vérifie que tout est prêt avant de générer.",
+    "rules": "Choisis comment la partie se joue.",
+    "generate": "Archipelago mélange les mondes de tout le monde.",
+    "host": "Choisis où tourne le serveur de la partie."
+  },
+  "nav": {
+    "label": "Étapes suivante et précédente",
+    "back": "Précédent",
+    "next": "Suivant",
+    "saving": "Enregistrement…"
+  },
+  "load": {
+    "loading": "Chargement de la partie…",
+    "notFoundTitle": "Partie introuvable",
+    "notFoundBody": "Elle a peut-être été supprimée. Tu peux en créer une nouvelle.",
+    "newGame": "Nouvelle partie"
+  },
+  "new": {
+    "eyebrow": "PLAYER 1",
+    "title": "Nouvelle partie",
+    "body": "Donne-lui un nom\u00a0: tu ajouteras les joueurs juste après.",
+    "nameLabel": "Nom de la partie",
+    "defaultName": "Partie du {{date}}",
+    "create": "Créer la partie",
+    "creating": "Création…",
+    "resumeEyebrow": "CONTINUE?",
+    "resumeTitle": "Reprendre une partie",
+    "players_one": "{{count}} joueur",
+    "players_other": "{{count}} joueurs",
+    "updated": "Modifiée le {{date}}",
+    "resume": "Reprendre",
+    "watch": "Voir la partie en cours"
+  },
+  "players": {
+    "dropTitle": "Dépose les YAML des joueurs ici",
+    "dropHint": "Fichiers .yaml, .yml ou .txt, ou une archive .zip de YAML",
+    "browse": "Parcourir…",
+    "pickTitle": "Ajouter des YAML de joueurs",
+    "pickFilter": "YAML de joueurs",
+    "importing": "Import en cours…",
+    "studio": "Créer le mien dans le Studio",
+    "title": "Joueurs",
+    "count_one": "{{count}} joueur",
+    "count_other": "{{count}} joueurs",
+    "listLabel": "Fichiers des joueurs",
+    "emptyTitle": "Aucun joueur pour l’instant",
+    "emptyBody": "Chaque joueur t’envoie son YAML\u00a0: dépose-les tous ici.",
+    "slot": "P{{n}}",
+    "noName": "Sans nom",
+    "noDocs": "Aucun joueur dans ce fichier.",
+    "remove": "Retirer {{name}}",
+    "removed": "Retiré de la partie\u00a0: {{name}}",
+    "fileOk": "Prêt",
+    "fileWarnings_one": "{{count}} alerte",
+    "fileWarnings_other": "{{count}} alertes",
+    "fileErrors_one": "{{count}} erreur",
+    "fileErrors_other": "{{count}} erreurs",
+    "ignoredTitle": "Fichiers ignorés",
+    "ignoredBody": "Ce ne sont pas des YAML de joueur\u00a0: ils n’ont pas été ajoutés.",
+    "dismiss": "Masquer la liste",
+    "needPlayers": "Ajoute au moins un YAML pour continuer."
+  },
+  "check": {
+    "checking": "Vérification de la partie…",
+    "recheck": "Revérifier",
+    "summaryLabel": "Bilan de la vérification",
+    "summary": {
+      "players": "Joueurs",
+      "errors": "Erreurs",
+      "warnings": "Alertes",
+      "worlds": "Mondes manquants",
+      "roms": "ROMs à fournir"
+    },
+    "readyTitle": "Tout est prêt",
+    "readyBody": "Aucun problème bloquant\u00a0: tu peux passer aux règles.",
+    "readyWarnings": "Rien de bloquant, mais jette un œil aux alertes ci-dessous.",
+    "blocked": "Impossible de continuer\u00a0: {{reasons}}.",
+    "blockedUnknown": "Impossible de continuer\u00a0: la vérification signale un problème bloquant.",
+    "reasons": {
+      "errors_one": "{{count}} erreur à corriger",
+      "errors_other": "{{count}} erreurs à corriger",
+      "worlds_one": "{{count}} monde à installer",
+      "worlds_other": "{{count}} mondes à installer",
+      "roms_one": "{{count}} ROM à fournir",
+      "roms_other": "{{count}} ROM à fournir"
+    },
+    "worldsTitle": "Mondes manquants",
+    "worldsBody": "Aucun monde installé ne gère ces jeux.",
+    "installAll": "Installer les mondes manquants",
+    "install": "Installer",
+    "installLabel": "Installer {{game}}",
+    "fromCatalog": "Catalogue",
+    "notInCatalog": "Hors catalogue\u00a0: demande le fichier .apworld au joueur.",
+    "pickFile": "Choisir le fichier…",
+    "pickFileLabel": "Choisir le fichier .apworld de {{game}}",
+    "pickTitle": "APWorld pour {{game}}",
+    "romsTitle": "ROMs",
+    "romsBody": "Ces jeux ont besoin de leur ROM pour être générés. Elle reste sur ton PC\u00a0: rien n’est téléchargé ni partagé.",
+    "rom": {
+      "vault": "ROM trouvée dans le coffre",
+      "settings": "ROM prête",
+      "missing": "ROM manquante",
+      "bad-hash": "Ce n’est pas la bonne version de la ROM"
+    },
+    "openVault": "Ouvrir le coffre à ROMs",
+    "filesOk_one": "{{count}} fichier sans problème",
+    "filesOk_other": "{{count}} fichiers sans problème",
+    "sessionTitle": "Toute la partie",
+    "rename": "Renommer",
+    "renameLabel": "Renommer {{name}}",
+    "fixInStudio": "Corriger dans le Studio",
+    "unnamed": "Joueur sans nom",
+    "severity": {
+      "error": "Erreur",
+      "warning": "Alerte"
+    }
+  },
+  "rename": {
+    "eyebrow": "NAME ENTRY",
+    "title": "Renommer {{name}}",
+    "label": "Nouveau nom",
+    "hint": "16 caractères au plus, différent de celui des autres joueurs.",
+    "tooLong": "16 caractères au plus.",
+    "numeric": "Le nom ne peut pas être fait que de chiffres.",
+    "multiDoc": "Les autres joueurs de ce fichier sont conservés tels quels.",
+    "confirm": "Renommer",
+    "saving": "Renommage…",
+    "unreadable": "Ce fichier ne peut pas être relu ici\u00a0: corrige-le dans le Studio.",
+    "done": "Joueur renommé\u00a0: {{name}}"
+  },
+  "rules": {
+    "presetsLabel": "Préréglage",
+    "presets": {
+      "casual": {
+        "title": "Détente",
+        "body": "Entre amis\u00a0: indices abordables, et chaque monde libère ses objets quand son joueur a fini."
+      },
+      "async": {
+        "title": "Async",
+        "body": "Sur plusieurs jours\u00a0: le serveur ne s’arrête jamais tout seul, chacun joue à son rythme."
+      },
+      "race": {
+        "title": "Course",
+        "body": "Pour une compétition\u00a0: pas de spoiler, mode course et la même version pour tout le monde."
+      }
+    },
+    "custom": "Personnalisé",
+    "passwordsTitle": "Mots de passe",
+    "password": "Mot de passe des joueurs",
+    "passwordHint": "Demandé à chaque joueur pour se connecter. Vide\u00a0: pas de mot de passe.",
+    "serverPassword": "Mot de passe d’administration",
+    "serverPasswordHint": "Pour administrer le serveur à distance (!admin). Vide\u00a0: désactivé.",
+    "secretsUnavailable": "Les mots de passe enregistrés n’ont pas pu être relus.",
+    "show": "Afficher le mot de passe",
+    "hide": "Masquer le mot de passe",
+    "advanced": "Réglages avancés",
+    "groups": {
+      "hints": "Indices",
+      "commands": "Commandes des joueurs",
+      "game": "Partie"
+    },
+    "hintCost": "Coût d’un indice",
+    "hintCostHint": "En\u00a0% des emplacements du monde\u00a0: 10 donne un indice tous les 10\u00a0%.",
+    "locationCheckPoints": "Points par emplacement visité",
+    "locationCheckPointsHint": "Les points qui paient les indices.",
+    "releaseMode": "Libération (!release)",
+    "releaseModeHint": "Envoie aux autres joueurs les objets qui restent dans ton monde.",
+    "collectMode": "Collecte (!collect)",
+    "collectModeHint": "Récupère d’un coup tes objets qui restent dans les autres mondes.",
+    "modes": {
+      "auto": "Automatique au but",
+      "enabled": "Toujours permise",
+      "disabled": "Désactivée",
+      "goal": "Permise après le but",
+      "auto-enabled": "Automatique, et permise avant"
+    },
+    "remainingMode": "Objets restants (!remaining)",
+    "remaining": {
+      "enabled": "Toujours",
+      "goal": "Après le but",
+      "disabled": "Jamais"
+    },
+    "countdownMode": "Compte à rebours (!countdown)",
+    "countdown": {
+      "auto": "Auto",
+      "enabled": "Toujours",
+      "disabled": "Jamais"
+    },
+    "countdownHint": "Auto\u00a0: permis sous 30 joueurs. L’hôte peut toujours lancer /countdown.",
+    "itemCheat": "Autoriser !getitem",
+    "itemCheatHint": "Les joueurs peuvent se donner des objets\u00a0: c’est de la triche.",
+    "spoiler": "Fichier spoiler",
+    "spoilers": {
+      "0": "Aucun",
+      "1": "Simple",
+      "2": "Parcours",
+      "3": "Complet"
+    },
+    "spoilerHint": "Simple\u00a0: où est chaque objet. Parcours\u00a0: plus une solution. Complet\u00a0: plus le chemin vers chaque objet.",
+    "race": "Mode course",
+    "raceHint": "Marque la partie comme une course\u00a0; les jeux qui le gèrent chiffrent leurs ROMs.",
+    "autoShutdown": "Arrêt automatique (minutes)",
+    "autoShutdownHint": "Arrête le serveur après ce temps sans nouvel emplacement visité. 0\u00a0: jamais.",
+    "compatibility": "Versions des clients",
+    "compatibilities": {
+      "2": "Toutes",
+      "0": "Version identique"
+    },
+    "compatibilityHint": "Version identique\u00a0: chaque client doit avoir exactement la version du serveur.",
+    "plando": "Plando permis",
+    "plandoHint": "Ce que les YAML ont le droit de placer à la main.",
+    "plandoKinds": {
+      "bosses": "Boss",
+      "items": "Objets",
+      "texts": "Textes",
+      "connections": "Connexions"
+    }
+  },
+  "generate": {
+    "eyebrow": "PRESS START",
+    "idleTitle": "Prêt à générer",
+    "idleBody": "Archipelago va lire les YAML, répartir les objets entre tous les mondes et préparer un fichier par joueur. Ça prend de quelques secondes à quelques minutes.",
+    "start": "Lancer la génération",
+    "regenerate": "Générer à nouveau",
+    "players_one": "{{count}} joueur",
+    "players_other": "{{count}} joueurs",
+    "games_one": "{{count}} jeu",
+    "games_other": "{{count}} jeux",
+    "preset": "Règles\u00a0: {{preset}}",
+    "runningEyebrow": "LOADING",
+    "running": "Génération en cours",
+    "stageWaiting": "Démarrage…",
+    "elapsed": "Temps écoulé\u00a0: {{time}}",
+    "cancel": "Annuler",
+    "cancelLabel": "Annuler la génération",
+    "cancelledTitle": "Génération annulée",
+    "cancelledBody": "Rien n’a été gardé. Relance quand tu veux.",
+    "log_one": "Log de la génération ({{count}} ligne)",
+    "log_other": "Log de la génération ({{count}} lignes)",
+    "logLabel": "Sortie d’Archipelago",
+    "retry": "Relancer la génération",
+    "backToCheck": "Revenir à la vérification",
+    "backToRules": "Revenir aux règles",
+    "successEyebrow": "STAGE CLEAR",
+    "success": "Partie générée",
+    "successBody": "Chaque joueur a son slot. Il ne reste qu’à héberger la partie.",
+    "seed": "Seed",
+    "duration": "Durée",
+    "slotsLabel": "Slots de la partie",
+    "slot": "Slot",
+    "player": "Joueur",
+    "game": "Jeu",
+    "patch": "Fichier de patch",
+    "noPatch": "Aucun",
+    "needPlayersTitle": "Personne à faire jouer",
+    "needPlayers": "Ajoute des joueurs avant de générer.",
+    "toPlayers": "Ajouter des joueurs",
+    "needGeneration": "Génère la partie pour continuer."
+  },
+  "host": {
+    "noGenerationTitle": "Pas encore de partie générée",
+    "noGenerationBody": "Génère la partie avant de choisir où l’héberger.",
+    "toGenerate": "Aller à la génération",
+    "liveTitle": "Cette partie est déjà hébergée",
+    "liveWeb": "Elle tourne sur archipelago.gg.",
+    "liveLocal": "Elle tourne sur ce PC.",
+    "openLive": "Voir la partie en cours",
+    "chooseLabel": "Où héberger la partie",
+    "recommended": "Recommandé pour Internet",
+    "web": {
+      "eyebrow": "ONLINE",
+      "title": "archipelago.gg",
+      "body": "Le site officiel d’Archipelago fait tourner le serveur pour toi.",
+      "pointSetup": "Rien à configurer sur ta box",
+      "pointConnect": "Les joueurs se connectent à archipelago.gg, sur un port donné par le site",
+      "pointSleep": "La room s’endort quand personne ne joue\u00a0; un clic la réveille",
+      "action": "Héberger sur archipelago.gg",
+      "progress": "Envoi sur archipelago.gg…"
+    },
+    "local": {
+      "eyebrow": "LAN",
+      "title": "Sur ce PC",
+      "badge": "LAN, ou Internet avec redirection de port",
+      "body": "Le serveur tourne ici, tant que l’app reste ouverte.",
+      "pointLan": "Idéal quand tout le monde est sur le même réseau",
+      "pointPort": "Pour Internet\u00a0: redirige le port TCP du serveur sur ta box",
+      "pointConsole": "Tu gardes la main sur la console du serveur",
+      "action": "Lancer le serveur local",
+      "starting": "Démarrage du serveur…"
+    }
+  },
+  "consent": {
+    "eyebrow": "ONLINE",
+    "title": "Héberger sur archipelago.gg\u00a0?",
+    "intro": "La partie générée (son fichier zip) va être envoyée sur archipelago.gg, qui fera tourner le serveur.",
+    "passwords": "Le zip contient les mots de passe de la partie, en clair\u00a0: le site peut les lire.",
+    "passwordsSet": "Cette partie a un mot de passe.",
+    "passwordsNone": "Cette partie n’a pas de mot de passe.",
+    "public": "La room est accessible à quiconque a le lien.",
+    "eachTime": "Cette question revient à chaque hébergement sur le site.",
+    "ack": "J’ai compris",
+    "confirm": "Envoyer et héberger"
+  }
+}

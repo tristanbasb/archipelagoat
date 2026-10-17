@@ -1,0 +1,227 @@
+/* Step 3: three preset cards, the passwords, then the advanced settings folded away. */
+.rules-step {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.rules-step__title {
+  font-size: var(--fs-16);
+  font-weight: 700;
+}
+
+.rules-presets__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.rules-presets__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-4);
+}
+
+@media (max-width: 900px) {
+  .rules-presets__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.preset {
+  display: flex;
+  min-width: 0;
+}
+
+/* A preset card; the chosen one lights up in its tone. */
+.preset__card {
+  --pb-color: var(--line);
+  --pb-fill: linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'icon title'
+    'body body';
+  align-items: center;
+  gap: var(--sp-3) var(--sp-3);
+  width: 100%;
+  padding: var(--sp-5);
+  cursor: pointer;
+  transition:
+    filter var(--dur) var(--ease-out),
+    transform var(--dur) var(--ease-out);
+}
+
+.preset__card:hover {
+  --pb-color: var(--tone-line);
+  transform: translateY(-2px);
+}
+
+.preset__input:checked + .preset__card {
+  --pb-color: var(--tone);
+  --pb-fill:
+    radial-gradient(130% 120% at 0% 0%, color-mix(in srgb, var(--tone) 20%, transparent), transparent 65%),
+    var(--bg-2);
+  filter: var(--drop-glow);
+}
+
+.preset__input:focus-visible + .preset__card {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.preset__icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--tone-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 30%, transparent);
+  color: var(--tone);
+  clip-path: var(--clip-corner);
+}
+
+.preset__icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.preset__title {
+  grid-area: title;
+  font-size: var(--fs-16);
+  font-weight: 700;
+}
+
+.preset__input:checked + .preset__card .preset__title {
+  color: var(--tone-ink);
+}
+
+.preset__body {
+  grid-area: body;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+/* ---- Passwords ------------------------------------------------------------------------------ */
+
+.rules-passwords__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-5);
+}
+
+@media (max-width: 800px) {
+  .rules-passwords__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.secret-field__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--neon-magenta);
+}
+
+.rules-passwords__warn {
+  margin-top: var(--sp-3);
+  color: color-mix(in srgb, var(--neon-yellow) 78%, #ffffff);
+  font-size: var(--fs-12);
+}
+
+/* ---- Advanced settings ---------------------------------------------------------------------- */
+
+.rules-advanced {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.rules-advanced__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-self: start;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-1);
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.rules-advanced__toggle:hover {
+  color: color-mix(in srgb, var(--neon-violet) 70%, #ffffff);
+}
+
+.rules-advanced__chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--neon-violet);
+  transform: rotate(-90deg);
+  transition: transform var(--dur) var(--ease-out);
+}
+
+.rules-advanced__toggle[aria-expanded='true'] .rules-advanced__chevron {
+  transform: none;
+}
+
+.rules-advanced__body {
+  display: grid;
+  gap: var(--sp-4);
+  animation: rules-unfold 220ms var(--ease-out) backwards;
+}
+
+.rules-advanced__body[hidden] {
+  display: none;
+}
+
+@keyframes rules-unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.rules-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-5) var(--sp-8);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .rules-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rules-fields__wide {
+  grid-column: 1 / -1;
+}
+
+.rules-plando {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rules-plando legend {
+  padding: 0;
+}
+
+.rules-plando__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3) var(--sp-6);
+  margin-top: var(--sp-1);
+}
+
+@media (max-width: 900px) {
+  .rules-plando__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
