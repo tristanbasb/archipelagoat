@@ -123,8 +123,9 @@ for (const lang of ['fr', 'en'] as const) {
 
       // The catalog tab: offline here, so it says why it is empty.
       await goTo(page, '/worlds')
-      await page.getByRole('tab', { name: new RegExp(t('screens.worlds.tabs.catalog')) }).click()
-      await expect(page.getByText(t('screens.worlds.tabs.catalog'), { exact: true })).toBeVisible()
+      const catalog = page.getByRole('tab', { name: new RegExp(t('screens.worlds.tabs.catalog')) })
+      await catalog.click()
+      await expect(catalog).toHaveAttribute('aria-selected', 'true')
       await expect(page.getByRole('button', { name: t('common.retry') })).toBeVisible()
       await shoot(launched, lang, 'worlds-catalog')
 
@@ -175,10 +176,11 @@ for (const lang of ['fr', 'en'] as const) {
       await stopServer(page, t)
       await shoot(launched, lang, 'live-stopped')
 
-      // Back home: the game is in the recent list.
+      // Back home: the game is in the recent list, over now that its server stopped.
       await goTo(page, '/')
       const recent = page.locator('.home-recent')
       await expect(recent.getByText(lang === 'fr' ? 'Partie E2E' : 'E2E game')).toBeVisible()
+      await expect(recent.getByText(t('screens.home.recent.status.finished'))).toBeVisible()
       await recent.scrollIntoViewIfNeeded()
       await shoot(launched, lang, 'home-recent')
     })
