@@ -40,7 +40,10 @@ export interface GenerateDeps {
     Pick<SessionValidator, 'validateSession'>
   settings: Pick<ApSettings, 'makeSessionSettings'>
   locator: Pick<Locator, 'detect' | 'exe'>
-  /** True while a local server of the session runs. Default: `serverRunsFor`. */
+  /**
+   * True while a local server of the session runs. Default: `serverRunsFor`, which only sees the
+   * servers of this run; the service passes `servers.isBusy`, which also sees an orphan server.
+   */
   isServing?: (sessionId: string) => boolean
   /** The silence after which the task reports a stall. Default: 10 minutes. */
   stallMs?: number

@@ -24,6 +24,7 @@ import {
 } from '@main/core/ap/generate'
 import { createLocator, type Locator } from '@main/core/ap/locator'
 import { listChildren, spawnAp } from '@main/core/ap/process'
+import { createServerManager } from '@main/core/ap/server'
 import { createApSettings, type ApSettings } from '@main/core/ap/settings'
 import type { ExecFn } from '@main/core/exec'
 import { createVault, type Vault } from '@main/core/play/roms'
@@ -40,8 +41,9 @@ import type { TaskHandle } from '@main/core/tasks'
 import { registerHandlers } from '@main/ipc'
 import { createIpcRegistry } from '@main/ipc/registry'
 import { createServices } from '@main/services'
-// The `generator` and `sessions` entries of Services (the service files are loaded by import.meta.glob).
+// The `generator`, `servers` and `sessions` entries of Services (the service files are loaded by import.meta.glob).
 import type {} from '@main/services/generator.service'
+import type {} from '@main/services/servers.service'
 import type {} from '@main/services/sessions.service'
 import { GENERATE_STAGE_IDS } from '@shared/codes'
 import { AppError } from '@shared/errors'
@@ -620,6 +622,31 @@ describe('runGeneration', () => {
     }
   })
 
+  it('refuses while an orphan server of a previous run holds the session, which keeps its hosting', async () => {
+    const id = await aliceAndBob()
+    const hosting = { mode: 'local', port: 38281, savefile: join(wsOf(id).output, 'AP_old.apsave') } as const
+    await store.setHosting(id, hosting)
+    // Not a child of this run: only the servers manager knows of it, once it has reconciled.
+    const servers = createServerManager(core.ctx, {
+      sessions: { ...store, resolveRomNeeds: () => Promise.resolve([]) },
+      settings,
+      locator,
+      orphans: {
+        find: () => Promise.resolve([{ pid: 9001, exe: 'ArchipelagoServer', sessionId: id }]),
+        kill: () => Promise.resolve(true),
+      },
+    })
+    await servers.reconcile()
+    const serving: GenerateDeps = { ...deps, isServing: (sessionId) => servers.isBusy(sessionId) }
+
+    await expect(runGeneration(core.ctx, serving, id, taskSpy().handle)).rejects.toMatchObject({
+      code: 'GENERATION_PREFLIGHT',
+      params: { reason: 'hosting' },
+    })
+    expect(existsSync(recordFile)).toBe(false)
+    expect(await store.get(id)).toMatchObject({ status: 'hosting', generation: null, hosting })
+  })
+
   it('runGeneration extracts per-slot files and stores absolute patchFile paths', async () => {
     const id = await aliceAndBob()
     const ws = wsOf(id)
@@ -722,37 +749,66 @@ describe('runGeneration', () => {
 })
 
 describe('session:generate', () => {
-  it('starts the generation as a task of the generator service', async () => {
+  let savedFakeDir: string | undefined
+
+  beforeEach(async () => {
     const fakeDir = join(root, 'fake AP')
     makeShims(fakeDir)
     writeFileSync(join(fakeDir, 'manifest.json'), JSON.stringify({ version: [0, 6, 8] }))
     await makeApworld(join(fakeDir, 'custom_worlds', 'tunic.apworld'), {
       manifest: apworldManifest('TUNIC', { world_version: '3.1.0' }),
     })
-    const saved = process.env.GOAT_FAKE_AP_DIR
+    savedFakeDir = process.env.GOAT_FAKE_AP_DIR
     process.env.GOAT_FAKE_AP_DIR = fakeDir
-    try {
-      const services = createServices(core.ctx)
-      const ipc = createIpcRegistry()
-      registerHandlers(services, ipc.registerHandler)
-      const sessions = services.get('sessions')
-      const { id } = await sessions.create('Soirée')
-      await sessions.addText(id, 'Alice.yaml', player('Alice', 'TUNIC'))
-      const ended = new Promise<TaskDone | TaskFailed>((done) => {
-        core.ctx.bus.on('task:done', done)
-        core.ctx.bus.on('task:failed', done)
-      })
+  })
 
-      const answer = await ipc.dispatch('session:generate', { id }, { senderId: 1 })
+  afterEach(() => {
+    if (savedFakeDir === undefined) delete process.env.GOAT_FAKE_AP_DIR
+    else process.env.GOAT_FAKE_AP_DIR = savedFakeDir
+  })
 
-      expect(answer).toEqual({ ok: true, value: { taskId: expect.any(String) as string } })
-      const end = await within(ended, 15_000)
-      expect(end).toMatchObject({ kind: 'generate', result: { seedName: SEED } })
-      expect(end.taskId).toBe((answer as { value: { taskId: string } }).value.taskId)
-      expect(await sessions.get(id)).toMatchObject({ status: 'generated', generation: { seedName: SEED } })
-    } finally {
-      if (saved === undefined) delete process.env.GOAT_FAKE_AP_DIR
-      else process.env.GOAT_FAKE_AP_DIR = saved
-    }
+  /** The real services and their handlers, a session the fake Archipelago generates, and its task end. */
+  async function generatorService() {
+    const services = createServices(core.ctx)
+    const ipc = createIpcRegistry()
+    registerHandlers(services, ipc.registerHandler)
+    const sessions = services.get('sessions')
+    const { id } = await sessions.create('Soirée')
+    await sessions.addText(id, 'Alice.yaml', player('Alice', 'TUNIC'))
+    const ended = new Promise<TaskDone | TaskFailed>((done) => {
+      core.ctx.bus.on('task:done', done)
+      core.ctx.bus.on('task:failed', done)
+    })
+    return { services, ipc, sessions, id, ended }
+  }
+
+  it('starts the generation as a task of the generator service', async () => {
+    const { ipc, sessions, id, ended } = await generatorService()
+
+    const answer = await ipc.dispatch('session:generate', { id }, { senderId: 1 })
+
+    expect(answer).toEqual({ ok: true, value: { taskId: expect.any(String) as string } })
+    const end = await within(ended, 15_000)
+    expect(end).toMatchObject({ kind: 'generate', result: { seedName: SEED } })
+    expect(end.taskId).toBe((answer as { value: { taskId: string } }).value.taskId)
+    expect(await sessions.get(id)).toMatchObject({ status: 'generated', generation: { seedName: SEED } })
+  })
+
+  it('refuses a session whose server the servers service reports, an orphan included', async () => {
+    const { services, ipc, sessions, id, ended } = await generatorService()
+    const hosting = { mode: 'local', port: 38281, savefile: join(wsOf(id).output, 'AP_old.apsave') } as const
+    await sessions.setHosting(id, hosting)
+    // What the servers service answers for a server it starts, runs or stops, or an orphan it found.
+    const isBusy = vi.spyOn(services.get('servers'), 'isBusy').mockReturnValue(true)
+
+    const answer = await ipc.dispatch('session:generate', { id }, { senderId: 1 })
+
+    expect(answer).toMatchObject({ ok: true })
+    expect(await within(ended, 15_000)).toMatchObject({
+      kind: 'generate',
+      error: { code: 'GENERATION_PREFLIGHT', params: { reason: 'hosting' } },
+    })
+    expect(isBusy).toHaveBeenCalledWith(id)
+    expect(await sessions.get(id)).toMatchObject({ status: 'hosting', generation: null, hosting })
   })
 })
