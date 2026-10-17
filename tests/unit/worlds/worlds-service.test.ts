@@ -114,17 +114,17 @@ describe('worlds service: installedGames', () => {
   })
 
   it('a failed scan is not cached', async () => {
-    let fail = true
+    await tunic('3.1.0')
+    // The second detection is the scan's own: only the scan fails.
+    let detections = 0
     const failing = createWorlds(core.ctx, {
       locator: {
-        detect: () => (fail ? Promise.reject(new Error('boom')) : Promise.resolve(install)),
+        detect: () => (++detections === 2 ? Promise.reject(new Error('boom')) : Promise.resolve(install)),
       },
       lookupCatalog: () => null,
       listProcesses: () => Promise.resolve([]),
     })
     await expect(failing.installedGames()).rejects.toThrow('boom')
-    fail = false
-    await tunic('3.1.0')
     expect([...(await failing.installedGames()).keys()]).toEqual(['TUNIC'])
   })
 })

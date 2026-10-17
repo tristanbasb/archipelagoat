@@ -27,12 +27,10 @@ import type {
 } from '@shared/types'
 import type { SessionStore } from './store'
 
-export type InstalledGames = ValidationContext['installedGames']
-
 export interface ValidationContextDeps {
   locator: Pick<Locator, 'detect'>
   /** Game → version of the world Archipelago loads for it (the worlds service caches it). */
-  worlds: { installedGames(): Promise<InstalledGames> }
+  worlds: { installedGames(): Promise<ValidationContext['installedGames']> }
   templates: Pick<Templates, 'getSchema'>
   settings: Pick<ApSettings, 'get'>
   log: Pick<Logger, 'debug'>
