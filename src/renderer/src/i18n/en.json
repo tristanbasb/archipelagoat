@@ -178,6 +178,8 @@
       "complete": "Complete"
     },
     "notMeasured": "not measured",
+    "line_one": "≈ {{list}} check",
+    "line_other": "≈ {{list}} checks",
     "checks_one": "≈ {{count}} check",
     "checks_other": "≈ {{count}} checks",
     "range": "{{min}}–{{max}} checks",

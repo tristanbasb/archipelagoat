@@ -601,8 +601,7 @@ function CatalogCard({
             </span>
           )}
         </p>
-        {/* Nothing until the ask is answered, so that "not measured" does not flash. */}
-        {estimate && <ProfileChecks counts={estimate.profiles} />}
+        <ProfileChecks counts={estimate?.profiles ?? null} />
         <div className="catalog-card__badges">
           {entry.source === 'wiki' && (
             <HelpBadge
@@ -682,22 +681,42 @@ function CatalogCard({
 
 const PROFILE_ORDER: readonly ProfileId[] = ['discovery', 'standard', 'complete']
 
-/** "Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420": the profiles that are known; else "non mesuré". */
+/**
+ * "≈ 110 / 203 / 420 checks": what the profiles that are known give, in the fixed order Découverte,
+ * Standard, Complet; named in its label and its tooltip. Nothing while they are unknown or the ask is
+ * pending, but the line is always there and keeps its height: the grid never reflows when they arrive.
+ */
 function ProfileChecks({ counts }: { counts: ProfileCounts | null }): React.JSX.Element {
   const { t } = useTranslation()
   const known = PROFILE_ORDER.flatMap((id) => {
-    const count = counts?.[id]
-    return count === undefined
+    const checks = counts?.[id]
+    return checks === undefined
       ? []
-      : [t('profiles.count', { name: t(`profiles.names.${id}`), checks: count })]
+      : [{ id, checks, text: t('profiles.count', { name: t(`profiles.names.${id}`), checks }) }]
   })
+  const last = known.at(-1)
   return (
-    <p
-      className="catalog-card__profiles"
-      data-measured={known.length > 0 || undefined}
-      title={t('screens.worlds.catalog.profilesHelp')}
-    >
-      {known.length > 0 ? known.join(' · ') : t('profiles.notMeasured')}
+    <p className="catalog-card__profiles">
+      {last && (
+        <Tooltip
+          content={
+            <ul className="catalog-card__profile-list">
+              {known.map(({ id, text }) => (
+                <li key={id}>{text}</li>
+              ))}
+            </ul>
+          }
+        >
+          <span
+            role="group"
+            tabIndex={0}
+            aria-label={known.map(({ text }) => text).join(' · ')}
+            className="catalog-card__profile-counts"
+          >
+            {t('profiles.line', { count: last.checks, list: known.map(({ checks }) => checks).join(' / ') })}
+          </span>
+        </Tooltip>
+      )}
     </p>
   )
 }

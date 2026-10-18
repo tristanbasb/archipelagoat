@@ -603,7 +603,7 @@ describe('WorldsScreen', () => {
     expect(within(celeste).getByText('jusqu’à 1 check')).toBeInTheDocument()
   })
 
-  it('shows on a card the checks of the profiles that are known, "non mesuré" otherwise', async () => {
+  it('shows on a card a compact line of the checks of the profiles that are known, nothing otherwise', async () => {
     const goat = installGoatMock({
       'worlds:list': () => WORLDS,
       'catalog:list': () => SNAPSHOT,
@@ -628,21 +628,24 @@ describe('WorldsScreen', () => {
     const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
 
     const hollowKnight = within(grid).getByRole('article', { name: 'Hollow Knight' })
-    expect(
-      await within(hollowKnight).findByText('Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420'),
-    ).toBeInTheDocument()
-    // The size the game can reach stays on its line.
+    expect(await within(hollowKnight).findByText('≈ 110 / 203 / 420 checks')).toBeInTheDocument()
+    // The size the game can reach stays on its line, and the profiles are named for assistive tech.
     expect(within(hollowKnight).getByText('jusqu’à 740 checks')).toBeInTheDocument()
-    expect(within(hollowKnight).queryByText('non mesuré')).toBeNull()
+    expect(
+      within(hollowKnight).getByLabelText('Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420'),
+    ).toBeInTheDocument()
     const emerald = within(grid).getByRole('article', { name: 'Pokemon Emerald' })
-    expect(within(emerald).getByText('Découverte ≈ 60 · Standard ≈ 120')).toBeInTheDocument()
+    expect(within(emerald).getByText('≈ 60 / 120 checks')).toBeInTheDocument()
+    expect(within(emerald).getByLabelText('Découverte ≈ 60 · Standard ≈ 120')).toBeInTheDocument()
+    // Unknown counts: nothing to read (no "non mesuré" on a card), but the line is there.
     const celeste = within(grid).getByRole('article', { name: 'Celeste' })
-    expect(within(celeste).getByText('non mesuré')).toBeInTheDocument()
+    expect(celeste).not.toHaveTextContent(/≈|non mesuré/)
+    expect(celeste.querySelector('.catalog-card__profiles')).toBeEmptyDOMElement()
     // Cards use the estimates alone: no profiles:get per card.
     expect(goat.inputsOf('profiles:get')).toEqual([])
   })
 
-  it('writes the profiles of a card in the language of the app', async () => {
+  it('names the profiles in a tooltip a keyboard reaches', async () => {
     installGoatMock({
       'worlds:list': () => WORLDS,
       'catalog:list': () => SNAPSHOT,
@@ -657,23 +660,86 @@ describe('WorldsScreen', () => {
           ]),
         ),
     })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const hollowKnight = within(await screen.findByRole('list', { name: 'Mondes du catalogue' })).getByRole(
+      'article',
+      { name: 'Hollow Knight' },
+    )
+
+    const line = await within(hollowKnight).findByText('≈ 110 / 203 / 420 checks')
+    expect(line).toHaveAttribute('tabindex', '0')
+    act(() => line.focus())
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Découverte ≈ 110')
+    expect(tip).toHaveTextContent('Standard ≈ 203')
+    expect(tip).toHaveTextContent('Complet ≈ 420')
+  })
+
+  it('reserves the line before the estimate answers, so that the cards do not grow', async () => {
+    let answer: (() => void) | undefined
+    const answered = new Promise<void>((resolve) => (answer = resolve))
+    installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'checks:estimate': async ({ games }) => {
+        await answered
+        return Object.fromEntries(
+          games.map((game) => [game, { max: null, profiles: { discovery: 110, standard: 203 } }]),
+        )
+      },
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+
+    // Asked, not answered: every card already has its (empty) line.
+    const lines = grid.querySelectorAll('.catalog-card__profiles')
+    expect(lines).toHaveLength(within(grid).getAllByRole('article').length)
+    for (const line of lines) expect(line).toBeEmptyDOMElement()
+    expect(grid).not.toHaveTextContent(/≈|non mesuré/)
+
+    answer?.()
+    expect((await within(grid).findAllByText('≈ 110 / 203 checks')).length).toBeGreaterThan(0)
+    // The same lines, now filled.
+    expect(grid.querySelectorAll('.catalog-card__profiles')).toHaveLength(lines.length)
+  })
+
+  it('writes the profiles of a card in the language of the app, one check in the singular', async () => {
+    installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'checks:estimate': ({ games }) =>
+        Object.fromEntries(
+          games.map((game) => [
+            game,
+            {
+              max: null,
+              profiles:
+                game === 'Hollow Knight'
+                  ? { discovery: 110, standard: 203, complete: 420 }
+                  : game === 'Celeste'
+                    ? { standard: 1 }
+                    : null,
+            },
+          ]),
+        ),
+    })
     await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog', lang: 'en' })
     const grid = await screen.findByRole('list', { name: 'Catalog worlds' })
 
     const hollowKnight = within(grid).getByRole('article', { name: 'Hollow Knight' })
+    expect(await within(hollowKnight).findByText('≈ 110 / 203 / 420 checks')).toBeInTheDocument()
     expect(
-      await within(hollowKnight).findByText('Discovery ≈ 110 · Standard ≈ 203 · Complete ≈ 420'),
+      within(hollowKnight).getByLabelText('Discovery ≈ 110 · Standard ≈ 203 · Complete ≈ 420'),
     ).toBeInTheDocument()
     expect(
-      within(within(grid).getByRole('article', { name: 'Celeste' })).getByText('not measured'),
+      within(within(grid).getByRole('article', { name: 'Celeste' })).getByText('≈ 1 check'),
     ).toBeInTheDocument()
 
     await act(() => i18n.changeLanguage('fr'))
     expect(
-      within(hollowKnight).getByText('Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420'),
+      within(hollowKnight).getByLabelText('Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420'),
     ).toBeInTheDocument()
   })
-
   it('asks for the estimates of the cards on the page, and of those a "show more" adds', async () => {
     const many = Array.from({ length: 60 }, (_, n) =>
       entry({ id: `world_${String(n).padStart(2, '0')}`, game: `World ${String(n).padStart(2, '0')}` }),

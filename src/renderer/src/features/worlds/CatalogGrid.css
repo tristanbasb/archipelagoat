@@ -274,16 +274,22 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* What each profile gives, under the version line; italic and dim while nothing is measured. */
+/* What each profile gives, under the version line. One line high even when empty (counts unknown or
+   still being asked), so that the cards keep their size when they arrive. */
 .catalog-card__profiles {
+  min-height: 18px;
   color: var(--text-dim);
   font-size: var(--fs-12);
-  font-style: italic;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.catalog-card__profiles[data-measured] {
-  font-style: normal;
+.catalog-card__profile-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .catalog-card__maintainer {
