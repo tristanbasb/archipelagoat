@@ -34,19 +34,23 @@ Linux, en français et en anglais, sans terminal ni édition de `host.yaml` à l
   Le catalogue propose aussi les jeux non officiels que seul le wiki d’Archipelago liste, signalés comme
   tels et toujours derrière l’écran de confiance.
 - **Jaquettes** : le catalogue, les mondes installés, le Studio et les sessions montrent l’image de chaque
-  jeu, prise sur le wiki d’Archipelago (le sprite pixel quand le wiki n’en a pas, ou hors ligne).
-- **Jeu prêt** : un seul dialogue installe le monde si besoin, construit un YAML avec le profil choisi et
-  le livre dans une session, un fichier ou le Studio. Un monde non officiel passe toujours par l’écran de
-  confiance.
+  jeu, prise sur le wiki d’Archipelago. Le sprite pixel s’affiche quand le wiki n’a pas d’image ou
+  qu’elle n’est pas encore téléchargée ; les jaquettes déjà en cache restent visibles hors ligne.
+- **Jeu prêt** : un seul dialogue installe l’APWorld si besoin, construit un YAML avec le profil choisi et
+  le livre dans une session, un fichier ou le Studio. Le jeu, son client et sa ROM restent à toi. L’écran
+  de confiance dépend du monde : l’avertissement complet pour un monde que seul le wiki liste ou qui est
+  inconnu, une simple confirmation pour un monde vérifié par l’index de la communauté, rien pour un monde
+  officiel.
 - **Studio YAML** : le YAML d’un joueur option par option, en mode simple ou pondéré, avec l’aperçu et la
   validation en direct.
 - **Profils** : Découverte, Standard et Complet, construits automatiquement à partir des options de
   chaque jeu, dans le Studio comme dans le catalogue.
 - **Organiser une partie** : joueurs, vérification, règles, génération, hébergement. Ensuite, l’adresse
   et le message à partager, les joueurs connectés, le flux d’objets et la console du serveur.
-- **Nombre de checks** : la fiche d’un jeu officiel annonce « jusqu’à N checks » tout de suite. Dans une
-  session, une génération de test donne le compte exact de chaque joueur, signale les écarts à la durée
-  visée (court, moyen, long ou un nombre) et propose des réglages chiffrés, appliqués d’un clic.
+- **Nombre de checks** : la fiche d’un jeu officiel annonce « jusqu’à N checks » tout de suite, d’après le
+  datapackage public d’archipelago.gg. Dans une session, une génération de test donne le compte exact de
+  chaque joueur, signale les écarts à la durée visée (court, moyen, long ou un nombre) et propose des
+  réglages chiffrés, appliqués d’un clic.
 - **Rejoindre une partie** : un lien de room ou un patch suffit. L’app vérifie ce qu’il faut, puis
   lance le bon client (BizHawk en un clic pour les jeux qui le prennent en charge).
 - **Coffre ROM** : tes dumps sont reconnus par leur MD5 et indiqués à Archipelago.
@@ -106,7 +110,9 @@ ArchipelaGOAT est un projet indépendant. « Archipelago » désigne le projet
 [ArchipelagoMW/Archipelago](https://github.com/ArchipelagoMW/Archipelago) ; ArchipelaGOAT n’en reprend ni
 le logo ni les images d’archipelago.gg, et s’affiche partout comme compagnon non officiel. Merci aux
 bénévoles qui maintiennent Archipelago et archipelago.gg : l’app s’identifie auprès du site
-(`ArchipelaGOAT/<version> (unofficial Archipelago companion)`) et ne fait rien sans ton accord explicite.
+(`ArchipelaGOAT/<version> (unofficial Archipelago companion)`). Elle y lit seulement, au plus une fois
+par semaine, le datapackage public qui donne le nombre de checks de chaque jeu ; elle n’y envoie rien et
+n’y crée rien (ni partie, ni room) sans ton accord explicite.
 
 ### ROMs
 
@@ -180,19 +186,23 @@ terminal and no hand-editing of `host.yaml`.
   wiki) with a trust screen and a verified sha256 before every install. The catalog also offers the
   unofficial games only the Archipelago wiki lists, flagged as such and always behind the trust screen.
 - **Game covers**: the catalog, the installed worlds, the studio and the sessions show each game’s image,
-  taken from the Archipelago wiki (the pixel sprite when the wiki has none, or when you are offline).
-- **Ready to play**: one dialog installs the world if needed, builds a YAML with the profile you pick and
-  delivers it to a session, a file or the studio. An unofficial world always goes through the trust
-  screen.
+  taken from the Archipelago wiki. The pixel sprite shows when the wiki has no image or the image is not
+  downloaded yet; covers already cached still show offline.
+- **Ready to play**: one dialog installs the APWorld if needed, builds a YAML with the profile you pick
+  and delivers it to a session, a file or the studio. The game, its client and its ROM stay yours to set
+  up. The trust screen depends on the world: the full warning for a world only the wiki lists or an
+  unknown one, a simple confirmation for a world verified by the community index, nothing for an
+  official world.
 - **YAML studio**: a player’s YAML option by option, in simple or weighted mode, with a live preview and
   live validation.
 - **Profiles**: Discovery, Standard and Complete, built automatically from each game’s options, in the
   studio as in the catalog.
 - **Organize a game**: players, check, rules, generation, hosting. Then the address and a message to
   share, who is connected, the item feed and the server console.
-- **Check counts**: an official game’s page says “up to N checks” right away. In a session, a test
-  generation gives each player’s exact count, flags the gaps from the length you aim for (short, medium,
-  long or a number) and proposes figured settings, applied in one click.
+- **Check counts**: an official game’s page says “up to N checks” right away, from archipelago.gg’s
+  public datapackage. In a session, a test generation gives each player’s exact count, flags the gaps
+  from the length you aim for (short, medium, long or a number) and proposes figured settings, applied
+  in one click.
 - **Join a game**: a room link or a patch is enough. The app checks what is needed, then starts the right
   client (BizHawk in one click for the games that use it).
 - **ROM vault**: your dumps are recognized by their MD5 and pointed out to Archipelago.
@@ -251,8 +261,9 @@ ArchipelaGOAT is an independent project. “Archipelago” is the
 [ArchipelagoMW/Archipelago](https://github.com/ArchipelagoMW/Archipelago) project; ArchipelaGOAT uses
 neither its logo nor archipelago.gg’s images, and shows itself everywhere as an unofficial companion.
 Thanks to the volunteers who run Archipelago and archipelago.gg: the app identifies itself to the site
-(`ArchipelaGOAT/<version> (unofficial Archipelago companion)`) and does nothing there without your
-explicit consent.
+(`ArchipelaGOAT/<version> (unofficial Archipelago companion)`). It only reads there, at most once a week,
+the public datapackage that gives each game’s number of checks; it uploads nothing and creates nothing
+there (no game, no room) without your explicit consent.
 
 ### ROMs
 
