@@ -8,14 +8,16 @@ import type { Templates } from '@main/core/ap/templates'
 import type { CoreContext } from '@main/core/context'
 import { buildValidationContext } from '@main/core/sessions/validate-session'
 import { writeFileAtomic } from '@main/core/system/fsx'
+import { createPickedPaths, type PickedPaths } from '@main/core/system/picked-paths'
 import { assertUserPath } from '@main/core/system/user-path'
 import { decodeYamlBytes, loadYaml11 } from '@main/core/yaml/load'
 import { gamesIn, validateLoadedYaml } from '@main/core/yaml/validate'
 import { parsePlayerYaml, renderPlayerDoc, type RenderResult } from '@main/core/yaml/writer'
 import { AppError } from '@shared/errors'
 import type { EditorDoc, GameSchema, Issue, PlayerDoc } from '@shared/types'
-// The `locator`, `settings`, `templates` and `worlds` entries of Services, used below.
+// The `locator`, `pickedPaths`, `settings`, `templates` and `worlds` entries of Services, used below.
 import type {} from './locator.service'
+import type {} from './picked-paths.service'
 import type {} from './settings.service'
 import type {} from './templates.service'
 import type { Worlds } from './worlds.service'
@@ -48,6 +50,8 @@ export interface StudioDeps {
   worlds: Pick<Worlds, 'installedGames'> & Partial<Pick<Worlds, 'unknownWorlds'>>
   templates: Pick<Templates, 'getSchema'>
   settings: Pick<ApSettings, 'get'>
+  /** The paths the user picked, shared with app:savePath. Default: the Studio's own. */
+  picked?: PickedPaths
 }
 
 const OPEN_EXTENSIONS = ['yaml', 'yml', 'txt']
@@ -66,8 +70,7 @@ function defaultName(suggested: string): string {
 
 export function createStudio(ctx: CoreContext, deps: StudioDeps): Studio {
   /** The paths this session may write: picked in a dialog or opened. */
-  const savable = new Set<string>()
-  const keyOf = (p: string): string => (ctx.platform.os === 'win32' ? p.toLowerCase() : p)
+  const savable = deps.picked ?? createPickedPaths(ctx.platform.os)
 
   async function schemaOf(game: string): Promise<GameSchema | undefined> {
     try {
@@ -106,7 +109,7 @@ export function createStudio(ctx: CoreContext, deps: StudioDeps): Studio {
         throw new AppError('INVALID_INPUT', { reason: 'too-large' }, { detail: checked })
       }
       const { text } = decodeYamlBytes(await readFile(checked))
-      savable.add(keyOf(checked))
+      savable.add(checked)
       return { path: checked, text }
     },
 
@@ -121,7 +124,7 @@ export function createStudio(ctx: CoreContext, deps: StudioDeps): Studio {
         target = picked
       } else {
         target = await assertUserPath(given, { mustExist: false, access: 'write' })
-        if (!savable.has(keyOf(target))) {
+        if (!savable.has(target)) {
           throw new AppError('PATH_FORBIDDEN', { reason: 'not-picked' }, { detail: target })
         }
       }
@@ -133,7 +136,7 @@ export function createStudio(ctx: CoreContext, deps: StudioDeps): Studio {
       })
       // UTF-8 without BOM, what Archipelago reads (it would accept one, other tools may not).
       await writeFileAtomic(checked, text.replace(/^\uFEFF/, ''))
-      savable.add(keyOf(checked))
+      savable.add(checked)
       return { path: checked }
     },
   }
@@ -151,6 +154,7 @@ defineService(
       },
       templates: { getSchema: (game) => get('templates').getSchema(game) },
       settings: { get: (path) => get('settings').get(path) },
+      picked: get('pickedPaths'),
     }),
   { eager: false },
 )

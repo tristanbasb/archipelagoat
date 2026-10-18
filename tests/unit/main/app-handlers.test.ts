@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { defaultConfig } from '@main/core/config'
@@ -126,6 +126,29 @@ describe('app handlers', () => {
       value: 'C:\\out\\Player.yaml',
     })
     expect(core.showSaveDialog).toHaveBeenCalledWith({ defaultName: 'Player.yaml', filters })
+  })
+
+  it('app:savePath records the file picked: the Studio may then write there, and only there', async () => {
+    const picked = join(dir, 'Tristan - A Short Hike.yaml')
+    const other = join(dir, 'host.yaml')
+    core.showSaveDialog.mockResolvedValueOnce(picked).mockResolvedValueOnce(null)
+    expect(await call('app:savePath', { defaultName: 'Tristan - A Short Hike.yaml' })).toEqual({
+      ok: true,
+      value: picked,
+    })
+    // Cancelled: nothing picked.
+    expect(await call('app:savePath', { defaultName: 'x.yaml' })).toEqual({ ok: true, value: null })
+
+    const text = 'name: Tristan\n'
+    expect(await call('studio:save', { text, path: picked, suggestedName: 'x' })).toEqual({
+      ok: true,
+      value: { path: picked },
+    })
+    expect(readFileSync(picked, 'utf8')).toBe(text)
+    expect(await call('studio:save', { text: 'x', path: other, suggestedName: 'x' })).toMatchObject({
+      error: { code: 'PATH_FORBIDDEN', params: { reason: 'not-picked' } },
+    })
+    expect(existsSync(other)).toBe(false)
   })
 
   it('app:setGithubToken stores github.token and app:secretsStatus reports it', async () => {

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ProcessInfo } from '@main/core/ap/processes'
@@ -10,6 +10,7 @@ import {
   type ReadyDeps,
   type ReadyRun,
 } from '@main/core/ready/ready'
+import { createPickedPaths, type PickedPaths } from '@main/core/system/picked-paths'
 import type { TaskHandle } from '@main/core/tasks'
 import type { ValidationContext } from '@main/core/yaml/validate'
 import { createIpcRegistry } from '@main/ipc/registry'
@@ -174,6 +175,8 @@ let added: { id: string; fileName: string; text: string }[]
 let clock: number
 /** Called after a world is installed (a cancellation at that moment). */
 let afterConfirm: () => void
+/** The files the save dialog gave. */
+let picked: PickedPaths
 let ready: Ready
 
 function makeDeps(): ReadyDeps {
@@ -264,6 +267,7 @@ function makeDeps(): ReadyDeps {
         return Promise.resolve({ id } as Session)
       },
     },
+    pickedPaths: { has: (path) => picked.has(path) },
     validationContext: (): Promise<ValidationContext> =>
       Promise.resolve({
         installedGames: new Map(games),
@@ -326,6 +330,7 @@ beforeEach(() => {
   added = []
   clock = 1_000_000
   afterConfirm = () => undefined
+  picked = createPickedPaths(core.platform.os)
   ready = createReady(core.ctx, makeDeps())
 })
 
@@ -509,6 +514,22 @@ describe('ready', () => {
         delivered: { kind: 'session', sessionId: 's1' },
       })
     }
+
+    // The trust the catalog tells when the world is downloaded counts, not the plan's: a release
+    // without a checksum since the plan was made is an unknown world.
+    games.delete(ASH)
+    const stale = await ready.prepare(INDEX_ASH.id)
+    expect(stale.needsTrustConsent).toBe(false)
+    entries.set(INDEX_ASH.id, entryOf(INDEX_ASH.id, { trust: 'unknown' }))
+    calls = []
+    await expect(ready.run(runOf(stale.planId), taskHandle().handle)).rejects.toMatchObject({
+      code: 'INVALID_INPUT',
+      params: { reason: 'trust' },
+    })
+    expect(calls.filter((call) => call.startsWith('confirm'))).toEqual([])
+    expect(games.has(ASH)).toBe(false)
+    await ready.run(runOf(stale.planId, { trustAccepted: true }), taskHandle().handle)
+    expect(games.has(ASH)).toBe(true)
   })
 
   it('regenerates the templates only when the game has none', async () => {
@@ -543,6 +564,14 @@ describe('ready', () => {
     expect(added.at(-1)?.fileName).toBe(`Player - ${HK}.yaml`)
   })
 
+  it('a profile left out as equal to Standard delivers Standard and says so', async () => {
+    // The fake game has no Complet profile: it would be Standard's twin.
+    const { outcome } = await readyFor('hollow_knight', { profile: 'complete' })
+    expect(calls).toContain(`yamlFor ${HK} standard Tristan`)
+    expect(outcome).toMatchObject({ profile: 'standard', text: yamlOf(HK, 'standard', 'Tristan') })
+    expect(outcome.text).toContain('description: ArchipelaGOAT · Standard')
+  })
+
   it('an invalid YAML stops at validate', async () => {
     yaml = (game, profile, playerName) => yamlOf(game, profile, playerName).split(`${game}:`)[0] ?? ''
     const plan = await ready.prepare('hollow_knight')
@@ -575,7 +604,13 @@ describe('ready', () => {
         taskHandle().handle,
       ),
     ).rejects.toMatchObject({ code: 'PATH_FORBIDDEN' })
+    // A YAML path no save dialog gave: refused, nothing written (Ruling 27).
     const file = join(dir, `Tristan - ${HK}.yaml`)
+    await expect(
+      ready.run(runOf(plan.planId, { destination: { kind: 'file', path: file } }), taskHandle().handle),
+    ).rejects.toMatchObject({ code: 'PATH_FORBIDDEN', params: { reason: 'not-picked' } })
+    expect(existsSync(file)).toBe(false)
+    picked.add(file)
     calls = []
     const task = taskHandle()
     const saved = await ready.run(

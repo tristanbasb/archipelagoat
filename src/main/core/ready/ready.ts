@@ -26,6 +26,7 @@ import type { CoreContext } from '../context'
 import type { Profiles } from '../profiles/profiles'
 import type { SessionStore } from '../sessions/store'
 import { writeFileAtomic } from '../system/fsx'
+import type { PickedPaths } from '../system/picked-paths'
 import { assertUserPath } from '../system/user-path'
 import type { TaskHandle } from '../tasks'
 import { compactKey, type Catalog } from '../worlds/catalog'
@@ -62,8 +63,10 @@ export interface Ready {
    * The task's stages `download`, `inspect`, `install` (only when a world is installed), `templates`,
    * `profile`, `validate`, `deliver`, `done`, from the first step the plan has not done. NOT_FOUND for
    * an unknown or expired plan, AP_NOT_INSTALLED without Archipelago, INVALID_INPUT for a world to
-   * install whose trust needs `trustAccepted`, AP_YAML_INVALID for a YAML the validation refuses;
-   * the errors of each step otherwise (a download, an install, the templates, a destination).
+   * install whose trust needs `trustAccepted` (as the plan tells it, or as the catalog tells it when
+   * the world is downloaded), AP_YAML_INVALID for a YAML the validation refuses, PATH_FORBIDDEN for a
+   * file the user did not pick; the errors of each step otherwise (a download, an install, the
+   * templates, a destination). A profile left out for being Standard's twin builds Standard.
    */
   run(input: ReadyRun, task: TaskHandle): Promise<ReadyOutcome>
 }
@@ -79,6 +82,8 @@ export interface ReadyDeps {
   profiles: Pick<Profiles, 'get' | 'yamlFor'>
   measurer: Pick<Measurer, 'measureDoc'>
   sessions: Pick<SessionStore, 'list' | 'create' | 'addText'>
+  /** The paths the user picked (app:savePath): the only ones a file destination may name. */
+  pickedPaths: Pick<PickedPaths, 'has'>
   /** The context the Studio validates a YAML rolling these games with. */
   validationContext(games: readonly string[]): Promise<ValidationContext>
   /** The Archipelago programs running. Default: `listApProcesses`. */
@@ -98,8 +103,17 @@ interface Pending {
   /** A run installed the world: the Archipelago programs running then need a restart. */
   installedWorld: boolean
   templatesDone: boolean
-  /** The profile's YAML and its checks, for the profile and the player name asked. */
-  yaml: { profile: ProfileId; playerName: string; text: string; checks: number | null } | null
+  /**
+   * The YAML of the profile built (`profile`: Standard for one left out as equal to it) and its checks,
+   * for the profile and the player name asked.
+   */
+  yaml: {
+    asked: ProfileId
+    profile: ProfileId
+    playerName: string
+    text: string
+    checks: number | null
+  } | null
   validated: boolean
   /** The session a run created for a `new-session` destination: a retry adds to it. */
   createdSession: string | null
@@ -199,6 +213,10 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
           kind: 'file',
           exts: YAML_EXTENSIONS,
         })
+        // Only a file the user picked in a save dialog (Ruling 27).
+        if (!deps.pickedPaths.has(path)) {
+          throw new AppError('PATH_FORBIDDEN', { reason: 'not-picked' }, { detail: path })
+        }
         await writeFileAtomic(path, text)
         return { kind: 'file', path }
       }
@@ -215,15 +233,22 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
       !pending.worldDone &&
       plan.trust !== 'core' &&
       (!plan.installed || (input.update && plan.updateAvailable))
-    if (installing && plan.needsTrustConsent && !input.trustAccepted) {
-      throw new AppError('INVALID_INPUT', { reason: 'trust' }, { detail: plan.entryId })
+    /** INVALID_INPUT when installing a world of this trust needs the consent the run was not given. */
+    const checkConsent = (trust: TrustTier): void => {
+      if (CONSENT_TIERS.has(trust) && !input.trustAccepted) {
+        throw new AppError('INVALID_INPUT', { reason: 'trust' }, { detail: plan.entryId })
+      }
     }
+    if (installing) checkConsent(plan.trust)
     if (!(await deps.locator.detect())) throw new AppError('AP_NOT_INSTALLED')
 
-    // 1. download, inspect, install: the worlds screen's own way (its trust is the plan's).
+    // 1. download, inspect, install: the worlds screen's own way.
     if (installing) {
       const world = await deps.worlds.prepare({ kind: 'catalog', id: plan.entryId }, task)
       throwIfCancelled(task.signal)
+      // The catalog may tell another trust now (refreshed, or Archipelago installed since the plan):
+      // the world downloaded is installed only on the terms it was inspected with.
+      checkConsent(world.trust)
       task.progress('install', null)
       const { world: installed } = await deps.worlds.confirm(world.planId)
       pending.game = installed.game ?? pending.game
@@ -242,10 +267,13 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
     }
 
     // 3. profile: the profile's YAML (refined when kept, else heuristic) and one measure of it.
-    const { profile, playerName } = input
+    const { playerName } = input
     let { yaml } = pending
-    if (yaml?.profile !== profile || yaml.playerName !== playerName) {
+    if (yaml?.asked !== input.profile || yaml.playerName !== playerName) {
       task.progress('profile', null)
+      // A profile left out of the game's is Standard's twin (Ruling 26): Standard is what is built.
+      const { profiles } = await deps.profiles.get(game)
+      const profile = profiles.some((one) => one.id === input.profile) ? input.profile : 'standard'
       const text = await deps.profiles.yamlFor(game, profile, playerName)
       throwIfCancelled(task.signal)
       // Rejects only when cancelled: a measure that cannot run leaves the count unknown.
@@ -253,7 +281,7 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
       if (measured.error !== null) {
         ctx.log.debug('ready: the YAML could not be measured', { game, code: measured.error.code })
       }
-      yaml = { profile, playerName, text, checks: measured.checks }
+      yaml = { asked: input.profile, profile, playerName, text, checks: measured.checks }
       pending.yaml = yaml
       pending.validated = false
     }
@@ -272,7 +300,7 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
     const delivered = await deliver(pending, input.destination, fileName, yaml.text)
     const outcome: ReadyOutcome = {
       game,
-      profile,
+      profile: yaml.profile,
       checks: yaml.checks,
       text: yaml.text,
       delivered,

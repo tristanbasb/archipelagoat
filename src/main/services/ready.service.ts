@@ -1,11 +1,12 @@
 // The `ready` service: « Jeu prêt », from a catalog entry to a player YAML delivered (spec §3.7).
 import { createReady, type Ready } from '@main/core/ready/ready'
 import { buildValidationContext } from '@main/core/sessions/validate-session'
-// The `catalog`, `checks`, `locator`, `processes`, `profiles`, `sessions`, `settings`, `templates` and
-// `worlds` entries of Services, used below.
+// The `catalog`, `checks`, `locator`, `pickedPaths`, `processes`, `profiles`, `sessions`, `settings`,
+// `templates` and `worlds` entries of Services, used below.
 import type {} from './catalog.service'
 import type {} from './checks.service'
 import type {} from './locator.service'
+import type {} from './picked-paths.service'
 import type {} from './processes.service'
 import type {} from './profiles.service'
 import { defineService } from './registry'
@@ -48,6 +49,8 @@ defineService(
         create: (name) => get('sessions').create(name),
         addText: (id, fileName, text) => get('sessions').addText(id, fileName, text),
       },
+      // The files app:savePath gave.
+      pickedPaths: { has: (path) => get('pickedPaths').has(path) },
       // The Studio's validation.
       validationContext: (games) =>
         buildValidationContext(

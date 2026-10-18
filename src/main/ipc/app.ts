@@ -2,6 +2,8 @@
 import { readdir, rm, stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { assertUserPath } from '@main/core/system/user-path'
+// The `pickedPaths` and `updater` entries of Services (the service files are loaded at run time).
+import type {} from '@main/services/picked-paths.service'
 import type { ServiceContainer } from '@main/services/registry'
 import type {} from '@main/services/updater.service'
 import { AppError } from '@shared/errors'
@@ -65,7 +67,12 @@ export default function registerAppHandlers(register: RegisterHandler, services:
 
   register('app:pickPaths', (opts) => platform.showOpenDialog(opts))
 
-  register('app:savePath', (opts) => platform.showSaveDialog(opts))
+  // The path picked is one a file may then be written at (the Studio, « Jeu prêt »).
+  register('app:savePath', async (opts) => {
+    const picked = await platform.showSaveDialog(opts)
+    if (picked !== null) services.get('pickedPaths').add(picked)
+    return picked
+  })
 
   register('app:confirmQuit', ({ requestId, confirm }) => {
     lifecycle.confirmQuit(requestId, confirm)
