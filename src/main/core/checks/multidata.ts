@@ -103,8 +103,9 @@ function summarizeDatapackage(datapackage: PickleValue | undefined): Record<stri
 
 /**
  * The summary of a multidata file. Throws MULTIDATA_UNREADABLE with `reason`: `version` (another format
- * byte), `size` (inflates past `limits.maxInflatedBytes`), `truncated` (zlib or pickle ends early or is
- * damaged), `opcode` and `depth` (from the pickle reader), `shape` (a pickle that is no multidata: no
+ * byte), `size` (inflates past `limits.maxInflatedBytes`, or its pickle makes more values than the reader
+ * allows), `truncated` (zlib or pickle ends early or is damaged), `opcode` and `depth` (from the pickle
+ * reader), `shape` (a pickle that is no multidata: no
  * `locations`, or a slot that is not a number of checks).
  */
 export function readMultidata(bytes: Uint8Array, limits: MultidataLimits = {}): MultidataSummary {

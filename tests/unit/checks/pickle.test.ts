@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inflateSync } from 'node:zlib'
-import { unpickle, type PickleObject, type PickleTuple, type PickleValue } from '@main/core/checks/pickle'
+import {
+  MAX_ENTRIES,
+  MAX_VALUES,
+  unpickle,
+  type PickleObject,
+  type PickleTuple,
+  type PickleValue,
+} from '@main/core/checks/pickle'
 import { AppError } from '@shared/errors'
 import { pickle } from '../../helpers/make-pickle.mjs'
 
@@ -598,6 +605,134 @@ describe('unpickle: truncated and damaged', () => {
 
   it.each(DAMAGED)('refuses %s', (_name, parts) => {
     expect(reasonOf(() => load(...parts))).toBe('truncated')
+  })
+})
+
+describe('unpickle: size', () => {
+  /** A pickle of `opcode` repeated `count` times, then `after` and STOP. */
+  const repeated = (opcode: number, count: number, ...after: Part[]): Buffer =>
+    bin(proto(), Buffer.alloc(count, opcode), ...after, OP.STOP)
+  /** `count` times `parts`. */
+  const times = (count: number, ...parts: Part[]): Buffer =>
+    bin(...Array.from({ length: count }, () => bin(...parts)))
+  /** `count` distinct ints. */
+  const ints = (count: number): Buffer => bin(...Array.from({ length: count }, (_, i) => bin(OP.BININT1, i)))
+  /** `count` distinct keys, each with a value. */
+  const pairs = (count: number): Buffer =>
+    bin(...Array.from({ length: count }, (_, i) => bin(OP.BININT1, i, OP.NONE)))
+
+  it('keeps the limits it is documented with', () => {
+    expect(MAX_VALUES).toBe(8_000_000)
+    expect(MAX_ENTRIES).toBe(2 ** 24)
+    // The table of the depth walk has one entry per container, and a container is a value: a Map holds 2**24.
+    expect(MAX_VALUES).toBeLessThan(MAX_ENTRIES)
+  })
+
+  describe('the value budget', () => {
+    it('lets a pickle create as many values as the limit and refuses the next one', () => {
+      expect(unpickle(repeated(OP.NONE, 10), { maxValues: 10 })).toBeNull()
+      expect(reasonOf(() => unpickle(repeated(OP.NONE, 11), { maxValues: 10 }))).toBe('size')
+    })
+
+    it('counts every value: scalars, containers, tuples, and the ones BINGET brings back', () => {
+      const limit = { maxValues: 4 }
+      expect(reasonOf(() => unpickle(repeated(OP.EMPTY_LIST, 5), limit))).toBe('size')
+      expect(reasonOf(() => unpickle(repeated(OP.EMPTY_DICT, 5), limit))).toBe('size')
+      expect(reasonOf(() => unpickle(repeated(OP.EMPTY_TUPLE, 5), limit))).toBe('size')
+      const recalled = wrap(OP.NONE, OP.MEMOIZE, times(4, OP.BINGET, 0))
+      expect(reasonOf(() => unpickle(recalled, limit))).toBe('size')
+    })
+
+    it('does not build a million values to find out', () => {
+      const flood = repeated(OP.EMPTY_LIST, 1_000_000)
+      expect(reasonOf(() => unpickle(flood, { maxValues: 1000 }))).toBe('size')
+    })
+
+    it('refuses more MARKs than the budget', () => {
+      expect(unpickle(repeated(OP.MARK, 5, OP.NONE), { maxValues: 5 })).toBeNull()
+      expect(reasonOf(() => unpickle(repeated(OP.MARK, 6, OP.NONE), { maxValues: 5 }))).toBe('size')
+    })
+
+    it('refuses a memo bigger than the budget, whether MEMOIZE or PUT fills it', () => {
+      const memoize = (count: number): Buffer => wrap(OP.NONE, Buffer.alloc(count, OP.MEMOIZE))
+      expect(unpickle(memoize(5), { maxValues: 5 })).toBeNull()
+      expect(reasonOf(() => unpickle(memoize(6), { maxValues: 5 }))).toBe('size')
+      const put = (count: number): Buffer =>
+        wrap(OP.NONE, ...Array.from({ length: count }, (_, i) => bin(OP.BINPUT, i)))
+      expect(unpickle(put(5), { maxValues: 5 })).toBeNull()
+      expect(reasonOf(() => unpickle(put(6), { maxValues: 5 }))).toBe('size')
+      // A PUT that replaces an entry does not grow the memo.
+      expect(unpickle(wrap(OP.NONE, times(20, OP.BINPUT, 0)), { maxValues: 5 })).toBeNull()
+    })
+
+    it('holds at the real limits: a flood of values, of MARKs and of memo entries', () => {
+      expect(reasonOf(() => unpickle(repeated(OP.NONE, MAX_VALUES + 1)))).toBe('size')
+      expect(reasonOf(() => unpickle(repeated(OP.MARK, MAX_VALUES + 1, OP.NONE)))).toBe('size')
+      const memo = wrap(OP.NONE, Buffer.alloc(MAX_VALUES + 1, OP.MEMOIZE))
+      expect(reasonOf(() => unpickle(memo))).toBe('size')
+    })
+  })
+
+  describe('the entries of one container', () => {
+    const limit = { maxEntries: 3 }
+
+    it('refuses a container past the limit and accepts one at it', () => {
+      const cases: [string, (count: number) => Buffer][] = [
+        ['LIST', (n) => wrap(OP.MARK, ints(n), OP.LIST)],
+        ['TUPLE', (n) => wrap(OP.MARK, ints(n), OP.TUPLE)],
+        ['FROZENSET', (n) => wrap(OP.MARK, ints(n), OP.FROZENSET)],
+        ['DICT', (n) => wrap(OP.MARK, pairs(n), OP.DICT)],
+        ['APPENDS', (n) => wrap(OP.EMPTY_LIST, OP.MARK, ints(n), OP.APPENDS)],
+        ['SETITEMS', (n) => wrap(OP.EMPTY_DICT, OP.MARK, pairs(n), OP.SETITEMS)],
+        ['ADDITEMS', (n) => wrap(OP.EMPTY_SET, OP.MARK, ints(n), OP.ADDITEMS)],
+      ]
+      for (const [name, make] of cases) {
+        expect(() => unpickle(make(3), limit), name).not.toThrow()
+        expect(
+          reasonOf(() => unpickle(make(4), limit)),
+          name,
+        ).toBe('size')
+      }
+    })
+
+    it('refuses one that grows past the limit by APPEND, SETITEM and ADDITEMS one by one', () => {
+      const appends = wrap(OP.EMPTY_LIST, times(4, OP.NONE, OP.APPEND))
+      expect(reasonOf(() => unpickle(appends, limit))).toBe('size')
+      const setItems = wrap(
+        OP.EMPTY_DICT,
+        ...Array.from({ length: 4 }, (_, i) => bin(OP.BININT1, i, OP.NONE, OP.SETITEM)),
+      )
+      expect(reasonOf(() => unpickle(setItems, limit))).toBe('size')
+      const addItems = wrap(
+        OP.EMPTY_SET,
+        bin(OP.MARK, ints(2), OP.ADDITEMS),
+        bin(OP.MARK, OP.BININT1, 2, OP.BININT1, 3, OP.ADDITEMS),
+      )
+      expect(reasonOf(() => unpickle(addItems, limit))).toBe('size')
+    })
+  })
+
+  describe('a limit of the engine', () => {
+    it('is still a file that is too big, not a RangeError', () => {
+      // What V8 throws when a Map cannot grow (it takes 17 million entries to see it), simulated.
+      const spy = vi.spyOn(Map.prototype, 'set').mockImplementation(() => {
+        throw new RangeError('Map maximum size exceeded')
+      })
+      let thrown: unknown
+      try {
+        unpickle(wrap(OP.EMPTY_DICT, str('k'), OP.NONE, OP.SETITEM))
+      } catch (error) {
+        thrown = error
+      } finally {
+        spy.mockRestore()
+      }
+      expect(thrown).toBeInstanceOf(AppError)
+      expect([(thrown as AppError).code, (thrown as AppError).params]).toEqual([
+        'MULTIDATA_UNREADABLE',
+        { reason: 'size' },
+      ])
+      expect((thrown as AppError).detail).toContain('Map maximum size exceeded')
+    })
   })
 })
 

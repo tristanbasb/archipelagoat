@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deflateSync, inflateSync } from 'node:zlib'
 import { MAX_INFLATED_BYTES, readMultidata, readMultidataFromZip } from '@main/core/checks/multidata'
-import { type PickleValue } from '@main/core/checks/pickle'
+import { MAX_VALUES, type PickleValue } from '@main/core/checks/pickle'
 import { AppError } from '@shared/errors'
 import { makePatchZip, makeSeedZip } from '../../helpers/make-patch.mjs'
 import { pickle, pickleMultidata } from '../../helpers/make-pickle.mjs'
@@ -288,6 +288,18 @@ describe('readMultidata', () => {
         deflateSync(Buffer.alloc(MAX_INFLATED_BYTES + 1), { level: 1 }),
       ])
       expect(unreadable(() => readMultidata(bomb))).toBe('size')
+    })
+
+    it('a pickle that makes more values than the budget, which inflates to far less than 256 MiB', () => {
+      // 8 million + 1 values of one byte each: a few KB once deflated, and 8 MB inflated.
+      const flood = Buffer.concat([
+        Buffer.from([0x80, 4]),
+        Buffer.alloc(MAX_VALUES + 1, 0x4e),
+        Buffer.from([0x2e]),
+      ])
+      const file = multidataOf(flood)
+      expect(file.length).toBeLessThan(100_000)
+      expect(unreadable(() => readMultidata(file))).toBe('size')
     })
 
     it('a truncated file, whether the cut is in the zlib stream or in the pickle', () => {

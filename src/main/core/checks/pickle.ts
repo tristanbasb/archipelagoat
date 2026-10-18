@@ -45,6 +45,10 @@ export type PickleValue =
 export interface PickleLimits {
   /** The most containers one inside the other. Default: 64. */
   maxDepth?: number
+  /** The most values the pickle may create (the stack, the MARKs and the memo are bounded by it). Default: `MAX_VALUES`. */
+  maxValues?: number
+  /** The most entries one list, dict, set or tuple may have. Default: `MAX_ENTRIES`. */
+  maxEntries?: number
 }
 
 /** Why a multidata cannot be read (the `reason` of MULTIDATA_UNREADABLE). */
@@ -62,6 +66,18 @@ export const isPickleObject = (value: PickleValue | undefined): value is PickleO
   typeof value === 'object' && value !== null && 'object' in value
 
 const DEFAULT_MAX_DEPTH = 64
+
+/**
+ * The values a pickle may create (every push on the stack, scalars and containers alike). A value costs
+ * a few dozen bytes to a few hundred, so this keeps the memory of a read bounded whatever the file
+ * inflates to: one opcode byte can make one value, and the inflated size alone (256 MiB) would allow 256
+ * million. The stack, the MARK stack and the memo are bounded by it too, and the table of the depth walk
+ * (one entry per container) stays under the 2**24 entries a Map can hold.
+ */
+export const MAX_VALUES = 8_000_000
+
+/** The entries one container may have: a JavaScript Map or Set cannot hold more than 2**24 anyway. */
+export const MAX_ENTRIES = 2 ** 24
 
 // The opcodes (pickletools.opcodes). Any other byte stops the read.
 const OP = {
@@ -134,6 +150,7 @@ const MIN_SAFE = BigInt(Number.MIN_SAFE_INTEGER)
 const utf8 = new TextDecoder('utf-8', { ignoreBOM: true })
 
 const truncated = (detail: string): AppError => unreadable('truncated', detail)
+const tooBig = (detail: string): AppError => unreadable('size', detail)
 const refused = (detail: string): AppError => unreadable('opcode', detail)
 
 /** The stack machine of one pickle. */
@@ -144,8 +161,14 @@ class Machine {
   /** Where each open MARK sits in `stack`. */
   private readonly marks: number[] = []
   private readonly memo: PickleValue[] = []
+  /** Values pushed so far, against `maxValues`. */
+  private created = 0
 
-  constructor(private readonly bytes: Uint8Array) {
+  constructor(
+    private readonly bytes: Uint8Array,
+    private readonly maxValues: number,
+    private readonly maxEntries: number,
+  ) {
     this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   }
 
@@ -241,15 +264,39 @@ class Machine {
     return this.stack.splice(mark)
   }
 
+  /** Every value goes on the stack through here: the budget counts them, so the stack cannot outgrow it. */
   private push(value: PickleValue): void {
+    if (++this.created > this.maxValues) throw tooBig(`more than ${this.maxValues} values`)
     this.stack.push(value)
+  }
+
+  private mark(): void {
+    if (this.marks.length >= this.maxValues) throw tooBig(`more than ${this.maxValues} open MARKs`)
+    this.marks.push(this.stack.length)
   }
 
   private remember(index: number, value: PickleValue): void {
     // Python numbers the memo as it fills it, so an index past the end is a hole nothing writes.
     if (index > this.memo.length)
       throw this.damaged(`memo index ${index} past the ${this.memo.length} entries`)
+    if (index === this.memo.length && index >= this.maxValues) {
+      throw tooBig(`a memo of more than ${this.maxValues} entries`)
+    }
     this.memo[index] = value
+  }
+
+  private memoize(): void {
+    this.remember(this.memo.length, this.top())
+  }
+
+  /** A container of `count` entries must be one a JavaScript Map or array can hold. */
+  private fits(count: number): void {
+    if (count > this.maxEntries) throw tooBig(`a container of more than ${this.maxEntries} entries`)
+  }
+
+  private sized(items: PickleValue[]): PickleValue[] {
+    this.fits(items.length)
+    return items
   }
 
   private recall(index: number): void {
@@ -302,23 +349,27 @@ class Machine {
     const target = this.top()
     if (!(target instanceof Map)) throw this.damaged('SETITEM on something that is not a dict')
     if (items.length % 2 !== 0) throw this.damaged('a key without a value')
+    this.fits(target.size + items.length / 2)
     for (let i = 0; i < items.length; i += 2) target.set(items[i] as PickleValue, items[i + 1] as PickleValue)
   }
 
   private append(items: PickleValue[]): void {
     const target = this.top()
     if (!Array.isArray(target)) throw this.damaged('APPEND on something that is not a list')
+    this.fits(target.length + items.length)
     for (const item of items) target.push(item)
   }
 
   private addItems(items: PickleValue[]): void {
     const target = this.top()
     if (!(target instanceof Set)) throw this.damaged('ADDITEMS on something that is not a set')
+    this.fits(target.size + items.length)
     for (const item of items) target.add(item)
   }
 
   private dict(items: PickleValue[]): Map<PickleValue, PickleValue> {
     if (items.length % 2 !== 0) throw this.damaged('a key without a value')
+    this.fits(items.length / 2)
     const dict = new Map<PickleValue, PickleValue>()
     for (let i = 0; i < items.length; i += 2) dict.set(items[i] as PickleValue, items[i + 1] as PickleValue)
     return dict
@@ -344,7 +395,7 @@ class Machine {
         case OP.STOP:
           return this.pop()
         case OP.MARK:
-          this.marks.push(this.stack.length)
+          this.mark()
           break
 
         case OP.NONE:
@@ -400,7 +451,7 @@ class Machine {
           this.append(this.popMark())
           break
         case OP.LIST:
-          this.push(this.popMark())
+          this.push(this.sized(this.popMark()))
           break
         case OP.EMPTY_DICT:
           this.push(new Map())
@@ -423,13 +474,13 @@ class Machine {
           this.addItems(this.popMark())
           break
         case OP.FROZENSET:
-          this.push(new Set(this.popMark()))
+          this.push(new Set(this.sized(this.popMark())))
           break
         case OP.EMPTY_TUPLE:
           this.push({ tuple: [] })
           break
         case OP.TUPLE:
-          this.push({ tuple: this.popMark() })
+          this.push({ tuple: this.sized(this.popMark()) })
           break
         case OP.TUPLE1:
           this.push({ tuple: [this.pop()] })
@@ -468,7 +519,7 @@ class Machine {
           break
 
         case OP.MEMOIZE:
-          this.memo.push(this.top())
+          this.memoize()
           break
         case OP.BINGET:
           this.recall(this.u8())
@@ -561,10 +612,19 @@ function assertDepth(root: PickleValue, maxDepth: number): void {
  * The value `bytes` pickles (protocols 2 to 5). Throws MULTIDATA_UNREADABLE with `reason`: `opcode` for an
  * opcode outside the list or an operation the reader refuses, `truncated` for data that ends early or
  * does not add up (a stack with nothing to pop, a memo entry nobody wrote), `depth` for containers nested
- * deeper than `limits.maxDepth` (default 64) or that hold themselves. What follows STOP is not read.
+ * deeper than `limits.maxDepth` (default 64) or that hold themselves, `size` for a pickle that creates
+ * more than `limits.maxValues` values (default `MAX_VALUES`) or a container of more than
+ * `limits.maxEntries` entries (default `MAX_ENTRIES`). What follows STOP is not read.
  */
 export function unpickle(bytes: Uint8Array, limits: PickleLimits = {}): PickleValue {
-  const value = new Machine(bytes).run()
-  assertDepth(value, limits.maxDepth ?? DEFAULT_MAX_DEPTH)
-  return value
+  try {
+    const machine = new Machine(bytes, limits.maxValues ?? MAX_VALUES, limits.maxEntries ?? MAX_ENTRIES)
+    const value = machine.run()
+    assertDepth(value, limits.maxDepth ?? DEFAULT_MAX_DEPTH)
+    return value
+  } catch (error) {
+    // A limit of the engine (a Map or an array that cannot grow) that the budgets missed: still a file too big.
+    if (error instanceof RangeError) throw tooBig(`past a limit of the engine: ${error.message}`)
+    throw error
+  }
 }
