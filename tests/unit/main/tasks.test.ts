@@ -1,5 +1,6 @@
 import { createEventBus } from '@main/core/events'
-import { createTaskManager, startTracked } from '@main/core/tasks'
+import { createTaskManager, startTracked, tasksToConfirm } from '@main/core/tasks'
+import { createLifecycle } from '@main/lifecycle'
 import { AppError } from '@shared/errors'
 import type { TaskDone, TaskFailed } from '@shared/types'
 import { silentLogger } from '../../helpers/core'
@@ -146,6 +147,31 @@ describe('task manager', () => {
     tasks.cancel(ref.taskId)
     tasks.cancel('unknown')
     expect(events).toHaveLength(count)
+  })
+})
+
+describe('tasksToConfirm', () => {
+  it('leaves the refinement of profiles out of what closing the window asks about', async () => {
+    const bus = createEventBus(silentLogger)
+    const tasks = createTaskManager(bus, silentLogger)
+    const lifecycle = createLifecycle({ bus, log: silentLogger, quit: () => undefined })
+    const asked: string[][] = []
+    bus.on('app:quitRequested', ({ runningTasks }) => void asked.push(runningTasks))
+    lifecycle.onCloseRequested(() => ({ servers: [], tasks: tasksToConfirm(tasks) }))
+
+    // A refinement nobody asked for: the window closes, and quitting cancels it.
+    const background = tasks.start('profiles', () => new Promise<never>(() => undefined))
+    expect(tasksToConfirm(tasks)).toEqual([])
+    expect(lifecycle.requestClose()).toBe(true)
+    expect(asked).toEqual([])
+    expect(tasks.list().map((task) => task.taskId)).toEqual([background.taskId])
+
+    // A task the user started is asked about, the refinement still left out.
+    tasks.start('measure', () => new Promise<never>(() => undefined))
+    await nextTick()
+    expect(tasksToConfirm(tasks)).toEqual(['measure'])
+    expect(lifecycle.requestClose()).toBe(false)
+    expect(asked).toEqual([['measure']])
   })
 })
 

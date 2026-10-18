@@ -92,6 +92,20 @@ export function createTaskManager(bus: EventBus, log?: Logger): TaskManager {
 }
 
 /**
+ * Tasks nobody asked for, which closing the window cancels without asking (Ruling 21): the refinement
+ * of profiles in the background loses nothing that a later run does not do again.
+ */
+const UNATTENDED: ReadonlySet<TaskKind> = new Set(['profiles'])
+
+/** The kinds of the running tasks that closing the window asks about (app:quitRequested). */
+export function tasksToConfirm(tasks: Pick<TaskManager, 'list'>): TaskKind[] {
+  return tasks
+    .list()
+    .map((task) => task.kind)
+    .filter((kind) => !UNATTENDED.has(kind))
+}
+
+/**
  * Starts a task like `tasks.start` and calls `onEnd` once it is over: when its run settles, or when it
  * is cancelled before its run started (the run then never starts). Lets a service know what runs,
  * from the moment the task is asked for (`tasks.start` only runs it on the next turn).

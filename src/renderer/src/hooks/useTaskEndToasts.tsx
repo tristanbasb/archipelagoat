@@ -22,7 +22,8 @@ interface Owner {
 /**
  * Tasks whose end is never toasted: one asked along the way by its own dialog (useWorldInstall),
  * which tells how it ends, and the refinement of a game's profiles, which runs in the background
- * unasked (the main process logs its failure; the profiles stay heuristic).
+ * unasked. Ruling 23: its failures are expected (no ROM, no template yet), so the main process only
+ * logs them, and the profiles stay heuristic (« non mesuré »).
  */
 const SILENT: ReadonlySet<TaskKind> = new Set(['world-prepare', 'profiles'])
 

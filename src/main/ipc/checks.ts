@@ -5,6 +5,7 @@ import type { ServiceContainer } from '@main/services/registry'
 // run time).
 import type {} from '@main/services/checks.service'
 import type {} from '@main/services/profiles.service'
+import type { ProfileCounts } from '@shared/types'
 import type { RegisterHandler } from './registry'
 
 export default function registerCheckHandlers(register: RegisterHandler, services: ServiceContainer): void {
@@ -18,8 +19,14 @@ export default function registerCheckHandlers(register: RegisterHandler, service
       refreshStarted = true
       void estimates.refresh()
     }
-    // The counts of the profiles refined so far: nothing is measured here.
-    const profiles = await services.get('profiles').cachedCounts(games)
+    // The counts of the profiles refined so far, nothing measured. Without them (the worlds could not
+    // be listed…) the estimate still gives each game's most checks (Ruling 24).
+    const profiles = await Promise.resolve()
+      .then(() => services.get('profiles').cachedCounts(games))
+      .catch((error: unknown) => {
+        services.ctx.log.warn('checks: no profile counts for the estimate', error)
+        return new Map<string, ProfileCounts | null>()
+      })
     return Object.fromEntries(
       games.map((game) => [game, { max: estimates.maxFor(game), profiles: profiles.get(game) ?? null }]),
     )

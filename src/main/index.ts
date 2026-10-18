@@ -12,7 +12,7 @@ import { consoleSink, createFileSink, createLogger } from '@main/core/logger'
 import { createSecretStore } from '@main/core/secrets'
 import { apUserAgent, createHttp } from '@main/core/system/http'
 import { createAllowedPaths } from '@main/core/system/user-path'
-import { createTaskManager } from '@main/core/tasks'
+import { createTaskManager, tasksToConfirm } from '@main/core/tasks'
 import { COVER_SCHEME } from '@shared/covers'
 import { isAllowedExternalUrl } from '@shared/external-url'
 import { EVENT_NAMES } from '@shared/ipc/event-names'
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
   // A secret kept in clear is encrypted once a keyring exists, and dropped once the user withdraws
   // the permission to keep it so.
   bus.on('config:changed', () => ctx.secrets.migrate())
-  lifecycle.onCloseRequested(() => ({ servers: [], tasks: tasks.list().map((task) => task.kind) }))
+  lifecycle.onCloseRequested(() => ({ servers: [], tasks: tasksToConfirm(tasks) }))
   // Quitting cancels what still runs, so each task sees its abort signal and stops cleanly.
   lifecycle.onBeforeQuit(() => {
     for (const task of tasks.list()) tasks.cancel(task.taskId)

@@ -101,6 +101,9 @@ export function snakeKey(key: string): string {
 export const isCommon = (key: string): boolean =>
   COMMON_OPTIONS.has(key) || key.startsWith('plando_') || key.startsWith('start_inventory')
 
+/** True when the name of an option says it tells the size (SIZE_NAMES, whatever its spelling). */
+export const hasSizeName = (key: string): boolean => SIZE_NAMES.some((name) => name.test(snakeKey(key)))
+
 /**
  * The option schema of `game`: CHECKS_NO_SCHEMA when neither the local templates nor the site have
  * one (Templates.getSchema's NOT_FOUND), so that nothing can be built from its options.
@@ -132,7 +135,7 @@ export function sizeCandidates(schema: GameSchema): OptionSchema[] {
   const options = schema.groups
     .flatMap((group) => group.options)
     .filter((option) => STEPPABLE.has(option.kind) && !isCommon(snakeKey(option.key)))
-  const named = options.filter((option) => SIZE_NAMES.some((name) => name.test(snakeKey(option.key))))
+  const named = options.filter((option) => hasSizeName(option.key))
   return [...named, ...options.filter((option) => isRangeKind(option) && !named.includes(option))]
 }
 

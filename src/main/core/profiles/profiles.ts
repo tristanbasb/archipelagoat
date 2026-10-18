@@ -2,11 +2,13 @@
 // defaults with death link off. Découverte also turns the options that tell the size (balancing's
 // candidates) toward fewer checks, the difficulty options to the easiest choice they are known to
 // have, and the traps off; Complet turns the size options toward more checks and leaves the rest.
-// They come first from the names and kinds of the options alone (`heuristicProfiles`), then from
-// measures (`refine`): Standard, each of the first twelve size options alone, then each profile.
-// Only the size changes whose measured effect goes the right way are kept, Découverte aiming at 50
-// to 60 % of Standard's checks. A refined game is kept in `dataRoot/profiles/<file-safe game>.json`
-// for its world version and option schema. A profile equal to Standard is left out.
+// They come first from the names and kinds of the options alone (`heuristicProfiles`): only the
+// options whose name tells the size are turned then, never a numeric range that does not say what it
+// counts (a price, a cap, a multiplier). Then from measures (`refine`, in the background): Standard,
+// each of the first twelve size options alone (numeric ranges included), then each profile. Only the
+// size changes whose measured effect goes the right way are kept, Découverte aiming at 50 to 60 % of
+// Standard's checks. A refined game is kept in `dataRoot/profiles/<file-safe game>.json` for its
+// world version and option schema. A profile equal to Standard is left out.
 import { createHash } from 'node:crypto'
 import { readdirSync } from 'node:fs'
 import path from 'node:path'
@@ -26,7 +28,14 @@ import type {
   ProfileId,
 } from '@shared/types'
 import type { Templates } from '../ap/templates'
-import { checkedSchema, isCommon, sizeCandidates, snakeKey, variantsToward } from '../checks/balance'
+import {
+  checkedSchema,
+  hasSizeName,
+  isCommon,
+  sizeCandidates,
+  snakeKey,
+  variantsToward,
+} from '../checks/balance'
 import type { Measurer } from '../checks/measure'
 import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
@@ -115,46 +124,77 @@ function isValid(schema: GameSchema, key: string, value: unknown): boolean {
   return player !== undefined && !player.issues.some((issue) => issue.severity === 'error')
 }
 
-/** What each profile changes from the defaults, in the schema's order, and the size options among them. */
-interface Plan {
-  changes: Record<ProfileId, OptionChange[]>
-  /** The keys Découverte and Complet turn for the size: the changes refining measures. */
-  sized: ReadonlySet<string>
+/** What the profiles may change of one option. */
+interface Planned {
+  key: string
+  /** The change of each profile that changes the option. */
+  changes: Partial<Record<ProfileId, OptionChange>>
+  /**
+   * For a size option, whether its name tells the size (`named`) or it is a numeric range that does
+   * not say what it counts (`range`): refinement keeps either only when measured the right way, and
+   * the heuristic profiles turn only the named ones. Null for death link, a trap, a difficulty.
+   */
+  size: 'named' | 'range' | null
 }
 
-function planOf(schema: GameSchema): Plan {
-  const changes: Record<ProfileId, OptionChange[]> = { discovery: [], standard: [], complete: [] }
-  const sized = new Set<string>()
+/** What the profiles may change, option by option in the schema's order. */
+function planOf(schema: GameSchema): Planned[] {
   const size = new Set(sizeCandidates(schema).map((option) => option.key))
-  for (const option of schema.groups.flatMap((group) => group.options)) {
-    const name = snakeKey(option.key)
-    // Only a valid value of the schema, and only when it is not the default already.
-    const change = (to: unknown): OptionChange[] =>
-      to === undefined || sameValue(option.default, to) || !isValid(schema, option.key, to)
-        ? []
-        : [{ key: option.key, from: option.default, to }]
-    if (name === DEATH_LINK) {
-      const off = change(offValue(option))
-      for (const id of PROFILE_IDS) changes[id].push(...off)
-      continue
-    }
-    // The other options every game has are never touched.
-    if (isCommon(name)) continue
-    const trap = TRAP_NAME.test(name)
-    if (trap && offValue(option) !== undefined) {
-      changes.discovery.push(...change(offValue(option)))
-    } else if (DIFFICULTY_NAMES.some((pattern) => pattern.test(name))) {
-      changes.discovery.push(...change(easiestValue(option)))
-    } else if (!trap && size.has(option.key)) {
+  return schema.groups
+    .flatMap((group) => group.options)
+    .flatMap((option): Planned[] => {
+      const name = snakeKey(option.key)
+      // Only a valid value of the schema, and only when it is not the default already.
+      const change = (to: unknown): OptionChange | undefined =>
+        to === undefined || sameValue(option.default, to) || !isValid(schema, option.key, to)
+          ? undefined
+          : { key: option.key, from: option.default, to }
+      const planned = (
+        changes: [ProfileId, OptionChange | undefined][],
+        kind: Planned['size'],
+      ): Planned[] => {
+        const made = changes.filter((entry): entry is [ProfileId, OptionChange] => entry[1] !== undefined)
+        return made.length === 0 ? [] : [{ key: option.key, changes: Object.fromEntries(made), size: kind }]
+      }
+      if (name === DEATH_LINK) {
+        const off = change(offValue(option))
+        return planned(
+          PROFILE_IDS.map((id) => [id, off]),
+          null,
+        )
+      }
+      // The other options every game has are never touched.
+      if (isCommon(name)) return []
+      const trap = TRAP_NAME.test(name)
+      if (trap && offValue(option) !== undefined) {
+        return planned([['discovery', change(offValue(option))]], null)
+      }
+      if (DIFFICULTY_NAMES.some((pattern) => pattern.test(name))) {
+        return planned([['discovery', change(easiestValue(option))]], null)
+      }
       // A trap is never turned for the size: Complet would raise it.
-      const fewer = change(variantsToward(option, option.default, 'fewer')[0])
-      const more = change(variantsToward(option, option.default, 'more')[0])
-      changes.discovery.push(...fewer)
-      changes.complete.push(...more)
-      if (fewer.length > 0 || more.length > 0) sized.add(option.key)
-    }
-  }
-  return { changes, sized }
+      if (trap || !size.has(option.key)) return []
+      return planned(
+        [
+          ['discovery', change(variantsToward(option, option.default, 'fewer')[0])],
+          ['complete', change(variantsToward(option, option.default, 'more')[0])],
+        ],
+        hasSizeName(option.key) ? 'named' : 'range',
+      )
+    })
+}
+
+/** The changes of each profile: those of `plan` that `keeps`, in the schema's order. */
+function changesOf(
+  plan: readonly Planned[],
+  keeps: (planned: Planned, id: ProfileId) => boolean,
+): Record<ProfileId, OptionChange[]> {
+  const of = (id: ProfileId): OptionChange[] =>
+    plan.flatMap((planned) => {
+      const change = planned.changes[id]
+      return change !== undefined && keeps(planned, id) ? [change] : []
+    })
+  return { discovery: of('discovery'), standard: of('standard'), complete: of('complete') }
 }
 
 /** The profiles, Standard always there and each other one only when it differs from it. */
@@ -177,11 +217,12 @@ function assemble(
 
 /**
  * The profiles of `schema`'s game from the names and kinds of its options alone, none measured:
- * Standard (death link off), Découverte (size options toward fewer checks, difficulty to its easiest
- * known choice, traps off) and Complet (size options toward more checks).
+ * Standard (death link off), Découverte (the options whose name tells the size toward fewer checks,
+ * difficulty to its easiest known choice, traps off) and Complet (those options toward more checks).
  */
 export function heuristicProfiles(schema: GameSchema): GameProfiles {
-  return assemble(schema.game, planOf(schema).changes, {}, false)
+  const changes = changesOf(planOf(schema), (planned) => planned.size !== 'range')
+  return assemble(schema.game, changes, {}, false)
 }
 
 /**
@@ -392,17 +433,15 @@ export function createProfiles(ctx: CoreContext, deps: ProfilesDeps): Profiles {
         return already
       }
       const { schema } = key
-      const { changes, sized } = planOf(schema)
-      // The size change of each option, toward fewer checks (Découverte) and toward more (Complet).
-      const turned = (id: ProfileId): Map<string, OptionChange> =>
-        new Map(changes[id].filter((change) => sized.has(change.key)).map((change) => [change.key, change]))
-      const fewer = turned('discovery')
-      const more = turned('complete')
+      const plan = planOf(schema)
+      const { standard: standardChanges } = changesOf(plan, () => true)
+      // The size options in balancing's order (named first), each toward fewer and toward more checks.
+      const sized = new Map(plan.filter((planned) => planned.size !== null).map((one) => [one.key, one]))
       const singles = sizeCandidates(schema)
-        .filter((option) => sized.has(option.key))
+        .flatMap((option) => sized.get(option.key) ?? [])
         .slice(0, MAX_CANDIDATES)
-        .flatMap(({ key: option }) =>
-          [fewer.get(option), more.get(option)].flatMap((change, i) =>
+        .flatMap(({ changes }) =>
+          [changes.discovery, changes.complete].flatMap((change, i) =>
             change === undefined ? [] : [{ change, toFewer: i === 0 }],
           ),
         )
@@ -412,19 +451,26 @@ export function createProfiles(ctx: CoreContext, deps: ProfilesDeps): Profiles {
       let done = 0
       const measure = async (over: readonly OptionChange[], id: ProfileId): Promise<PlayerMeasure> => {
         const yamlText = yamlOf(schema, over, id, '')
-        const measured = await deps.measurer.measureDoc({ sessionId: null, game, yamlText, task })
+        // Nobody waits for it: any measure asked in the foreground goes first.
+        const measured = await deps.measurer.measureDoc({
+          sessionId: null,
+          game,
+          yamlText,
+          task,
+          priority: 'background',
+        })
         done++
         task.progress('generate', Math.round((MEASURED_PERCENT * done) / total), { done, total })
         return measured
       }
       task.progress('generate', 0, { done, total })
-      const standard = await measure(changes.standard, 'standard')
+      const standard = await measure(standardChanges, 'standard')
       if (standard.error !== null) throw errorOf(standard.error)
       const base = standard.checks
       if (base === null) throw new AppError('AP_UNKNOWN', undefined, { detail: 'no count for Standard' })
 
       const counts = await settleAll(
-        singles.map(({ change }) => measure([...changes.standard, change], 'standard')),
+        singles.map(({ change }) => measure([...standardChanges, change], 'standard')),
       )
       const useful = singles.flatMap(({ change, toFewer }, i) => {
         const { checks, error } = counts[i] ?? { checks: null, error: null }
@@ -444,11 +490,10 @@ export function createProfiles(ctx: CoreContext, deps: ProfilesDeps): Profiles {
       )
       const raising = new Set(useful.filter((single) => !single.toFewer).map((single) => single.change.key))
       // The changes that are not for the size (death link, difficulty, traps) stay as they are.
-      const refined: Record<ProfileId, OptionChange[]> = {
-        discovery: changes.discovery.filter((change) => !sized.has(change.key) || chosen.has(change.key)),
-        standard: changes.standard,
-        complete: changes.complete.filter((change) => !sized.has(change.key) || raising.has(change.key)),
-      }
+      const refined = changesOf(
+        plan,
+        (planned, id) => planned.size === null || (id === 'discovery' ? chosen : raising).has(planned.key),
+      )
 
       const measures: Partial<Record<ProfileId, PlayerMeasure>> = { standard }
       const others = (['discovery', 'complete'] as const).filter(

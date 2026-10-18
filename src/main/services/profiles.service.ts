@@ -1,7 +1,8 @@
 // The `profiles` service: the Découverte, Standard and Complet profiles of each game (spec §3.6). A
-// game's profiles are refined in the background, as a `profiles` task that nobody waits for: once a
-// world is installed (a custom world that `worlds:changed` finds new, or at another version, since
-// the window opened), and the first time in a run that an installed game's profiles are asked for.
+// game's profiles are refined in the background, as a `profiles` task that nobody waits for, one game
+// at a time: once a world is installed (a custom world that `worlds:changed` finds new, or at another
+// version, since the window opened), the first time in a run that an installed game's profiles are
+// asked for, and once the templates are generated for a game that had none.
 import type { CoreContext } from '@main/core/context'
 import { createProfiles, type Profiles } from '@main/core/profiles/profiles'
 import { startTracked, type TaskHandle } from '@main/core/tasks'
@@ -30,16 +31,28 @@ export interface ProfilesServiceDeps {
 /** `deps.profiles`, whose `get` also starts refining an installed game that is not measured yet. */
 export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDeps): Profiles {
   const { profiles } = deps
-  /** The games refined, or being refined, in this run: asking for them again refines nothing. */
+  /** The games refined, waiting or being refined in this run: asking for them again refines nothing. */
   const asked = new Set<string>()
-  /** The refinements running, and whether another one is wanted once it ends (a world changed). */
-  const running = new Map<string, { again: boolean }>()
+  /** The games whose refinement found no option schema: tried again once the templates are generated. */
+  const noSchema = new Set<string>()
+  /** The games waiting to be refined, in order. */
+  const waiting: string[] = []
+  /** The game being refined, and whether to refine it again once done (its world changed meanwhile). */
+  let current: { game: string; again: boolean } | null = null
 
   async function refineLogged(game: string, task: TaskHandle): Promise<GameProfiles> {
     try {
-      return await profiles.refine(game, task)
+      const refined = await profiles.refine(game, task)
+      noSchema.delete(game)
+      return refined
     } catch (error) {
-      // Nobody waits for it: the failure is only logged, and the profiles stay heuristic.
+      if (error instanceof AppError && error.code === 'CHECKS_NO_SCHEMA') {
+        // A world just installed has no template yet (installing writes none): no reason to give up.
+        asked.delete(game)
+        noSchema.add(game)
+      }
+      // Ruling 23: nobody waits for it, so a failure is logged and never shown; the profiles stay
+      // heuristic (« non mesuré »).
       if (!(error instanceof AppError && error.code === 'TASK_CANCELLED')) {
         ctx.log.warn('profiles: refinement failed', { game, error: String(error) })
       }
@@ -47,25 +60,30 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
     }
   }
 
-  function refineInBackground(game: string): void {
-    asked.add(game)
-    const run = running.get(game)
-    if (run) {
-      run.again = true
-      return
-    }
-    const state = { again: false }
-    running.set(game, state)
+  /** Starts refining the next game waiting, unless one is being refined. */
+  function startNext(): void {
+    const game = current === null ? waiting.shift() : undefined
+    if (game === undefined) return
+    const run = { game, again: false }
+    current = run
     startTracked(
       ctx.tasks,
       ctx.bus,
       'profiles',
       (task) => refineLogged(game, task),
       () => {
-        running.delete(game)
-        if (state.again) refineInBackground(game)
+        current = null
+        if (run.again && !waiting.includes(game)) waiting.push(game)
+        startNext()
       },
     )
+  }
+
+  function refineInBackground(game: string): void {
+    asked.add(game)
+    if (current?.game === game) current.again = true
+    else if (!waiting.includes(game)) waiting.push(game)
+    startNext()
   }
 
   // --- the worlds installed ---
@@ -98,17 +116,23 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
   })
   // Archipelago installed anew: its own worlds may be at another version.
   ctx.bus.on('ap:installed', () => asked.clear())
+  // The templates generated: the games that had none may have one now.
+  ctx.bus.on('task:done', ({ kind }) => {
+    if (kind !== 'templates') return
+    const games = [...noSchema]
+    noSchema.clear()
+    for (const game of games) refineInBackground(game)
+  })
 
   return {
     ...profiles,
     async get(game) {
       const found = await profiles.get(game)
       if (!found.measured && !asked.has(game)) {
-        asked.add(game)
-        // Only a game Archipelago loads can be measured.
+        // Only a game Archipelago loads can be measured: it counts as asked once that is known.
         void deps.worldVersion(game).then(
           (version) => {
-            if (version !== null) refineInBackground(game)
+            if (version !== null && !asked.has(game)) refineInBackground(game)
           },
           (error: unknown) => ctx.log.warn('profiles: cannot tell the world version', { game, error }),
         )

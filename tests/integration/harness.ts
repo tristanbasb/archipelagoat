@@ -235,7 +235,7 @@ export async function createTestCore(opts: TestCoreOptions): Promise<TestCore> {
       { apUserAgent, createHttp },
       { createSecretStore },
       { createAllowedPaths },
-      { createTaskManager },
+      { createTaskManager, tasksToConfirm },
       { createLifecycle },
       { createServices },
       { registerHandlers },
@@ -306,7 +306,7 @@ export async function createTestCore(opts: TestCoreOptions): Promise<TestCore> {
     bus.on('task:failed', ({ taskId, error }) => settle(taskId, { ok: false, error }))
 
     // What src/main/index.ts adds around the services.
-    lifecycle.onCloseRequested(() => ({ servers: [], tasks: tasks.list().map((task) => task.kind) }))
+    lifecycle.onCloseRequested(() => ({ servers: [], tasks: tasksToConfirm(tasks) }))
     lifecycle.onBeforeQuit(() => {
       for (const task of tasks.list()) tasks.cancel(task.taskId)
       return Promise.resolve()

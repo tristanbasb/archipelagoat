@@ -5,13 +5,13 @@
 // ArchipelagoGenerate runs there without spoiler nor progression balancing on seed 42, or on 42, 1337
 // and 2026 for a YAML that rolls dice. The count is the size of the slot's locations in the
 // `.archipelago`; the folder goes right after. At most two test generations run at once, two minutes
-// each at most. A count once measured is kept in `dataRoot/checks/measures.json` (by world versions,
+// each at most; a measure asked in the background (the refinement of profiles) takes one of the two
+// at most, and only when no measure asked in the foreground waits. A count once measured is kept in `dataRoot/checks/measures.json` (by world versions,
 // YAML and seed) and never measured again; the last counts of a session, measured or read from its
 // real generation, in `dataRoot/checks/sessions/<id>.json`.
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import pLimit from 'p-limit'
 import { z } from 'zod'
 import { AP_EXES } from '@shared/data/ap-constants'
 import { AppError, isAppErrorData, toAppErrorData, type AppErrorData } from '@shared/errors'
@@ -56,6 +56,8 @@ const WEIGHTED_SEEDS = [42, 1337, 2026]
 const TIMEOUT_MS = 2 * 60 * 1000
 /** Test generations running at once, whoever asked for them. */
 const MAX_RUNNING = 2
+/** Of them, the background ones: a measure asked in the foreground always has a free slot soon. */
+const MAX_BACKGROUND = 1
 const DIR_PREFIX = 'measure-'
 const PLAYER_FILE = 'p.yaml'
 /** The measures kept, the oldest dropped first: refining profiles measures a dozen variants per game. */
@@ -224,6 +226,43 @@ const sessionChecksSchema = z.object({
   ),
 })
 
+// --- the queue of test generations ----------------------------------------------------------------
+
+export type MeasurePriority = 'foreground' | 'background'
+
+/**
+ * Runs the jobs given to it, MAX_RUNNING at once and MAX_BACKGROUND of them background at most; a
+ * waiting foreground job always starts before a waiting background one, each kind in its order.
+ */
+function createQueue(): <T>(priority: MeasurePriority, job: () => Promise<T>) => Promise<T> {
+  const waiting: Record<MeasurePriority, (() => void)[]> = { foreground: [], background: [] }
+  let running = 0
+  let background = 0
+  const startNext = (): void => {
+    while (running < MAX_RUNNING) {
+      const start =
+        waiting.foreground.shift() ?? (background < MAX_BACKGROUND ? waiting.background.shift() : undefined)
+      if (start === undefined) return
+      start()
+    }
+  }
+  return (priority, job) =>
+    new Promise((resolve, reject) => {
+      waiting[priority].push(() => {
+        running++
+        if (priority === 'background') background++
+        void job()
+          .then(resolve, reject)
+          .finally(() => {
+            running--
+            if (priority === 'background') background--
+            startNext()
+          })
+      })
+      startNext()
+    })
+}
+
 // --- the measurer -------------------------------------------------------------------------------------
 
 export interface MeasureInput {
@@ -235,6 +274,11 @@ export interface MeasureInput {
   yamlText: string
   /** Only its signal is used: a measure reports no stage, it runs within its caller's task. */
   task: TaskHandle
+  /**
+   * `background` for a measure nobody waits for (the refinement of profiles): it starts only when no
+   * foreground measure waits, one at a time. Default: `foreground`.
+   */
+  priority?: MeasurePriority
 }
 
 export interface Measurer {
@@ -311,7 +355,7 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
   const keptFile = path.join(dataRoot, 'checks', 'measures.json')
   const sessionsDir = path.join(dataRoot, 'checks', 'sessions')
   const now = deps.now ?? Date.now
-  const queue = pLimit(MAX_RUNNING)
+  const queue = createQueue()
   const isoNow = (): string => new Date(now()).toISOString()
 
   // --- the folders of the test generations ---
@@ -485,7 +529,11 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
       const rules = sessionId === null ? defaultRules() : (await deps.sessions.get(sessionId)).rules
       const entries = buildSessionSettingsEntries(rules, NO_SECRETS, romPathsOf(needs))
       const results = await Promise.allSettled(
-        missing.map((seed) => queue(() => generateOnce({ text, seed, entries, install, sessionId, task }))),
+        missing.map((seed) =>
+          queue(input.priority ?? 'foreground', () =>
+            generateOnce({ text, seed, entries, install, sessionId, task }),
+          ),
+        ),
       )
       let measured = false
       results.forEach((result, i) => {

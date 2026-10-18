@@ -588,6 +588,54 @@ ${knight}`,
     expect(most).toBe(2)
   })
 
+  it('starts a foreground measure before the background ones waiting, which run one at a time', async () => {
+    const gates: (() => void)[] = []
+    let most = 0
+    let mostBackground = 0
+    const isBackground = (run: FakeRun): boolean => String(run.docs[0]?.name).startsWith('Bg')
+    outcome = (run) => {
+      const live = runs.filter((started) => !started.ended)
+      most = Math.max(most, live.length)
+      mostBackground = Math.max(mostBackground, live.filter(isBackground).length)
+      return new Promise<Outcome>((resolve) => gates.push(() => resolve(defaultOutcome(run))))
+    }
+    const measure = (name: string, priority?: 'background') =>
+      measurer.measureDoc({
+        sessionId: null,
+        game: ASH,
+        yamlText: claire.replace('Claire', name),
+        task: taskSpy().handle,
+        ...(priority === undefined ? {} : { priority }),
+      })
+    const background = ['Bg1', 'Bg2', 'Bg3', 'Bg4'].map((name) => measure(name, 'background'))
+
+    // One background measure at a time, though a slot is free.
+    await until(() => runs.length === 1)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(runs).toHaveLength(1)
+    // A foreground measure takes the free slot at once.
+    const first = measure('Ana')
+    await until(() => runs.length === 2)
+    expect(runs[1]?.docs[0]?.name).toBe('Ana')
+    // Asked after the background ones, the next foreground measure gets the next free slot.
+    const second = measure('Bea')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(runs).toHaveLength(2)
+    gates.shift()?.()
+    await until(() => runs.length === 3)
+    expect(runs[2]?.docs[0]?.name).toBe('Bea')
+
+    while (runs.length < 6 || gates.length > 0) {
+      gates.shift()?.()
+      await new Promise((resolve) => setImmediate(resolve))
+    }
+    const results = await Promise.all([first, second, ...background])
+    expect(results.map((result) => result.checks)).toEqual([131, 131, 131, 131, 131, 131])
+    expect(runs.map((run) => run.docs[0]?.name)).toEqual(['Bg1', 'Ana', 'Bea', 'Bg2', 'Bg3', 'Bg4'])
+    expect(most).toBe(2)
+    expect(mostBackground).toBe(1)
+  })
+
   it('a missing world only fails its own row', async () => {
     outcome = (run) =>
       run.docs[0]?.game === 'Nope Game'

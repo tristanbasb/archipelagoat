@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { sizeCandidates, variantsToward } from '@main/core/checks/balance'
+import { hasSizeName, sizeCandidates, variantsToward } from '@main/core/checks/balance'
 import { createCheckEstimates } from '@main/core/checks/datapackage'
 import type { MeasureInput } from '@main/core/checks/measure'
 import type { Logger } from '@main/core/logger'
@@ -202,15 +202,21 @@ describe('heuristic profiles', () => {
       RandomizeCharms: false,
       RandomizeMaskShards: false,
       RandomizeStags: false,
-      GrubHuntGoal: 1,
+      CostSanityGeoWeight: 0,
     })
-    // Each change is one step of a size option toward fewer checks, from its default.
+    // Each change is one step toward fewer checks, from its default, of an option whose name tells
+    // the size.
     const size = new Map(sizeCandidates(hk).map((option) => [option.key, option]))
     for (const change of discovery.changes) {
       const option = size.get(change.key)
       if (!option) throw new Error(`${change.key} is not a size option`)
+      expect(hasSizeName(change.key), change.key).toBe(true)
       expect(change.from, change.key).toEqual(option.default)
       expect([change.to], change.key).toEqual(variantsToward(option, option.default, 'fewer'))
+    }
+    // The numeric ranges that do not say what they count stay: the grubs to hunt, prices, slots.
+    for (const key of ['GrubHuntGoal', 'MaximumGeoPrice', 'SlyShopSlots']) {
+      expect(changesOf(profiles, 'discovery'), key).not.toHaveProperty(key)
     }
     // What is off already stays so, and no common option moves.
     expect(changesOf(profiles, 'discovery')).not.toHaveProperty('RandomizeGrubs')
@@ -245,7 +251,12 @@ describe('heuristic profiles', () => {
     for (const change of profileOf(profiles, 'complete').changes) {
       const option = size.get(change.key)
       if (!option) throw new Error(`${change.key} is not a size option`)
+      expect(hasSizeName(change.key), change.key).toBe(true)
       expect([change.to], change.key).toEqual(variantsToward(option, option.default, 'more'))
+    }
+    // No price goes up, no starting geo is given.
+    for (const key of ['MinimumGrubPrice', 'MaximumGeoPrice', 'StartingGeo']) {
+      expect(changesOf(profiles, 'complete'), key).not.toHaveProperty(key)
     }
     // Difficulty and traps stay at their defaults.
     expect(changesOf(heuristicProfiles(schema(SDV)), 'complete')).not.toHaveProperty('trap_difficulty')
@@ -255,9 +266,45 @@ describe('heuristic profiles', () => {
     expect(changesOf(heuristicProfiles(schema(WITNESS)), 'complete')).not.toHaveProperty('trap_percentage')
   })
 
+  it('leaves the caps, multipliers and prices of Timespinner and Stardew Valley as they are', () => {
+    const untouched: Record<string, string[]> = {
+      Timespinner: [
+        'hp_cap',
+        'aura_cap',
+        'level_cap',
+        'extra_earrings_xp',
+        'shop_multiplier',
+        'fixed_drop_rate',
+      ],
+      [SDV]: [
+        'starting_money',
+        'profit_margin',
+        'experience_multiplier',
+        'friendship_multiplier',
+        'movement_buff_number',
+        'multiple_day_sleep_cost',
+        'joja_start_price',
+        'joja_end_price',
+        'joja_purchases_for_membership',
+      ],
+    }
+    for (const [game, keys] of Object.entries(untouched)) {
+      const profiles = heuristicProfiles(game === SDV ? schema(SDV) : schemaOf(game))
+      for (const id of ['discovery', 'complete'] as const) {
+        for (const key of keys)
+          expect(changesOf(profiles, id), `${game} ${id} ${key}`).not.toHaveProperty(key)
+      }
+    }
+    // Their options named after the size are turned still.
+    expect(changesOf(heuristicProfiles(schemaOf('Timespinner')), 'complete')).toMatchObject({
+      lore_checks: true,
+    })
+    expect(changesOf(heuristicProfiles(schema(SDV)), 'discovery')).toMatchObject({ quest_locations: 0 })
+  })
+
   it('a profile equal to Standard is left out', async () => {
     // Every size option of this game is at its most already: Complet would be Standard.
-    const most = onlyOptions(schema(ASH), ['progression_balancing', 'accessibility', 'golden_feathers'])
+    const most = onlyOptions(schema(HK), ['progression_balancing', 'accessibility', 'RandomizeDreamers'])
     expect(heuristicProfiles(most).profiles.map((profile) => profile.id)).toEqual(['discovery', 'standard'])
 
     // Measured: nothing raises the checks of A Short Hike, so Complet goes.
@@ -323,8 +370,13 @@ describe('refined profiles', () => {
     // Standard, the ten single changes of its seven size options, then the two profiles: each player
     // alone, outside any session, within the caller's task.
     expect(measurer.calls).toHaveLength(13)
-    for (const call of measurer.calls)
-      expect(call).toMatchObject({ sessionId: null, game: ASH, task: handle })
+    for (const call of measurer.calls) {
+      expect(call).toMatchObject({ sessionId: null, game: ASH, task: handle, priority: 'background' })
+    }
+    // Its numeric ranges entered the profiles only once measured: the heuristic ones leave them.
+    const heuristic = heuristicProfiles(schema(ASH))
+    expect(changesOf(heuristic, 'discovery')).toEqual({ goal: 'races' })
+    expect(changesOf(heuristic, 'complete')).toEqual({ goal: 'fishmonger' })
     expect(stages[0]).toBe('prepare')
     expect(stages).toContain('generate')
     expect(stages.at(-1)).toBe('done')
@@ -544,6 +596,36 @@ describe('profile counts', () => {
     expect(await estimate([ASH])).toEqual({ ok: true, value: { [ASH]: { max: null, profiles: null } } })
   })
 
+  it('checks:estimate keeps the most checks of a game when the profile counts cannot be read', async () => {
+    const estimates = {
+      maxFor: (game: string) => (game === HK ? 740 : null),
+      refresh: () => Promise.resolve(),
+    }
+    const failing = { cachedCounts: () => Promise.reject(new AppError('AP_UNKNOWN')) }
+    const ipc = createIpcRegistry()
+    registerCheckHandlers(ipc.registerHandler, containerOf({ checks: { estimates }, profiles: failing }))
+    expect(await ipc.dispatch('checks:estimate', { games: [HK] }, meta)).toEqual({
+      ok: true,
+      value: { [HK]: { max: 740, profiles: null } },
+    })
+
+    // The same when the version of a refined game's world cannot be told (the worlds scan failed).
+    let scanFails = false
+    const profiles = createProfiles(core.ctx, {
+      templates: { getSchema: (game) => Promise.resolve(schema(game)) },
+      measurer: fakeMeasurer(100, [['goal', 'races', -45]]),
+      worldVersion: () => (scanFails ? Promise.reject(new Error('EPERM')) : Promise.resolve('1.0.0')),
+    })
+    await profiles.refine(ASH, taskHandle().handle)
+    scanFails = true
+    const other = createIpcRegistry()
+    registerCheckHandlers(other.registerHandler, containerOf({ checks: { estimates }, profiles }))
+    expect(await other.dispatch('checks:estimate', { games: [HK, ASH] }, meta)).toEqual({
+      ok: true,
+      value: { [HK]: { max: 740, profiles: null }, [ASH]: { max: null, profiles: null } },
+    })
+  })
+
   it('profiles:get answers the profiles of a game and checks its name', async () => {
     const profiles = profilesWith(fakeMeasurer(100))
     const ipc = createIpcRegistry()
@@ -664,6 +746,74 @@ describe('the profiles service', () => {
     expect(refine).toHaveBeenCalledTimes(1)
     release()
     await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(2))
+  })
+
+  it('refines one game at a time', async () => {
+    let worlds = [world(HK, 'custom', '1.0.0')]
+    const { refine } = serviceWith({ worlds: () => worlds, installed: [HK, ASH, 'Timespinner'] })
+    const releases: (() => void)[] = []
+    refine.mockImplementation(
+      (game) =>
+        new Promise<GameProfiles>((resolve) => {
+          releases.push(() => resolve({ game, profiles: [], measured: true }))
+        }),
+    )
+    const refining = () => core.ctx.tasks.list().filter((task) => task.kind === 'profiles').length
+    core.lifecycle.windowReady()
+    worlds = [world(HK, 'custom', '1.1.0'), world(ASH, 'custom', null), world('Timespinner', 'custom', null)]
+    core.ctx.bus.emit('worlds:changed', null)
+
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refine).toHaveBeenCalledTimes(1)
+    expect(refining()).toBe(1)
+    releases.shift()?.()
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(2))
+    expect(refining()).toBe(1)
+    releases.shift()?.()
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(3))
+    releases.shift()?.()
+    await vi.waitFor(() => expect(refining()).toBe(0))
+    expect(refine.mock.calls.map(([game]) => game)).toEqual([HK, ASH, 'Timespinner'])
+  })
+
+  it('tries a game without a template again once the templates are generated, or when asked again', async () => {
+    let worlds: WorldInfo[] = []
+    const { service, refine } = serviceWith({ worlds: () => worlds, installed: [HK] })
+    refine.mockRejectedValueOnce(new AppError('CHECKS_NO_SCHEMA', { game: HK }))
+    refine.mockRejectedValueOnce(new AppError('CHECKS_NO_SCHEMA', { game: HK }))
+    core.lifecycle.windowReady()
+
+    // Installed: no template yet, so its refinement fails.
+    worlds = [world(HK, 'custom', '1.0.0')]
+    core.ctx.bus.emit('worlds:changed', null)
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(1))
+    // Asked again, it is tried again (it did not stay asked).
+    await service.get(HK)
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(2))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    // A templates task that ends tries it again.
+    core.ctx.bus.emit('task:done', { taskId: 't1', kind: 'templates', result: { count: 1 } })
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(3))
+    // Refined now: another templates task tries nothing more.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    core.ctx.bus.emit('task:done', { taskId: 't2', kind: 'templates', result: { count: 1 } })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refine).toHaveBeenCalledTimes(3)
+  })
+
+  it('counts a game as asked only once its world is known to be installed', async () => {
+    const installed: string[] = []
+    const { service, refine } = serviceWith({ worlds: () => [], installed })
+    await service.get(ASH)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refine).not.toHaveBeenCalled()
+
+    // Installed since: asking again refines it.
+    installed.push(ASH)
+    await service.get(ASH)
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(1))
   })
 
   it('answers get at once and refines an installed game once in the background', async () => {
