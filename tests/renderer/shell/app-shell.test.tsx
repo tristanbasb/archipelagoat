@@ -303,6 +303,32 @@ describe('app shell', () => {
     expect(screen.getAllByText(/^Échec\s: Mesure des checks$/)).toHaveLength(1)
   })
 
+  it('« Jeu prêt » is told by its dialog on the worlds screen, by a toast anywhere else', async () => {
+    const onWorlds = await renderApp({ route: '/worlds' })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mondes' })).toBeInTheDocument()
+    onWorlds.goat.emit('task:done', { taskId: 'r1', kind: 'ready', result: null })
+    onWorlds.goat.emit('task:failed', { taskId: 'r2', kind: 'ready', error: { code: 'AP_YAML_INVALID' } })
+    // A task of another screen still toasts: the silence above is the dialog's.
+    onWorlds.goat.emit('task:done', { taskId: 'a1', kind: 'ap-install', result: null })
+    expect(await screen.findByText('Archipelago est installé')).toBeInTheDocument()
+    expect(screen.queryByText('Le jeu est prêt')).toBeNull()
+    expect(screen.queryByText(/^Échec\s: Jeu prêt$/)).toBeNull()
+    cleanup()
+
+    const { goat, user } = await renderApp({ handlers: { 'ap:detect': () => null } })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Accueil' })).toBeInTheDocument()
+    goat.emit('task:failed', { taskId: 'r3', kind: 'ready', error: { code: 'AP_YAML_INVALID' } })
+    expect(await screen.findByText(/^Échec\s: Jeu prêt$/)).toBeInTheDocument()
+    goat.emit('task:done', { taskId: 'r4', kind: 'ready', result: null })
+    const done = await screen.findByText('Le jeu est prêt')
+    await user.click(
+      within(done.closest('[role="status"], [role="alert"], li, div') as HTMLElement).getByRole('button', {
+        name: 'Voir',
+      }),
+    )
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mondes' })).toBeInTheDocument()
+  })
+
   it('a refinement of profiles, run in the background, never toasts', async () => {
     const { goat } = await renderApp({ handlers: { 'ap:detect': () => null } })
     expect(await screen.findByRole('heading', { level: 1, name: 'Accueil' })).toBeInTheDocument()

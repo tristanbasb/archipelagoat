@@ -54,6 +54,23 @@ describe('task stage labels', () => {
     expect(stageLabel(progress('profiles', 'generate'), i18n.t)).toBe('Test generations')
   })
 
+  it('labels the stages of « Jeu prêt », in both languages', async () => {
+    expect(taskLabel(progress('ready', 'download'), i18n.t)).toBe('Jeu prêt · Téléchargement du monde')
+    expect(stageLabel(progress('ready', 'inspect'), i18n.t)).toBe('Analyse du fichier')
+    expect(stageLabel(progress('ready', 'install'), i18n.t)).toBe('Installation du monde')
+    expect(stageLabel(progress('ready', 'templates'), i18n.t)).toBe('Génération des templates')
+    expect(stageLabel(progress('ready', 'profile'), i18n.t)).toBe('Écriture du YAML et mesure des checks')
+    expect(stageLabel(progress('ready', 'validate'), i18n.t)).toBe('Vérification du YAML')
+    expect(stageLabel(progress('ready', 'deliver'), i18n.t)).toBe('Livraison du YAML')
+    expect(stageLabel(progress('ready', 'done'), i18n.t)).toBe('Terminé')
+    // Archipelago's own install keeps its label.
+    expect(stageLabel(progress('ap-install', 'install'), i18n.t)).toBe('Installation')
+
+    await i18n.changeLanguage('en')
+    expect(taskLabel(progress('ready', 'install'), i18n.t)).toBe('Ready to play · Installing the world')
+    expect(stageLabel(progress('ready', 'deliver'), i18n.t)).toBe('Delivering the YAML')
+  })
+
   it("keeps the generation's own `done` apart from the other tasks' one", () => {
     expect(stageLabel(progress('generate', 'done'), i18n.t)).toBe('Terminé')
     expect(stageLabel(progress('templates', 'done'), i18n.t)).toBe('Terminé')

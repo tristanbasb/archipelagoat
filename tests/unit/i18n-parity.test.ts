@@ -49,6 +49,7 @@ const TASK_KINDS: TaskKind[] = [
   'bizhawk-install',
   'measure',
   'profiles',
+  'ready',
 ]
 const TRUST_TIERS: TrustTier[] = ['core', 'indexed-verified', 'wiki-release', 'unknown']
 const PROFILE_IDS: ProfileId[] = ['discovery', 'standard', 'complete']

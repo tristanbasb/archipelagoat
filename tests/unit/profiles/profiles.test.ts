@@ -782,6 +782,7 @@ describe('the profiles service', () => {
     const { service, refine } = serviceWith({ worlds: () => worlds, installed: [HK] })
     refine.mockRejectedValueOnce(new AppError('CHECKS_NO_SCHEMA', { game: HK }))
     refine.mockRejectedValueOnce(new AppError('CHECKS_NO_SCHEMA', { game: HK }))
+    refine.mockRejectedValueOnce(new AppError('CHECKS_NO_SCHEMA', { game: HK }))
     core.lifecycle.windowReady()
 
     // Installed: no template yet, so its refinement fails.
@@ -796,11 +797,15 @@ describe('the profiles service', () => {
     // A templates task that ends tries it again.
     core.ctx.bus.emit('task:done', { taskId: 't1', kind: 'templates', result: { count: 1 } })
     await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(3))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    // So does a « Jeu prêt », which generates them within its own task.
+    core.ctx.bus.emit('task:done', { taskId: 'r1', kind: 'ready', result: null })
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(4))
     // Refined now: another templates task tries nothing more.
     await new Promise((resolve) => setTimeout(resolve, 20))
     core.ctx.bus.emit('task:done', { taskId: 't2', kind: 'templates', result: { count: 1 } })
     await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(refine).toHaveBeenCalledTimes(3)
+    expect(refine).toHaveBeenCalledTimes(4)
   })
 
   it('counts a game as asked only once its world is known to be installed', async () => {

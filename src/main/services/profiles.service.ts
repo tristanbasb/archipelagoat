@@ -116,9 +116,10 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
   })
   // Archipelago installed anew: its own worlds may be at another version.
   ctx.bus.on('ap:installed', () => asked.clear())
-  // The templates generated: the games that had none may have one now.
+  // The templates generated (a « Jeu prêt » generates them within its own task): the games that had
+  // none may have one now.
   ctx.bus.on('task:done', ({ kind }) => {
-    if (kind !== 'templates') return
+    if (kind !== 'templates' && kind !== 'ready') return
     const games = [...noSchema]
     noSchema.clear()
     for (const game of games) refineInBackground(game)

@@ -45,6 +45,9 @@ export function taskOwner(kind: TaskKind, taskId: string, failed: boolean): Owne
       return screen('/join')
     case 'templates':
       return screen('/studio')
+    case 'ready':
+      // Asked from the « Jeu prêt » dialog of the worlds screen, which tells how it ended.
+      return screen('/worlds')
     case 'measure':
       // Asked from the Checks panel of a session's check step (a measure, or a search for settings),
       // which tells how it ended; elsewhere the toast leads to the sessions.

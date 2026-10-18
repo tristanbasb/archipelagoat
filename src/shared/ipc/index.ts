@@ -8,6 +8,7 @@ import { coversChannels } from './covers'
 import { doctorChannels } from './doctor'
 import { joinChannels } from './join'
 import { profilesChannels } from './profiles'
+import { readyChannels } from './ready'
 import { serverChannels } from './server'
 import { sessionChannels } from './session'
 import { studioChannels } from './studio'
@@ -26,6 +27,7 @@ export const domainChannels = {
   checks: checksChannels,
   covers: coversChannels,
   profiles: profilesChannels,
+  ready: readyChannels,
   studio: studioChannels,
   session: sessionChannels,
   server: serverChannels,
@@ -46,6 +48,7 @@ export const channels = {
   ...checksChannels,
   ...coversChannels,
   ...profilesChannels,
+  ...readyChannels,
   ...studioChannels,
   ...sessionChannels,
   ...serverChannels,

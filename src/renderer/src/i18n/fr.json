@@ -137,7 +137,8 @@
       "rom-scan": "La recherche de ROM est terminée",
       "bizhawk-install": "BizHawk est installé",
       "measure": "Les checks sont mesurés",
-      "profiles": "Les profils sont calculés"
+      "profiles": "Les profils sont calculés",
+      "ready": "Le jeu est prêt"
     },
     "kinds": {
       "ap-install": "Installation d’Archipelago",
@@ -150,7 +151,8 @@
       "rom-scan": "Recherche de ROMs",
       "bizhawk-install": "Installation de BizHawk",
       "measure": "Mesure des checks",
-      "profiles": "Calcul des profils"
+      "profiles": "Calcul des profils",
+      "ready": "Jeu prêt"
     }
   },
   "trust": {
@@ -568,12 +570,20 @@
     "extract": "Extraction des fichiers",
     "prepare": "Lecture des fichiers des joueurs",
     "read": "Lecture des comptes",
+    "templates": "Génération des templates",
+    "profile": "Écriture du YAML et mesure des checks",
+    "validate": "Vérification du YAML",
+    "deliver": "Livraison du YAML",
     "measure": {
       "generate": "Générations de test"
     },
     "profiles": {
       "prepare": "Lecture du template d’options",
       "generate": "Générations de test"
+    },
+    "ready": {
+      "download": "Téléchargement du monde",
+      "install": "Installation du monde"
     }
   }
 }

@@ -14,6 +14,8 @@ import type {
   JoinTarget,
   OpenRequest,
   QuitRequest,
+  ReadyDestination,
+  ReadyPlan,
   Rules,
   ServerEvent,
   Session,
@@ -59,6 +61,8 @@ const CHANNEL_TABLE = [
   'checks:apply',
   'covers:get',
   'profiles:get',
+  'ready:prepare',
+  'ready:run',
   'studio:games',
   'studio:schema',
   'studio:parse',
@@ -268,6 +272,8 @@ describe('ipc contract', () => {
     expectTypeOf<ChannelInput<'checks:suggest'>['target']>().toEqualTypeOf<BalanceTarget>()
     expectTypeOf<ChannelOutput<'checks:apply'>>().toEqualTypeOf<Session>()
     expectTypeOf<ChannelOutput<'profiles:get'>>().toEqualTypeOf<GameProfiles>()
+    expectTypeOf<ChannelOutput<'ready:prepare'>>().toEqualTypeOf<ReadyPlan>()
+    expectTypeOf<ChannelInput<'ready:run'>['destination']>().toEqualTypeOf<ReadyDestination>()
   })
 })
 

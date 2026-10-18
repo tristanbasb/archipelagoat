@@ -37,6 +37,11 @@ export const TASK_STAGES = [
   // measure (0.2), besides generate and done; profiles (0.2) passes prepare, generate and done
   'prepare',
   'read',
+  // ready (0.2), besides download, inspect, install and done
+  'templates',
+  'profile',
+  'validate',
+  'deliver',
 ] as const
 
 function isOneOf<T extends string>(list: readonly T[], value: string): value is T {

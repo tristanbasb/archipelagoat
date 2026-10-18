@@ -1,4 +1,5 @@
 // Pure helpers of the worlds screen: names, search, versions, states and sizes.
+import { isNewerVersion } from '@shared/catalog'
 import type { CatalogEntry, WorldInfo, WorldState } from '@shared/types'
 import type { Tone } from '../../design/classes'
 
@@ -69,22 +70,6 @@ export function countStates(worlds: readonly WorldInfo[]): Record<WorldState, nu
   const counts = Object.fromEntries(STATE_ORDER.map((state) => [state, 0])) as Record<WorldState, number>
   for (const world of worlds) for (const state of new Set(world.states)) counts[state] += 1
   return counts
-}
-
-function numericParts(version: string): number[] {
-  return (version.match(/\d+/g) ?? []).map(Number)
-}
-
-/** True when `candidate` is a later version than `current`, comparing their numbers in turn. */
-export function isNewerVersion(candidate: string, current: string): boolean {
-  const next = numericParts(candidate)
-  const now = numericParts(current)
-  if (next.length === 0 || now.length === 0) return candidate !== current
-  for (let index = 0; index < Math.max(next.length, now.length); index += 1) {
-    const diff = (next[index] ?? 0) - (now[index] ?? 0)
-    if (diff !== 0) return diff > 0
-  }
-  return false
 }
 
 /** An installed world for which the catalog has a later version. */

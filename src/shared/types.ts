@@ -99,6 +99,7 @@ export type TaskKind =
   | 'bizhawk-install'
   | 'measure'
   | 'profiles'
+  | 'ready'
 
 export interface TaskRef {
   taskId: string
@@ -661,4 +662,48 @@ export interface BalanceProposal {
   changes: OptionChange[]
   checks: number
   diff: string
+}
+
+/**
+ * Where « Jeu prêt » delivers its YAML (spec §3.7, Ruling 2): a session being prepared, a session it
+ * creates, the file picked in a save dialog (`app:savePath`), or the Studio, which gets the text only.
+ */
+export type ReadyDestination =
+  | { kind: 'session'; sessionId: string }
+  | { kind: 'new-session'; name: string }
+  | { kind: 'file'; path: string }
+  | { kind: 'studio' }
+
+/** What « Jeu prêt » would do for a catalog entry, worked out without changing anything. */
+export interface ReadyPlan {
+  planId: string
+  entryId: string
+  /** The game of the YAML: the one Archipelago loads for the entry when installed, else the catalog's. */
+  game: string
+  apInstalled: boolean
+  /** A core world with Archipelago installed, or a world Archipelago loads for the game. */
+  installed: boolean
+  /** Installed, and the catalog has a later version: `update` installs it. */
+  updateAvailable: boolean
+  trust: TrustTier
+  /** `wiki-release` and `unknown`: a run that installs the world needs `trustAccepted`. */
+  needsTrustConsent: boolean
+  /** No profile while the game has no option schema (a world not installed yet): made once it is. */
+  profiles: GameProfiles
+  /** The sessions being prepared (drafts), most recently updated first. */
+  sessions: { id: string; name: string }[]
+  /** « À savoir »: a ROM to generate, a PopTracker pack, the wiki's setup guide, Archipelago programs open. */
+  notes: { romRequired: boolean; popTracker: boolean; setupUrl: string | null; apRunning: boolean }
+}
+
+/** What a « Jeu prêt » run delivered. */
+export interface ReadyOutcome {
+  game: string
+  profile: ProfileId
+  /** The checks of one test generation of the YAML; null when it could not run. */
+  checks: number | null
+  text: string
+  delivered: { kind: 'session'; sessionId: string } | { kind: 'file'; path: string } | { kind: 'studio' }
+  /** The run installed a world while Archipelago programs run: they see it once restarted. */
+  restartNeeded: boolean
 }

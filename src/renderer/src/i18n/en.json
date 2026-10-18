@@ -137,7 +137,8 @@
       "rom-scan": "The ROM scan is over",
       "bizhawk-install": "BizHawk is installed",
       "measure": "The checks are measured",
-      "profiles": "The profiles are computed"
+      "profiles": "The profiles are computed",
+      "ready": "The game is ready to play"
     },
     "kinds": {
       "ap-install": "Installing Archipelago",
@@ -150,7 +151,8 @@
       "rom-scan": "Looking for ROMs",
       "bizhawk-install": "Installing BizHawk",
       "measure": "Measuring the checks",
-      "profiles": "Computing the profiles"
+      "profiles": "Computing the profiles",
+      "ready": "Ready to play"
     }
   },
   "trust": {
@@ -568,12 +570,20 @@
     "extract": "Extracting the files",
     "prepare": "Reading the player files",
     "read": "Reading the counts",
+    "templates": "Generating the templates",
+    "profile": "Writing the YAML and counting its checks",
+    "validate": "Checking the YAML",
+    "deliver": "Delivering the YAML",
     "measure": {
       "generate": "Test generations"
     },
     "profiles": {
       "prepare": "Reading the options template",
       "generate": "Test generations"
+    },
+    "ready": {
+      "download": "Downloading the world",
+      "install": "Installing the world"
     }
   }
 }
