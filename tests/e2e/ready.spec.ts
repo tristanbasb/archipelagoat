@@ -6,18 +6,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import {
-  goTo,
-  launchApp,
-  overflowingTexts,
-  rawTexts,
-  removeDirs,
-  screenTitle,
-  screenshot,
-  translator,
-  type Lang,
-  type LaunchedApp,
-} from './helpers'
+import { goTo, launchApp, removeDirs, screenTitle, shoot, translator, type LaunchedApp } from './helpers'
 import { SEEDED_GAMES } from './seed-catalog'
 
 const GAME = 'TUNIC'
@@ -34,20 +23,6 @@ test.afterEach(async () => {
   launched = undefined
 })
 
-/** The screen is clean (no raw key or code, nothing spilling out, no console error), then its picture. */
-async function shoot(
-  app: LaunchedApp,
-  lang: Lang,
-  name: string,
-  opts: Parameters<typeof screenshot>[3] = {},
-): Promise<void> {
-  // Soft: every picture is still taken, and the test fails at the end with all the problems.
-  expect.soft(await rawTexts(app.page), `${name}: untranslated text`).toEqual([])
-  expect.soft(await overflowingTexts(app.page), `${name}: text out of its box`).toEqual([])
-  expect.soft(app.problems.splice(0), `${name}: console errors or CSP violations`).toEqual([])
-  await screenshot(app.page, lang, name, opts)
-}
-
 for (const lang of ['fr', 'en'] as const) {
   test(`Jeu prêt on a core game with the fake Archipelago ends in a session with the player's YAML (${lang})`, async () => {
     const t = await translator(lang)
@@ -61,19 +36,30 @@ for (const lang of ['fr', 'en'] as const) {
     // The catalog opens from the saved copy, with the covers of the cache shown through goat-cover://.
     await goTo(page, '/worlds')
     await expect(screenTitle(page)).toHaveText(t('nav.worlds'))
-    await page.getByRole('tab', { name: new RegExp(t('screens.worlds.tabs.catalog')) }).click()
+    await page.getByRole('tab', { name: t('screens.worlds.tabs.catalog') }).click()
     const grid = page.getByRole('list', { name: t('screens.worlds.catalog.listLabel') })
-    await expect(grid.getByRole('article')).toHaveCount(SEEDED_GAMES.length)
+    await expect(
+      grid.getByRole('article'),
+      'seeded catalog: check CATALOG_VERSION in tests/e2e/seed-catalog.ts against SAVED_VERSION in catalog.ts',
+    ).toHaveCount(SEEDED_GAMES.length)
     const pictures = grid.locator('.game-cover[data-state="image"] img')
-    await expect(pictures).toHaveCount(SEEDED_GAMES.length)
+    await expect(
+      pictures,
+      'seeded covers: check the file names and index.json shape in tests/e2e/seed-catalog.ts against covers.ts',
+    ).toHaveCount(SEEDED_GAMES.length)
     await expect
-      .poll(() =>
-        pictures.evaluateAll((images) =>
-          images.map((image) => {
-            const picture = image as HTMLImageElement
-            return picture.src.startsWith('goat-cover://') && picture.complete && picture.naturalWidth > 0
-          }),
-        ),
+      .poll(
+        () =>
+          pictures.evaluateAll((images) =>
+            images.map((image) => {
+              const picture = image as HTMLImageElement
+              return picture.src.startsWith('goat-cover://') && picture.complete && picture.naturalWidth > 0
+            }),
+          ),
+        {
+          message:
+            'seeded covers: each one loads through goat-cover:// (the PNGs of tests/e2e/seed-catalog.ts)',
+        },
       )
       .toEqual(SEEDED_GAMES.map(() => true))
     // The picture says when the copy was made: that moves with the clock.

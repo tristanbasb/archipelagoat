@@ -17,15 +17,12 @@ import {
   hostLocally,
   launchApp,
   openMockRoom,
-  overflowingTexts,
-  rawTexts,
   removeDirs,
   repoRoot,
   screenTitle,
-  screenshot,
+  shoot,
   stopServer,
   translator,
-  type Lang,
   type LaunchedApp,
   type LaunchOptions,
   type Translate,
@@ -53,20 +50,6 @@ test.afterEach(async () => {
   launches = []
   await site.close()
 })
-
-/** The screen is clean (no raw key or code, nothing spilling out, no console error), then its picture. */
-async function shoot(
-  launched: LaunchedApp,
-  lang: Lang,
-  name: string,
-  opts: Parameters<typeof screenshot>[3] = {},
-): Promise<void> {
-  // Soft: every screen is still visited and pictured, and the test fails at the end with all of them.
-  expect.soft(await rawTexts(launched.page), `${name}: untranslated text`).toEqual([])
-  expect.soft(await overflowingTexts(launched.page), `${name}: text out of its box`).toEqual([])
-  expect.soft(launched.problems.splice(0), `${name}: console errors or CSP violations`).toEqual([])
-  await screenshot(launched.page, lang, name, opts)
-}
 
 const bootDialog = (page: Page, t: Translate): Locator => page.getByRole('dialog', { name: t('boot.label') })
 

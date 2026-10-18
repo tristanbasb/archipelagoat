@@ -367,6 +367,23 @@ export async function screenshot(
   })
 }
 
+/**
+ * The screen is clean (no raw key or code, nothing spilling out, no console error or CSP violation since
+ * the last picture), then its picture.
+ */
+export async function shoot(
+  launched: LaunchedApp,
+  lang: Lang,
+  name: string,
+  opts: Parameters<typeof screenshot>[3] = {},
+): Promise<void> {
+  // Soft: every screen is still visited and pictured, and the test fails at the end with all of them.
+  expect.soft(await rawTexts(launched.page), `${name}: untranslated text`).toEqual([])
+  expect.soft(await overflowingTexts(launched.page), `${name}: text out of its box`).toEqual([])
+  expect.soft(launched.problems.splice(0), `${name}: console errors or CSP violations`).toEqual([])
+  await screenshot(launched.page, lang, name, opts)
+}
+
 // --- the mock site -------------------------------------------------------------------------------
 
 /** Opens a room on the mock site as another player (its own cookie) and returns the room's id. */
