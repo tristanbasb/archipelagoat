@@ -76,7 +76,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
-  rmSync(root, { recursive: true, force: true })
+  // A save the code under test started and did not wait for may still be writing into the folder.
+  rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 })
 
 describe('imageTypeOf', () => {

@@ -19,6 +19,7 @@ import {
 import { createFakeApInstall, type DialogAnswer } from '../integration/harness'
 import type { MockWebhost } from '../mock-webhost/server'
 import { screenshotDir } from './screenshot-dir'
+import { seedCatalog } from './seed-catalog'
 
 export type Lang = 'fr' | 'en'
 
@@ -103,6 +104,13 @@ export interface LaunchOptions {
   /** GOAT_WEBHOST_URL: the mock archipelago.gg. */
   webhostUrl?: string
   /**
+   * A saved catalog of core worlds with their covers already in the covers cache (seed-catalog.ts), so that
+   * the catalog tab opens offline with pictures; fresh folders only.
+   */
+  catalog?: boolean
+  /** FAKE_CHECKS: the checks the fake ArchipelagoGenerate gives each game it measures (100 by default). */
+  fakeChecks?: Readonly<Record<string, number>>
+  /**
    * A packaged build's executable (win-unpacked, an installed copy, linux-unpacked…) instead of
    * `electron .`; `argv` then holds all of its arguments.
    */
@@ -138,7 +146,9 @@ export async function freePort(): Promise<number> {
  * A launch's own folder, in the git-ignored test-results/ rather than the system's temp folder: the
  * paths the screens show (and the screenshots keep) then hold no user name.
  */
-export async function freshDirs(opts: Pick<LaunchOptions, 'lang' | 'fakeAp' | 'bootSeen'>): Promise<AppDirs> {
+export async function freshDirs(
+  opts: Pick<LaunchOptions, 'lang' | 'fakeAp' | 'bootSeen' | 'catalog'>,
+): Promise<AppDirs> {
   const parent = join(await repoRoot(), 'test-results', 'e2e-apps')
   mkdirSync(parent, { recursive: true })
   const root = mkdtempSync(join(parent, 'app-'))
@@ -155,6 +165,7 @@ export async function freshDirs(opts: Pick<LaunchOptions, 'lang' | 'fakeAp' | 'b
   // The language is set, never guessed from the machine; the boot runs once per installation.
   const config = { language: opts.lang, firstRunDone: opts.bootSeen ?? true }
   writeFileSync(join(dirs.userData, 'config.json'), JSON.stringify(config))
+  if (opts.catalog) seedCatalog(dirs.dataRoot)
   return dirs
 }
 
@@ -166,7 +177,7 @@ export async function freshDirs(opts: Pick<LaunchOptions, 'lang' | 'fakeAp' | 'b
  */
 export async function appEnv(
   dirs: AppDirs,
-  opts: Pick<LaunchOptions, 'webhostUrl'> = {},
+  opts: Pick<LaunchOptions, 'webhostUrl' | 'fakeChecks'> = {},
 ): Promise<Record<string, string>> {
   const proxy = `http://127.0.0.1:${await freePort()}`
   const env: Record<string, string> = {}
@@ -199,6 +210,7 @@ export async function appEnv(
   // must not change what a test sees (`none` turns the app's detection off, test environment only).
   env.GOAT_FAKE_AP_DIR = dirs.fakeAp ?? 'none'
   if (opts.webhostUrl) env.GOAT_WEBHOST_URL = opts.webhostUrl
+  if (opts.fakeChecks) env.FAKE_CHECKS = JSON.stringify(opts.fakeChecks)
   return env
 }
 
