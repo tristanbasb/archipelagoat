@@ -97,6 +97,7 @@ export type TaskKind =
   | 'join-prepare'
   | 'rom-scan'
   | 'bizhawk-install'
+  | 'measure'
 
 export interface TaskRef {
   taskId: string
@@ -580,4 +581,37 @@ export type ProfileCounts = Partial<Record<ProfileId, number>>
 export interface GameEstimate {
   max: number | null
   profiles: ProfileCounts | null
+}
+
+/**
+ * The exact checks of one player, from test generations (spec §3.4): `checks` for a YAML that rolls
+ * nothing, or the middle of three seeds with `range` [fewest, most] when it rolls dice and they
+ * differ. `error` (and null counts) when the measure failed.
+ */
+export interface PlayerMeasure {
+  checks: number | null
+  range: [number, number] | null
+  error: AppErrorData | null
+}
+
+/**
+ * The checks of one player document of a session. `game` is null when the document rolls its game.
+ * `source`: a measure, the session's real generation, or the estimate (the most checks the game can
+ * have) kept when the measure could not run for want of a ROM.
+ */
+export interface PlayerChecks {
+  fileId: string
+  docIndex: number
+  name: string
+  game: string | null
+  checks: number | null
+  range: [number, number] | null
+  source: 'measure' | 'generation' | 'estimate'
+  error: AppErrorData | null
+}
+
+/** The last checks of a session's players, in the session's order. */
+export interface SessionChecks {
+  measuredAt: string
+  players: PlayerChecks[]
 }

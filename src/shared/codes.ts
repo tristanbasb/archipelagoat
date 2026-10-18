@@ -41,6 +41,7 @@ export const ERROR_CODES = [
   'WEBHOST_UNAVAILABLE',
   // Checks and measures
   'MULTIDATA_UNREADABLE',
+  'MEASURE_TIMEOUT',
   // Joining and ROMs
   'JOIN_BAD_INPUT',
   'PATCH_INVALID',

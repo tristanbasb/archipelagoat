@@ -29,6 +29,17 @@ describe('task stage labels', () => {
     expect(stageLabel(progress('ap-uninstall', 'uninstall'), i18n.t)).toBe('Uninstalling')
   })
 
+  it('labels the stages of a measure, whose test generations are not the templates', async () => {
+    expect(taskLabel(progress('measure', 'generate'), i18n.t)).toBe('Mesure des checks · Générations de test')
+    expect(stageLabel(progress('measure', 'prepare'), i18n.t)).toBe('Lecture des fichiers des joueurs')
+    expect(stageLabel(progress('measure', 'read'), i18n.t)).toBe('Lecture des comptes')
+    expect(stageLabel(progress('measure', 'done'), i18n.t)).toBe('Terminé')
+    expect(stageLabel(progress('templates', 'generate'), i18n.t)).toBe('Écriture des templates')
+
+    await i18n.changeLanguage('en')
+    expect(taskLabel(progress('measure', 'generate'), i18n.t)).toBe('Measuring the checks · Test generations')
+  })
+
   it("keeps the generation's own `done` apart from the other tasks' one", () => {
     expect(stageLabel(progress('generate', 'done'), i18n.t)).toBe('Terminé')
     expect(stageLabel(progress('templates', 'done'), i18n.t)).toBe('Terminé')

@@ -64,6 +64,11 @@ export interface GenerateDeps {
    * there is none. Default: a scan of its world folders (findCorruptWorld).
    */
   corruptWorld?: (install: ApInstall) => Promise<string | null>
+  /**
+   * Called once a successful generation is stored (the checks service reads the counts of its
+   * multidata). Its failure is logged: the generation stays a success.
+   */
+  onGenerated?: (sessionId: string, generation: Generation) => Promise<void>
 }
 
 export interface GenerateOptions {
@@ -113,6 +118,24 @@ export function buildGenerateArgs(ws: { players: string; output: string }, rules
   if (rules.race) args.push('--race')
   if (rules.plando.length > 0) args.push('--plando', rules.plando.join(', '))
   return args
+}
+
+/**
+ * The arguments of a test generation that only counts checks (spec §3.4): no spoiler, a fixed seed,
+ * and no progression balancing, which moves items and never changes a count.
+ */
+export function buildMeasureArgs(ws: { players: string; output: string }, seed: number): string[] {
+  return [
+    '--player_files_path',
+    path.resolve(ws.players),
+    '--outputpath',
+    path.resolve(ws.output),
+    '--spoiler',
+    '0',
+    '--seed',
+    String(seed),
+    '--skip_prog_balancing',
+  ]
 }
 
 // --- progress ------------------------------------------------------------------------------------
@@ -385,7 +408,7 @@ function blockingCount(validation: SessionValidation): number {
 }
 
 /** `{ 'lttp_options.rom_file': <abs path> }` for each ROM the vault resolved. */
-function romPathsOf(needs: readonly RomNeed[]): Record<string, string> {
+export function romPathsOf(needs: readonly RomNeed[]): Record<string, string> {
   return Object.fromEntries(
     needs.flatMap((need) =>
       need.status === 'ok' && need.path !== null ? [[need.settingsKey, need.path]] : [],
@@ -401,7 +424,7 @@ function timestamp(d: Date): string {
   return `${date}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
 }
 
-interface LineLog {
+export interface LineLog {
   path: string
   write(line: string): void
   close(): Promise<void>
@@ -433,7 +456,7 @@ async function openLog(dir: string, at: Date): Promise<LineLog> {
   }
 }
 
-interface ProcessRun {
+export interface ProcessRun {
   exit: ApExit
   /** From `Creating final archive at <path>`; null when the line never came. */
   zipPath: string | null
@@ -442,15 +465,19 @@ interface ProcessRun {
   durationS: number
 }
 
-interface ProcessOptions {
+export interface ProcessOptions {
   exe: ExeRef
   args: string[]
   cwd: string
-  sessionId: string
+  /** The session the program belongs to (children.json); none for a measure outside a session. */
+  sessionId?: string
   task: TaskHandle
   mask: (line: string) => string
-  log: LineLog
+  /** The file that gets every line; none for a test generation, whose folder goes right after. */
+  log?: LineLog
   stallMs: number
+  /** Default: spawnAp (a fake in the tests). */
+  spawn?: typeof spawnAp
 }
 
 function spawnFailure(error: unknown): AppError {
@@ -463,7 +490,7 @@ function spawnFailure(error: unknown): AppError {
 }
 
 /** Runs ArchipelagoGenerate to its exit; a cancelled task kills it. */
-async function runProcess(ctx: CoreContext, o: ProcessOptions): Promise<ProcessRun> {
+export async function runProcess(ctx: CoreContext, o: ProcessOptions): Promise<ProcessRun> {
   const { task } = o
   const kept: Record<ApStream, string[]> = { stdout: [], stderr: [] }
   let progress: GenProgress = { stage: 'init', percent: 0 }
@@ -481,13 +508,16 @@ async function runProcess(ctx: CoreContext, o: ProcessOptions): Promise<ProcessR
     clearTimeout(timer)
     timer = setTimeout(() => {
       stalled = true
-      ctx.log.warn('generate: no new line from Archipelago', { sessionId: o.sessionId, ms: o.stallMs })
+      ctx.log.warn('generate: no new line from Archipelago', {
+        sessionId: o.sessionId ?? null,
+        ms: o.stallMs,
+      })
       report()
     }, o.stallMs)
   }
   const onLine = (stream: ApStream, raw: string): void => {
     const line = o.mask(raw)
-    o.log.write(line)
+    o.log?.write(line)
     task.log(stream, truncate(line, MAX_LIVE_LINE))
     if (kept[stream].push(line) > KEPT_LINES) kept[stream].shift()
     zipPath ??= FINAL_ARCHIVE_RE.exec(raw)?.groups?.path ?? null
@@ -504,13 +534,13 @@ async function runProcess(ctx: CoreContext, o: ProcessOptions): Promise<ProcessR
 
   report()
   const started = performance.now()
-  const proc = spawnAp(ctx, {
+  const proc = (o.spawn ?? spawnAp)(ctx, {
     exe: o.exe,
     args: o.args,
     cwd: o.cwd,
     // Generate waits for Enter after any failure (brief §1.6).
     stdin: 'ignore',
-    sessionId: o.sessionId,
+    ...(o.sessionId === undefined ? {} : { sessionId: o.sessionId }),
     onLine,
   })
   watch()
@@ -649,6 +679,11 @@ export async function runGeneration(
   const stored = await deps.sessions.setGeneration(sessionId, generation)
   // The hosting was the old seed's.
   if (stored.hosting !== null) await deps.sessions.setHosting(sessionId, null)
+  try {
+    await deps.onGenerated?.(sessionId, generation)
+  } catch (error) {
+    ctx.log.warn('generate: the after-generation hook failed', { sessionId, error: String(error) })
+  }
   return generation
 }
 

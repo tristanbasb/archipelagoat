@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import {
   buildGenerateArgs,
+  buildMeasureArgs,
   extractGenerationError,
   readGenerationZip,
   reduceProgress,
@@ -246,6 +247,23 @@ describe('buildGenerateArgs', () => {
       '--race',
       '--plando',
       'items, bosses',
+    ])
+  })
+})
+
+describe('buildMeasureArgs', () => {
+  it('buildMeasureArgs asks for no spoiler, the seed and no progression balancing', () => {
+    const ws = { players: join(root, 'measure é', 'players'), output: join(root, 'measure é', 'output') }
+    expect(buildMeasureArgs(ws, 1337)).toEqual([
+      '--player_files_path',
+      ws.players,
+      '--outputpath',
+      ws.output,
+      '--spoiler',
+      '0',
+      '--seed',
+      '1337',
+      '--skip_prog_balancing',
     ])
   })
 })
@@ -521,6 +539,30 @@ describe('runGeneration', () => {
     expect(log).toContain('Filling the multiworld with 3190 items.')
     expect(log).toContain('Done. Enjoy. Total Time: ')
     expect(task.logs).toContainEqual({ stream: 'stdout', line: 'Creating MultiWorld.' })
+  })
+
+  it('hands the stored generation to onGenerated, whose failure fails nothing', async () => {
+    const id = await aliceAndBob()
+    const seen: { sessionId: string; zipPath: string; status: string }[] = []
+    const onGenerated = async (sessionId: string, generation: { zipPath: string }): Promise<void> => {
+      seen.push({ sessionId, zipPath: generation.zipPath, status: (await store.get(sessionId)).status })
+      throw new Error('the hook failed')
+    }
+
+    const generation = await within(
+      runGeneration(core.ctx, { ...deps, onGenerated }, id, taskSpy().handle),
+      15_000,
+    )
+    // Called once the session holds the new generation.
+    expect(seen).toEqual([{ sessionId: id, zipPath: generation.zipPath, status: 'generated' }])
+
+    // Not called when the generation fails.
+    mode = 'fail'
+    seen.length = 0
+    await expect(
+      runGeneration(core.ctx, { ...deps, onGenerated }, id, taskSpy().handle, { replace: true }),
+    ).rejects.toBeInstanceOf(AppError)
+    expect(seen).toEqual([])
   })
 
   it('runGeneration failure does not hang (stdin ignored) and returns mapped error', async () => {

@@ -1,6 +1,7 @@
 // The stage codes the main tasks report in task:progress, and their labels for the displays that
 // show any task (status bar, trust screen, readiness checklist). The generation's stages have their
-// texts under `stages`; every other task's under `taskStages`.
+// texts under `stages`; every other task's under `taskStages`, where `taskStages.<kind>.<stage>`
+// gives a task its own text for a stage another task names the same (the measure's `generate`).
 import type { TFunction } from 'i18next'
 import { GENERATE_STAGE_IDS } from '@shared/codes'
 import type { TaskProgress } from '@shared/types'
@@ -33,6 +34,9 @@ export const TASK_STAGES = [
   'room',
   'wake',
   'port',
+  // measure (0.2), besides generate and done
+  'prepare',
+  'read',
 ] as const
 
 function isOneOf<T extends string>(list: readonly T[], value: string): value is T {
@@ -47,7 +51,7 @@ export function stageLabel(
   if (!progress) return null
   const { kind, stage } = progress
   if (kind === 'generate' && isOneOf(GENERATE_STAGE_IDS, stage)) return t(`stages.${stage}`)
-  if (isOneOf(TASK_STAGES, stage)) return t(`taskStages.${stage}`)
+  if (isOneOf(TASK_STAGES, stage)) return t([`taskStages.${kind}.${stage}`, `taskStages.${stage}`])
   return null
 }
 

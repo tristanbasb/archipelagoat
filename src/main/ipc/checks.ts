@@ -1,4 +1,5 @@
-// checks:* handlers: what is known of the size of a game before anything is generated.
+// checks:* handlers: what is known of the size of a game before anything is generated, and the exact
+// checks of a session's players.
 import type { ServiceContainer } from '@main/services/registry'
 // The `checks` entry of Services (the service file is loaded by import.meta.glob at run time).
 import type {} from '@main/services/checks.service'
@@ -10,7 +11,7 @@ export default function registerCheckHandlers(register: RegisterHandler, service
   // refresh that failed (offline) is not retried at every card.
   let refreshStarted = false
   register('checks:estimate', ({ games }) => {
-    const estimates = services.get('checks')
+    const { estimates } = services.get('checks')
     if (!refreshStarted) {
       refreshStarted = true
       void estimates.refresh()
@@ -20,4 +21,13 @@ export default function registerCheckHandlers(register: RegisterHandler, service
       Object.fromEntries(games.map((game) => [game, { max: estimates.maxFor(game), profiles: null }])),
     )
   })
+
+  register('checks:measureSession', ({ sessionId }) => {
+    const { measurer } = services.get('checks')
+    return Promise.resolve(
+      services.ctx.tasks.start('measure', (task) => measurer.measureSession(sessionId, task)),
+    )
+  })
+
+  register('checks:lastSession', ({ sessionId }) => services.get('checks').measurer.lastSession(sessionId))
 }

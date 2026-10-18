@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { GameEstimate } from '../types'
+import type { GameEstimate, SessionChecks, TaskRef } from '../types'
 import { channel, nonEmpty } from './contract'
 
 export const checksChannels = {
@@ -10,4 +10,11 @@ export const checksChannels = {
   'checks:estimate': channel(z.strictObject({ games: z.array(nonEmpty).max(2000) }))<
     Record<string, GameEstimate>
   >(),
+  /**
+   * Measures every player document of the session, each alone in a test generation: a `measure`
+   * task whose result is the SessionChecks (also kept as the session's last checks).
+   */
+  'checks:measureSession': channel(z.strictObject({ sessionId: nonEmpty }))<TaskRef>(),
+  /** The session's last checks, measured or read from its generation; null before any. */
+  'checks:lastSession': channel(z.strictObject({ sessionId: nonEmpty }))<SessionChecks | null>(),
 }

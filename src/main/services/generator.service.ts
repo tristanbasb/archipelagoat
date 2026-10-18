@@ -1,6 +1,7 @@
 // The `generator` service: a session's generation, run as a task (Task 15).
 import { createGenerator, type Generator } from '@main/core/ap/generate'
-// The `locator`, `servers`, `sessions` and `settings` entries of Services, used below.
+// The `checks`, `locator`, `servers`, `sessions` and `settings` entries of Services, used below.
+import type {} from './checks.service'
 import type {} from './locator.service'
 import { defineService } from './registry'
 import type {} from './servers.service'
@@ -24,6 +25,8 @@ defineService(
       // The servers service also sees the orphan server a previous run of the app left running, as
       // the web hosting's check does (Task 17). Looked up at each check.
       isServing: (id) => get('servers').isBusy(id),
+      // The players' exact checks, read from the new seed's multidata.
+      onGenerated: (id, generation) => get('checks').measurer.fromGeneration(id, generation.zipPath),
     })
     // A session that generates cannot be deleted.
     sessions.addBusyCheck((id) => generator.isGenerating(id))

@@ -135,7 +135,8 @@
       "webhost-host": "The room is open on archipelago.gg",
       "join-prepare": "Everything is ready to join",
       "rom-scan": "The ROM scan is over",
-      "bizhawk-install": "BizHawk is installed"
+      "bizhawk-install": "BizHawk is installed",
+      "measure": "The checks are measured"
     },
     "kinds": {
       "ap-install": "Installing Archipelago",
@@ -146,7 +147,8 @@
       "webhost-host": "Hosting on archipelago.gg",
       "join-prepare": "Getting ready to join",
       "rom-scan": "Looking for ROMs",
-      "bizhawk-install": "Installing BizHawk"
+      "bizhawk-install": "Installing BizHawk",
+      "measure": "Measuring the checks"
     }
   },
   "trust": {
@@ -253,6 +255,7 @@
     "WEBHOST_ROOM_FAILED": "The room could not be created",
     "WEBHOST_UNAVAILABLE": "archipelago.gg is unavailable",
     "MULTIDATA_UNREADABLE": "This game file cannot be read",
+    "MEASURE_TIMEOUT": "The test generation took too long",
     "JOIN_BAD_INPUT": "Link or address not recognized",
     "PATCH_INVALID": "This patch file is invalid",
     "ROM_MISSING": "ROM missing",
@@ -328,6 +331,7 @@
       "MULTIDATA_UNREADABLE_opcode": "This game file holds data that an Archipelago game never has, so it was not read. Use the file that the generation produced.",
       "MULTIDATA_UNREADABLE_truncated": "This game file is cut short or damaged. Generate the game again.",
       "MULTIDATA_UNREADABLE_depth": "This game file is nested far deeper than an Archipelago game ever is, so it was not read. Use the file that the generation produced.",
+      "MEASURE_TIMEOUT": "Archipelago did not finish this player’s test generation within 2 minutes, so it was stopped. Measure again, or check the player’s options in the studio.",
       "JOIN_BAD_INPUT": "Paste an archipelago.gg room link, an archipelago:// or host:port address, or drop a patch file.",
       "PATCH_INVALID": "It may be incomplete, or made for another version. Ask the organizer for it again.",
       "ROM_MISSING": "This game needs your ROM. Add it to the vault (Emulators and ROMs). ArchipelaGOAT never provides ROMs.",
@@ -541,6 +545,11 @@
     "list": "Looking for files",
     "hash": "Computing fingerprints",
     "release": "Looking up the version",
-    "extract": "Extracting the files"
+    "extract": "Extracting the files",
+    "prepare": "Reading the player files",
+    "read": "Reading the counts",
+    "measure": {
+      "generate": "Test generations"
+    }
   }
 }

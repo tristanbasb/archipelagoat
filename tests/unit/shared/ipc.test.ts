@@ -51,6 +51,8 @@ const CHANNEL_TABLE = [
   'worlds:remove',
   'catalog:list',
   'checks:estimate',
+  'checks:measureSession',
+  'checks:lastSession',
   'covers:get',
   'studio:games',
   'studio:schema',

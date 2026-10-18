@@ -47,6 +47,7 @@ const TASK_KINDS: TaskKind[] = [
   'join-prepare',
   'rom-scan',
   'bizhawk-install',
+  'measure',
 ]
 const TRUST_TIERS: TrustTier[] = ['core', 'indexed-verified', 'wiki-release', 'unknown']
 
