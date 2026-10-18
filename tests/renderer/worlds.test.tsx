@@ -603,6 +603,77 @@ describe('WorldsScreen', () => {
     expect(within(celeste).getByText('jusqu’à 1 check')).toBeInTheDocument()
   })
 
+  it('shows on a card the checks of the profiles that are known, "non mesuré" otherwise', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'checks:estimate': ({ games }) =>
+        Object.fromEntries(
+          games.map((game) => [
+            game,
+            {
+              max: game === 'Hollow Knight' ? 740 : null,
+              profiles:
+                game === 'Hollow Knight'
+                  ? { discovery: 110, standard: 203, complete: 420 }
+                  : game === 'Pokemon Emerald'
+                    ? // Only the profiles that exist: a copy of Standard is left out.
+                      { discovery: 60, standard: 120 }
+                    : null,
+            },
+          ]),
+        ),
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+
+    const hollowKnight = within(grid).getByRole('article', { name: 'Hollow Knight' })
+    expect(
+      await within(hollowKnight).findByText('Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420'),
+    ).toBeInTheDocument()
+    // The size the game can reach stays on its line.
+    expect(within(hollowKnight).getByText('jusqu’à 740 checks')).toBeInTheDocument()
+    expect(within(hollowKnight).queryByText('non mesuré')).toBeNull()
+    const emerald = within(grid).getByRole('article', { name: 'Pokemon Emerald' })
+    expect(within(emerald).getByText('Découverte ≈ 60 · Standard ≈ 120')).toBeInTheDocument()
+    const celeste = within(grid).getByRole('article', { name: 'Celeste' })
+    expect(within(celeste).getByText('non mesuré')).toBeInTheDocument()
+    // Cards use the estimates alone: no profiles:get per card.
+    expect(goat.inputsOf('profiles:get')).toEqual([])
+  })
+
+  it('writes the profiles of a card in the language of the app', async () => {
+    installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'checks:estimate': ({ games }) =>
+        Object.fromEntries(
+          games.map((game) => [
+            game,
+            {
+              max: null,
+              profiles: game === 'Hollow Knight' ? { discovery: 110, standard: 203, complete: 420 } : null,
+            },
+          ]),
+        ),
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog', lang: 'en' })
+    const grid = await screen.findByRole('list', { name: 'Catalog worlds' })
+
+    const hollowKnight = within(grid).getByRole('article', { name: 'Hollow Knight' })
+    expect(
+      await within(hollowKnight).findByText('Discovery ≈ 110 · Standard ≈ 203 · Complete ≈ 420'),
+    ).toBeInTheDocument()
+    expect(
+      within(within(grid).getByRole('article', { name: 'Celeste' })).getByText('not measured'),
+    ).toBeInTheDocument()
+
+    await act(() => i18n.changeLanguage('fr'))
+    expect(
+      within(hollowKnight).getByText('Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420'),
+    ).toBeInTheDocument()
+  })
+
   it('asks for the estimates of the cards on the page, and of those a "show more" adds', async () => {
     const many = Array.from({ length: 60 }, (_, n) =>
       entry({ id: `world_${String(n).padStart(2, '0')}`, game: `World ${String(n).padStart(2, '0')}` }),

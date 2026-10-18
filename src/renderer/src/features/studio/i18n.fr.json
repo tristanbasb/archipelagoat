@@ -75,6 +75,8 @@
     "label": "Presets",
     "defaults": "Valeurs par défaut",
     "applied": "Preset « {{name}} » appliqué",
+    "profiles": "Profils ArchipelaGOAT",
+    "profileApplied": "Profil « {{name}} » appliqué",
     "reset": "Valeurs par défaut rétablies",
     "undo": "Annuler",
     "hint": "Un preset repart des valeurs par défaut du jeu."

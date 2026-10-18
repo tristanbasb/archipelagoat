@@ -23,7 +23,14 @@ import { Trans, useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { isInstallable } from '@shared/catalog'
 import { isAllowedExternalUrl } from '@shared/external-url'
-import type { CatalogEntry, CatalogSnapshot, CatalogSource } from '@shared/types'
+import type {
+  CatalogEntry,
+  CatalogSnapshot,
+  CatalogSource,
+  GameEstimate,
+  ProfileCounts,
+  ProfileId,
+} from '@shared/types'
 import {
   Badge,
   EmptyState,
@@ -492,8 +499,9 @@ interface CatalogCardProps {
 }
 
 /**
- * The cards of the page. One ask gives the size of every game of the page (not one per card); it
- * is answered from the tables on disk, and asked again when main says they changed.
+ * The cards of the page. One ask gives the size of every game of the page (not one per card), and
+ * the checks of its profiles once they are known; it is answered from the tables and caches on disk,
+ * and asked again when main says they changed.
  */
 function CatalogCards({
   entries,
@@ -515,7 +523,7 @@ function CatalogCards({
         <li key={entry.id}>
           <CatalogCard
             entry={entry}
-            maxChecks={estimates.data?.[entry.game]?.max ?? null}
+            estimate={estimates.data?.[entry.game]}
             onInstall={onInstall}
             onOpen={onOpen}
           />
@@ -527,10 +535,10 @@ function CatalogCards({
 
 function CatalogCard({
   entry,
-  maxChecks,
+  estimate,
   onInstall,
   onOpen,
-}: CatalogCardProps & { maxChecks: number | null }): React.JSX.Element {
+}: CatalogCardProps & { estimate: GameEstimate | undefined }): React.JSX.Element {
   const { t } = useTranslation()
   const titleId = useId()
   const game = entry.displayName
@@ -538,6 +546,7 @@ function CatalogCard({
   const maintainer = entry.wiki?.maintainer ?? null
   const installed = entry.installedVersion !== null
   const update = hasUpdate(entry)
+  const maxChecks = estimate?.max ?? null
 
   return (
     <article
@@ -592,6 +601,8 @@ function CatalogCard({
             </span>
           )}
         </p>
+        {/* Nothing until the ask is answered, so that "not measured" does not flash. */}
+        {estimate && <ProfileChecks counts={estimate.profiles} />}
         <div className="catalog-card__badges">
           {entry.source === 'wiki' && (
             <HelpBadge
@@ -666,6 +677,28 @@ function CatalogCard({
         </div>
       </footer>
     </article>
+  )
+}
+
+const PROFILE_ORDER: readonly ProfileId[] = ['discovery', 'standard', 'complete']
+
+/** "Découverte ≈ 110 · Standard ≈ 203 · Complet ≈ 420": the profiles that are known; else "non mesuré". */
+function ProfileChecks({ counts }: { counts: ProfileCounts | null }): React.JSX.Element {
+  const { t } = useTranslation()
+  const known = PROFILE_ORDER.flatMap((id) => {
+    const count = counts?.[id]
+    return count === undefined
+      ? []
+      : [t('profiles.count', { name: t(`profiles.names.${id}`), checks: count })]
+  })
+  return (
+    <p
+      className="catalog-card__profiles"
+      data-measured={known.length > 0 || undefined}
+      title={t('screens.worlds.catalog.profilesHelp')}
+    >
+      {known.length > 0 ? known.join(' · ') : t('profiles.notMeasured')}
+    </p>
   )
 }
 

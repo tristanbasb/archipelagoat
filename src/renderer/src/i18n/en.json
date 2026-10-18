@@ -171,6 +171,20 @@
       "description": "There is no way to tell where this file comes from."
     }
   },
+  "profiles": {
+    "names": {
+      "discovery": "Discovery",
+      "standard": "Standard",
+      "complete": "Complete"
+    },
+    "notMeasured": "not measured",
+    "checks_one": "≈ {{count}} check",
+    "checks_other": "≈ {{count}} checks",
+    "range": "{{min}}–{{max}} checks",
+    "count": "{{name}} ≈ {{checks}}",
+    "change": "{{key}}: {{from}} → {{to}}",
+    "noChanges": "The game’s default values."
+  },
   "worldInstall": {
     "eyebrow": "NEW CHALLENGER",
     "title": "Install {{game}}?",

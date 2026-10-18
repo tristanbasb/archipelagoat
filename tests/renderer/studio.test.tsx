@@ -4,6 +4,7 @@ import { AppError } from '@shared/errors'
 import { defaultRules } from '@shared/rules'
 import type {
   EditorDoc,
+  GameProfiles,
   GameSchema,
   Issue,
   OptionSchema,
@@ -66,6 +67,25 @@ const SCHEMA: GameSchema = {
   presets: { Hard: { death_link: true, amount: 10 } },
 }
 
+/** The profiles of the test game: Standard changes nothing, Complet rolls dice (a range of checks). */
+const PROFILES: GameProfiles = {
+  game: GAME,
+  measured: true,
+  profiles: [
+    {
+      id: 'discovery',
+      changes: [
+        { key: 'amount', from: 5, to: 2 },
+        { key: 'goal', from: 'ganon', to: 'crystals' },
+      ],
+      checks: 110,
+      range: null,
+    },
+    { id: 'standard', changes: [], checks: 203, range: null },
+    { id: 'complete', changes: [{ key: 'amount', from: 5, to: 10 }], checks: 420, range: [380, 460] },
+  ],
+}
+
 const GAMES: StudioGame[] = [
   { game: 'Custom World', installed: true, schemaSource: 'none' },
   { game: GAME, installed: true, schemaSource: 'local' },
@@ -120,6 +140,7 @@ function handlers(overrides: GoatHandlers = {}): GoatHandlers {
       return SCHEMA
     },
     'studio:render': fakeRender,
+    'profiles:get': () => PROFILES,
     'studio:validate': () => playerDoc(),
     'session:list': () => [SUMMARY],
     ...overrides,
@@ -681,5 +702,137 @@ describe('YAML studio', () => {
     await user.click(dice)
     expect(card.getByText('Tirage au hasard')).toBeInTheDocument()
     expect(dice).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  describe('ArchipelaGOAT profiles', () => {
+    const profileRow = async (): Promise<HTMLElement> =>
+      screen.findByRole('group', { name: 'Profils ArchipelaGOAT' })
+
+    it("shows a profiles row above the game's presets, each profile with its change list as tooltip", async () => {
+      const { user, goat } = await renderApp({ route: '/studio', handlers: handlers(), config: NO_FX })
+      await startNew(user)
+
+      const row = within(await profileRow())
+      const presets = screen.getByRole('group', { name: 'Presets' })
+      expect(
+        (await profileRow()).compareDocumentPosition(presets) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(goat.inputsOf('profiles:get')).toEqual([{ game: GAME }])
+      // The game's own presets and the way back to the defaults stay in their row.
+      expect(within(presets).getByRole('button', { name: 'Hard' })).toBeInTheDocument()
+      expect(within(presets).getByRole('button', { name: 'Valeurs par défaut' })).toBeInTheDocument()
+
+      // Their checks, when known: a count, or the fewest–most of a YAML that rolls dice.
+      expect(row.getByRole('button', { name: 'Découverte ≈ 110 checks' })).toBeInTheDocument()
+      expect(row.getByRole('button', { name: 'Standard ≈ 203 checks' })).toBeInTheDocument()
+      expect(row.getByRole('button', { name: 'Complet 380–460 checks' })).toBeInTheDocument()
+
+      const discovery = row.getByRole('button', { name: /^Découverte/ })
+      await user.hover(discovery)
+      const tip = await screen.findByRole('tooltip')
+      expect(tip).toHaveTextContent('amount : 5 → 2')
+      expect(tip).toHaveTextContent('goal : ganon → crystals')
+      await user.unhover(discovery)
+      await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull())
+
+      await user.hover(row.getByRole('button', { name: /^Standard/ }))
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Les valeurs par défaut du jeu')
+    })
+
+    it('says "non mesuré" for a profile whose checks are not known', async () => {
+      const unmeasured: GameProfiles = {
+        ...PROFILES,
+        measured: false,
+        profiles: PROFILES.profiles.map((profile) => ({ ...profile, checks: null, range: null })),
+      }
+      const { user } = await renderApp({
+        route: '/studio',
+        handlers: handlers({ 'profiles:get': () => unmeasured }),
+        config: NO_FX,
+      })
+      await startNew(user)
+
+      const row = within(await profileRow())
+      expect(row.getByRole('button', { name: 'Découverte non mesuré' })).toBeInTheDocument()
+      expect(row.getByRole('button', { name: 'Complet non mesuré' })).toBeInTheDocument()
+    })
+
+    it('offers only the profiles the game has: Standard is always there, a copy of it is left out', async () => {
+      const onlyStandard: GameProfiles = { ...PROFILES, profiles: PROFILES.profiles.slice(1, 2) }
+      const { user } = await renderApp({
+        route: '/studio',
+        handlers: handlers({ 'profiles:get': () => onlyStandard }),
+        config: NO_FX,
+      })
+      await startNew(user)
+
+      const row = within(await profileRow())
+      expect(row.getAllByRole('button')).toHaveLength(1)
+      expect(row.getByRole('button', { name: /^Standard/ })).toBeInTheDocument()
+    })
+
+    it("loads a chosen profile's options into the draft, starting over from the defaults, and can undo it", async () => {
+      const { user, goat } = await renderApp({ route: '/studio', handlers: handlers(), config: NO_FX })
+      await startNew(user)
+      await user.click(
+        within(await screen.findByRole('region', { name: 'Goal' })).getByRole('radio', { name: 'Bosses' }),
+      )
+      await user.click(screen.getByRole('switch', { name: 'Death link' }))
+
+      await user.click(within(await profileRow()).getByRole('button', { name: /^Découverte/ }))
+      expect(screen.getByRole('slider', { name: 'Amount' })).toHaveValue('2')
+      expect(screen.getByRole('radio', { name: 'Crystals' })).toHaveAttribute('aria-checked', 'true')
+      // What the profile does not change is back at its default.
+      expect(screen.getByRole('switch', { name: 'Death link' })).toHaveAttribute('aria-checked', 'false')
+      await waitFor(() =>
+        expect(lastRenderedDoc(goat.inputsOf('studio:render'))?.options).toMatchObject({
+          amount: { mode: 'value', value: 2 },
+          goal: { mode: 'value', value: 'crystals' },
+          death_link: { mode: 'value', value: false },
+        }),
+      )
+      expect(await screen.findByText('Profil « Découverte » appliqué')).toBeInTheDocument()
+
+      await user.click(await screen.findByRole('button', { name: 'Annuler' }))
+      expect(screen.getByRole('radio', { name: 'Bosses' })).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByRole('switch', { name: 'Death link' })).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByRole('slider', { name: 'Amount' })).toHaveValue('5')
+    })
+
+    it('loads the defaults for Standard', async () => {
+      const { user } = await renderApp({ route: '/studio', handlers: handlers(), config: NO_FX })
+      await startNew(user)
+      await user.click(screen.getByRole('button', { name: 'Hard' }))
+      expect(screen.getByRole('slider', { name: 'Amount' })).toHaveValue('10')
+
+      await user.click(within(await profileRow()).getByRole('button', { name: /^Standard/ }))
+      expect(screen.getByRole('slider', { name: 'Amount' })).toHaveValue('5')
+      expect(screen.getByRole('switch', { name: 'Death link' })).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('shows no profiles, and asks for none, for a game without an option schema', async () => {
+      const { user, goat } = await renderApp({ route: '/studio', handlers: handlers(), config: NO_FX })
+      await startNew(user, 'Custom World')
+      await screen.findByRole('textbox', { name: 'Nom du joueur' })
+
+      expect(screen.queryByRole('group', { name: 'Profils ArchipelaGOAT' })).toBeNull()
+      expect(goat.inputsOf('profiles:get')).toEqual([])
+    })
+
+    it('keeps the presets when the profiles cannot be had', async () => {
+      const { user } = await renderApp({
+        route: '/studio',
+        handlers: handlers({
+          'profiles:get': () => {
+            throw new AppError('CHECKS_NO_SCHEMA', { game: GAME })
+          },
+        }),
+        config: NO_FX,
+      })
+      await startNew(user)
+
+      expect(await screen.findByRole('button', { name: 'Hard' })).toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: 'Profils ArchipelaGOAT' })).toBeNull()
+    })
   })
 })

@@ -1,6 +1,11 @@
-/* Presets as a row of chips. */
+/* Profiles, then presets, each as a row of chips. */
 
 .preset-menu {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.preset-menu__row {
   display: grid;
   gap: var(--sp-2);
 }
@@ -19,6 +24,10 @@
   width: 14px;
   height: 14px;
   color: var(--neon-violet);
+}
+
+.preset-menu__row[data-kind='profiles'] .preset-menu__label svg {
+  color: var(--neon-cyan);
 }
 
 .preset-menu__chips {
@@ -70,4 +79,37 @@
 .preset-chip[data-defaults]:hover {
   background: var(--bg-3);
   color: var(--text);
+}
+
+/* A profile is ArchipelaGOAT's own: cyan, with the checks it gives next to its name. */
+.preset-chip[data-profile] {
+  background: color-mix(in srgb, var(--neon-cyan) 10%, var(--bg-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--neon-cyan) 45%, transparent);
+  color: color-mix(in srgb, var(--neon-cyan) 70%, #fff);
+}
+
+.preset-chip[data-profile]:hover {
+  background: color-mix(in srgb, var(--neon-cyan) 24%, var(--bg-2));
+  color: #fff;
+}
+
+.preset-chip__checks {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.preset-chip__checks:not([data-measured]) {
+  font-style: italic;
+}
+
+.preset-changes {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
 }

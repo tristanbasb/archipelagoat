@@ -9,14 +9,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { docFromSchema } from '@shared/studio-model'
-import type { EditorDoc, GameSchema, Issue, SessionSummary, StudioGame } from '@shared/types'
+import type { EditorDoc, GameProfile, GameSchema, Issue, SessionSummary, StudioGame } from '@shared/types'
 import { ErrorPanel, Modal, NeonButton, Segmented, Spinner, useToast } from '../../design/components'
 import { useIpcQuery } from '../../hooks/useIpc'
 import { useShortcuts } from '../../hooks/useShortcuts'
 import { ScreenHeader } from '../../layout/ScreenHeader'
 import { describeError } from '../../lib/errors'
 import { invoke } from '../../lib/goat'
-import { humanize, issueTarget, suggestedFileName, withPreset, type IssueTarget } from './editor-ops'
+import {
+  humanize,
+  issueTarget,
+  suggestedFileName,
+  withPreset,
+  withProfile,
+  type IssueTarget,
+} from './editor-ops'
 import { GAME_FIELD_ID, TemplateOffer } from './GamePicker'
 import { IssueList } from './IssueList'
 import type { DocEdit } from './OptionField'
@@ -44,6 +51,7 @@ import './StudioScreen.css'
 const DEFAULT_NAME = 'Player{number}'
 const ENTRY_PARAMS = ['open', 'session', 'file'] as const
 const NO_ISSUES: Issue[] = []
+const NO_PROFILES: GameProfile[] = []
 
 interface Confirmation {
   title: string
@@ -135,6 +143,9 @@ export function StudioScreen(): React.JSX.Element {
     { enabled: game !== '' && (games.isError || (games.isSuccess && gameInfo?.schemaSource !== 'none')) },
   )
   const schema = schemaQuery.data?.game === game ? schemaQuery.data : undefined
+  // The profiles are built from the option schema: a game without one has none, and is not asked.
+  const profilesQuery = useIpcQuery('profiles:get', { game }, { enabled: schema !== undefined })
+  const profiles = profilesQuery.data?.profiles ?? NO_PROFILES
 
   // --- editing and live preview --------------------------------------------------------------------
 
@@ -375,19 +386,31 @@ export function StudioScreen(): React.JSX.Element {
     })
   }
 
-  const applyPreset = (preset: string | null): void => {
+  /** Starts the doc over with what `change` makes of the schema's defaults, saying so with a way back. */
+  const startOver = (title: string, change: (schema: GameSchema, current: EditorDoc) => EditorDoc): void => {
     if (!schema || !doc) return
     const before = doc
-    updateDoc((current) => withPreset(schema, current, preset))
+    updateDoc((current) => change(schema, current))
     toast.push({
       tone: 'ok',
-      title:
-        preset === null
-          ? t('screens.studio.presets.reset')
-          : t('screens.studio.presets.applied', { name: preset }),
+      title,
       action: { label: t('screens.studio.presets.undo'), onClick: () => updateDoc(() => before) },
     })
   }
+
+  const applyPreset = (preset: string | null): void =>
+    startOver(
+      preset === null
+        ? t('screens.studio.presets.reset')
+        : t('screens.studio.presets.applied', { name: preset }),
+      (options, current) => withPreset(options, current, preset),
+    )
+
+  const applyProfile = (profile: GameProfile): void =>
+    startOver(
+      t('screens.studio.presets.profileApplied', { name: t(`profiles.names.${profile.id}`) }),
+      (options, current) => withProfile(options, current, profile.changes),
+    )
 
   // --- saving --------------------------------------------------------------------------------------
 
@@ -559,7 +582,9 @@ export function StudioScreen(): React.JSX.Element {
               games={games.data ?? []}
               onPickGame={requestGame}
               presets={schema ? Object.keys(schema.presets) : null}
+              profiles={profiles}
               onPreset={applyPreset}
+              onProfile={applyProfile}
             />
             {picking !== null && <Spinner label={t('screens.studio.start.loading')} />}
             {gameInfo?.installed && gameInfo.schemaSource === 'none' && (

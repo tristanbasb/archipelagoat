@@ -274,6 +274,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* What each profile gives, under the version line; italic and dim while nothing is measured. */
+.catalog-card__profiles {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-card__profiles[data-measured] {
+  font-style: normal;
+}
+
 .catalog-card__maintainer {
   overflow: hidden;
   text-overflow: ellipsis;

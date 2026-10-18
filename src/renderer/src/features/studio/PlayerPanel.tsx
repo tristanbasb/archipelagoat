@@ -1,8 +1,8 @@
-// The top card of the Studio: who plays (name, description) and what (the game, its presets).
+// The top card of the Studio: who plays (name, description) and what (the game, its profiles and presets).
 import { IconUser } from '@tabler/icons-react'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { EditorDoc, Issue, StudioGame } from '@shared/types'
+import type { EditorDoc, GameProfile, Issue, StudioGame } from '@shared/types'
 import { PixelPanel } from '../../design/components'
 import { GamePicker } from './GamePicker'
 import { IssueText } from './IssueList'
@@ -24,7 +24,10 @@ export interface PlayerPanelProps {
   onPickGame: (game: StudioGame) => void
   /** The game's presets; null without a schema. */
   presets: string[] | null
+  /** The game's ArchipelaGOAT profiles; none until they are known. */
+  profiles: readonly GameProfile[]
   onPreset: (preset: string | null) => void
+  onProfile: (profile: GameProfile) => void
 }
 
 export function PlayerPanel({
@@ -34,7 +37,9 @@ export function PlayerPanel({
   games,
   onPickGame,
   presets,
+  profiles,
   onPreset,
+  onProfile,
 }: PlayerPanelProps): React.JSX.Element {
   const { t } = useTranslation()
   const descriptionId = useId()
@@ -125,7 +130,13 @@ export function PlayerPanel({
         </div>
 
         {presets !== null && (
-          <PresetMenu presets={presets} onApply={onPreset} className="player-panel__presets" />
+          <PresetMenu
+            presets={presets}
+            profiles={profiles}
+            onApply={onPreset}
+            onApplyProfile={onProfile}
+            className="player-panel__presets"
+          />
         )}
       </div>
       {doc.game === '' && Object.hasOwn(doc.extraRoot, 'game') && (

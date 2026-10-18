@@ -75,6 +75,8 @@
     "label": "Presets",
     "defaults": "Defaults",
     "applied": "Preset “{{name}}” applied",
+    "profiles": "ArchipelaGOAT profiles",
+    "profileApplied": "Profile “{{name}}” applied",
     "reset": "Defaults restored",
     "undo": "Undo",
     "hint": "A preset starts over from the game's defaults."

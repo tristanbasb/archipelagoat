@@ -3,7 +3,7 @@
 // functions without React: every one returns a new EditorDoc and leaves its input alone.
 import { TOGGLE_OFF, TOGGLE_ON } from '@shared/data/ap-constants'
 import { applyPreset, docFromSchema, setOptionValue } from '@shared/studio-model'
-import type { EditorDoc, GameSchema, Issue, OptionSchema, OptionValue } from '@shared/types'
+import type { EditorDoc, GameSchema, Issue, OptionChange, OptionSchema, OptionValue } from '@shared/types'
 
 /** Archipelago's own random pick, valid for every weighted option (Toggle, Choice, Range…). */
 export const RANDOM = 'random'
@@ -159,19 +159,30 @@ export function isModified(option: OptionSchema, value: OptionValue | undefined)
   return JSON.stringify(value.value) !== JSON.stringify(option.default ?? null)
 }
 
-/**
- * The doc reset to the schema's defaults, then set to a preset (`null`: the defaults alone). The
- * player stays: name, description, requires and the other root keys.
- */
-export function withPreset(schema: GameSchema, doc: EditorDoc, preset: string | null): EditorDoc {
+/** The doc reset to the schema's defaults, the player staying: name, description, requires and the other root keys. */
+function atDefaults(schema: GameSchema, doc: EditorDoc): EditorDoc {
   const base: EditorDoc = {
     ...docFromSchema(schema, doc.name),
     description: doc.description,
     extraRoot: doc.extraRoot,
   }
   if (doc.requiresVersion !== null) base.requiresVersion = doc.requiresVersion
+  return base
+}
+
+/** The doc reset to the schema's defaults, then set to a preset (`null`: the defaults alone). */
+export function withPreset(schema: GameSchema, doc: EditorDoc, preset: string | null): EditorDoc {
+  const base = atDefaults(schema, doc)
   const values = preset === null ? undefined : schema.presets[preset]
   return values ? applyPreset(base, values) : base
+}
+
+/**
+ * The doc reset to the schema's defaults, then set to an ArchipelaGOAT profile: the changes of a
+ * profile are relative to the defaults, so Standard (no change) is the defaults alone.
+ */
+export function withProfile(schema: GameSchema, doc: EditorDoc, changes: readonly OptionChange[]): EditorDoc {
+  return applyPreset(atDefaults(schema, doc), Object.fromEntries(changes.map(({ key, to }) => [key, to])))
 }
 
 export type IssueTarget = { kind: 'option'; key: string } | { kind: 'name' } | { kind: 'game' }

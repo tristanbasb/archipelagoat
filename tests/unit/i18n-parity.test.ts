@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CHECK_CODES, DOCTOR_CHECK_IDS, ERROR_CODES, GENERATE_STAGE_IDS, ISSUE_CODES } from '@shared/codes'
-import type { TaskKind, TrustTier } from '@shared/types'
+import type { ProfileId, TaskKind, TrustTier } from '@shared/types'
 import { resources } from '@renderer/i18n'
 import { BIZHAWK_INSTALL_REASONS } from '@renderer/features/vault/error-props'
 import { ERROR_ACTIONS } from '@renderer/lib/errors'
@@ -51,6 +51,7 @@ const TASK_KINDS: TaskKind[] = [
   'profiles',
 ]
 const TRUST_TIERS: TrustTier[] = ['core', 'indexed-verified', 'wiki-release', 'unknown']
+const PROFILE_IDS: ProfileId[] = ['discovery', 'standard', 'complete']
 
 const MAIN_DIR = fileURLToPath(new URL('../../src/main/', import.meta.url))
 
@@ -120,6 +121,7 @@ describe('i18n resources', () => {
       expectText(`trust.${tier}.label`)
       expectText(`trust.${tier}.description`)
     }
+    for (const id of PROFILE_IDS) expectText(`profiles.names.${id}`)
   })
 
   it('labels every task stage the main process reports', () => {

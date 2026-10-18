@@ -14,6 +14,7 @@ import {
   toSimple,
   toWeighted,
   withPreset,
+  withProfile,
 } from '@renderer/features/studio/editor-ops'
 import { highlightYaml } from '@renderer/features/studio/yaml-highlight'
 import type { EditorDoc, GameSchema, OptionSchema } from '@shared/types'
@@ -226,6 +227,32 @@ describe('studio editor ops', () => {
     expect(hard.description).toBe('Mine')
     expect(hard.extraRoot).toEqual(mine.extraRoot)
     expect(withPreset(schema, mine, null).options).toEqual({
+      goal: { mode: 'value', value: 'ganon' },
+      death_link: { mode: 'value', value: false },
+    })
+  })
+
+  it('withProfile starts from the defaults, keeps the player, then sets the changes of the profile', () => {
+    const schema: GameSchema = {
+      game: 'Test Game',
+      source: 'local',
+      apVersion: '0.6.8',
+      groups: [{ name: 'Game Options', options: [GOAL, DEATH_LINK] }],
+      presets: {},
+    }
+    const mine = {
+      ...doc({ goal: { mode: 'value', value: 'bosses' }, death_link: { mode: 'value', value: true } }),
+      description: 'Mine',
+    }
+    const discovery = withProfile(schema, mine, [{ key: 'goal', from: 'ganon', to: 'crystals' }])
+    expect(discovery.options).toEqual({
+      goal: { mode: 'value', value: 'crystals' },
+      death_link: { mode: 'value', value: false },
+    })
+    expect(discovery.name).toBe('Goat')
+    expect(discovery.description).toBe('Mine')
+    // Standard changes nothing: the defaults alone.
+    expect(withProfile(schema, mine, []).options).toEqual({
       goal: { mode: 'value', value: 'ganon' },
       death_link: { mode: 'value', value: false },
     })
