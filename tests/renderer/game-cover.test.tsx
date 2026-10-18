@@ -1,6 +1,7 @@
 import { act, fireEvent, waitFor } from '@testing-library/react'
 import type { QueryClient } from '@tanstack/react-query'
 import { GameCover } from '@renderer/features/worlds/GameCover'
+import { createQueryClient } from '@renderer/hooks/useIpc'
 import { installGoatMock } from './goat-mock'
 import { renderWithProviders } from './render-app'
 
@@ -105,6 +106,53 @@ describe('GameCover', () => {
     const boxes = [...container.querySelectorAll<HTMLElement>('.game-cover')]
     expect(boxes.map((box) => box.dataset.size)).toEqual(['sm', 'md', 'lg'])
     expect(boxes[2]).toHaveClass('mine')
+  })
+
+  describe('what the cache keeps', () => {
+    // Only the clock moves: the queries still run on real timers.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('asks again for a cover that was missing once a minute has passed, not before', async () => {
+      let url: string | null = null
+      const goat = installGoatMock({ 'covers:get': () => ({ url }) })
+      const queryClient = createQueryClient()
+      const first = await renderWithProviders(<GameCover game="Celeste" />, { queryClient })
+      await answered(queryClient, 'Celeste')
+      first.unmount()
+      url = COVER_URL
+
+      // Within the minute, the "none" holds.
+      vi.setSystemTime(Date.now() + 59_000)
+      const soon = await renderWithProviders(<GameCover game="Celeste" />, { queryClient })
+      await act(async () => {})
+      expect(goat.inputsOf('covers:get')).toHaveLength(1)
+      expect(soon.container.querySelector('img')).toBeNull()
+      soon.unmount()
+
+      vi.setSystemTime(Date.now() + 2_000)
+      const later = await renderWithProviders(<GameCover game="Celeste" />, { queryClient })
+      await waitFor(() => expect(later.container.querySelector('img')).toHaveAttribute('src', COVER_URL))
+      expect(goat.inputsOf('covers:get')).toHaveLength(2)
+    })
+
+    it('does not ask again for a cover it found, however long ago', async () => {
+      const goat = installGoatMock({ 'covers:get': () => ({ url: COVER_URL }) })
+      const queryClient = createQueryClient()
+      const first = await renderWithProviders(<GameCover game="Celeste" />, { queryClient })
+      await waitFor(() => expect(first.container.querySelector('img')).not.toBeNull())
+      first.unmount()
+
+      vi.setSystemTime(Date.now() + 24 * 3_600_000)
+      const later = await renderWithProviders(<GameCover game="Celeste" />, { queryClient })
+      await act(async () => {})
+      expect(later.container.querySelector('img')).toHaveAttribute('src', COVER_URL)
+      expect(goat.inputsOf('covers:get')).toHaveLength(1)
+    })
   })
 
   describe('lazy asking', () => {

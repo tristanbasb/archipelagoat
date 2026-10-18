@@ -14,6 +14,9 @@ export interface GameCoverProps {
   className?: string
 }
 
+/** How long a "no cover" answer holds: main's null can be a passing one (see useEventInvalidation). */
+const MISSING_COVER_STALE_MS = 60_000
+
 /**
  * True once the element has been on screen. Asking for a cover downloads it, so a long list (the
  * Studio's) asks for the covers in view only. Without IntersectionObserver every element counts as seen.
@@ -38,8 +41,13 @@ function useSeen(ref: RefObject<Element | null>): boolean {
 export function GameCover({ game, size = 'sm', className }: GameCoverProps): React.JSX.Element {
   const box = useRef<HTMLSpanElement>(null)
   const seen = useSeen(box)
-  // A cover is fetched once: the main process keeps it, and asking again would change nothing.
-  const cover = useIpcQuery('covers:get', { game }, { enabled: seen, staleTime: Infinity })
+  // A cover found is kept: the main process caches it, and asking again would change nothing. A null
+  // answer may only be for now (catalog not built yet, offline, After Dark hidden): asked again later.
+  const cover = useIpcQuery(
+    'covers:get',
+    { game },
+    { enabled: seen, staleTime: (query) => (query.state.data?.url ? Infinity : MISSING_COVER_STALE_MS) },
+  )
   // The cover that failed to load: it stays out until the game has another one.
   const [broken, setBroken] = useState<string | null>(null)
   const url = cover.data?.url ?? null

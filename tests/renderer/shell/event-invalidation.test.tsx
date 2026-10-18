@@ -1,6 +1,7 @@
-import { screen, waitFor } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import type { QueryClient } from '@tanstack/react-query'
-import type { ApInstall } from '@shared/types'
+import type { ApInstall, CatalogSnapshot, WorldInfo } from '@shared/types'
+import { invoke } from '@renderer/lib/goat'
 import { renderApp } from '../render-app'
 
 const AP_ROOT = 'C:\\ProgramData\\Archipelago'
@@ -23,6 +24,20 @@ const AP: ApInstall = {
     settingsFile: `${AP_ROOT}\\host.yaml`,
   },
 }
+
+const COVER = `goat-cover://${'ab'.repeat(32)}.png`
+const CRYSTAL: WorldInfo = {
+  id: 'w-crystal',
+  module: 'pokemon_crystal',
+  fileName: 'pokemon_crystal.apworld',
+  path: `${AP_ROOT}\\custom_worlds\\pokemon_crystal.apworld`,
+  location: 'custom',
+  game: 'Pokemon Crystal',
+  manifest: null,
+  states: ['ok'],
+  sizeBytes: 1_000,
+}
+const CATALOG: CatalogSnapshot = { entries: [], fetchedAt: null, stale: false, errors: [] }
 
 /** The channels invalidated from now on, one entry per invalidateQueries call. */
 function recordInvalidations(queryClient: QueryClient): string[] {
@@ -95,5 +110,68 @@ describe('query invalidation on main-process events', () => {
     expect(invalidated.sort()).toEqual(
       ['ap:detect', 'ap:latestRelease', 'bizhawk:state', 'doctor:run', 'studio:games', 'worlds:list'].sort(),
     )
+  })
+})
+
+describe('covers made stale by what main answers them from', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /** The Worlds screen, whose installed row asks for its cover: main answers null until `ready()`. */
+  async function openWorldsWithoutCover() {
+    let available = false
+    const rendered = await renderApp({
+      route: '/worlds',
+      handlers: {
+        'ap:detect': () => AP,
+        'worlds:list': () => [CRYSTAL],
+        'covers:get': () => ({ url: available ? COVER : null }),
+      },
+    })
+    const row = await screen.findByRole('article', { name: 'Pokemon Crystal' })
+    await waitFor(() => expect(rendered.goat.inputsOf('covers:get')).toHaveLength(1))
+    expect(row.querySelector('img')).toBeNull()
+    return { ...rendered, row, ready: () => (available = true) }
+  }
+
+  it('a catalog that resolves makes the games ask for their cover again', async () => {
+    const { queryClient, row, ready } = await openWorldsWithoutCover()
+
+    ready()
+    act(() => {
+      queryClient.setQueryData(['catalog:list', {}], CATALOG)
+    })
+    await waitFor(() => expect(row.querySelector('.game-cover img')).toHaveAttribute('src', COVER))
+  })
+
+  it('a catalog that fails to load does not', async () => {
+    const { goat, queryClient } = await openWorldsWithoutCover()
+    const invalidated = recordInvalidations(queryClient)
+
+    await expect(
+      queryClient.fetchQuery({ queryKey: ['catalog:list', {}], queryFn: () => invoke('catalog:list', {}) }),
+    ).rejects.toMatchObject({ code: 'NOT_IMPLEMENTED' })
+    expect(invalidated).toEqual([])
+    expect(goat.inputsOf('covers:get')).toHaveLength(1)
+  })
+
+  it('After Dark switched on makes the games ask for their cover again', async () => {
+    const { goat, row, ready } = await openWorldsWithoutCover()
+
+    ready()
+    goat.emit('config:changed', { ...goat.config(), showAfterDark: true })
+    await waitFor(() => expect(row.querySelector('.game-cover img')).toHaveAttribute('src', COVER))
+    expect(goat.inputsOf('covers:get')).toHaveLength(2)
+  })
+
+  it('another setting changing does not', async () => {
+    const { goat, queryClient } = await openWorldsWithoutCover()
+    const invalidated = recordInvalidations(queryClient)
+
+    goat.emit('config:changed', { ...goat.config(), desktopIcons: false })
+    await act(async () => {})
+    expect(invalidated).toEqual([])
+    expect(goat.inputsOf('covers:get')).toHaveLength(1)
   })
 })
