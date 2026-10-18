@@ -10,11 +10,14 @@ import {
   findOrphans,
   killOrphan,
   listApProcesses,
+  measurePids,
   stopOrphan,
   parsePsOutput,
   parseTasklistCsv,
   sessionScopedPids,
+  userApPrograms,
   withoutApProcesses,
+  type ProcessInfo,
 } from '@main/core/ap/processes'
 import type { ExecFn } from '@main/core/exec'
 import type { Logger } from '@main/core/logger'
@@ -194,6 +197,27 @@ describe('system process lists', () => {
     )
     await expect(listApProcesses(failing, 'win32')).rejects.toThrow(/tasklist exited with code 1/)
   })
+
+  it("userApPrograms leaves out the app's own test generations, even one that ends or starts while it lists", async () => {
+    const launcher = { pid: 7, name: 'ArchipelagoLauncher.exe' }
+    const measure = (pid: number) => ({ pid, name: 'ArchipelagoGenerate.exe' })
+    let own = new Set([41, 42])
+    const programs = (running: ProcessInfo[], then: Set<number> = own) =>
+      userApPrograms(
+        () => {
+          // The measures that end and start while the programs are listed.
+          own = then
+          return Promise.resolve(running)
+        },
+        () => own,
+      )
+
+    expect(await programs([measure(41), measure(42)])).toEqual([])
+    expect(await programs([measure(41), launcher])).toEqual([launcher])
+    // 41 ended and 43 started meanwhile: neither is a program the user opened.
+    expect(await programs([measure(41), measure(43)], new Set([42, 43]))).toEqual([])
+    await expect(userApPrograms(() => Promise.reject(new Error('tasklist failed')))).rejects.toThrow()
+  })
 })
 
 describe('orphans of a previous run', () => {
@@ -299,6 +323,8 @@ describe('orphans of a previous run', () => {
     expect(scoped.has(7101)).toBe(true)
     expect(scoped.has(7102)).toBe(true)
     expect(scoped.has(7103)).toBe(false)
+    // Only the measure's is one of the app's own test generations.
+    expect([...measurePids()]).toEqual([7102])
   })
 
   it('findOrphans answers nothing without a registry, or with a broken one', async () => {

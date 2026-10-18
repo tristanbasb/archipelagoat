@@ -231,6 +231,11 @@ export function sessionChildPids(): number[] {
     .map((c) => c.entry.pid)
 }
 
+/** The pids of the registered children that are a measure's test generations (`scoped`). */
+export function measureChildPids(): number[] {
+  return [...children.values()].filter((child) => child.entry.scoped === true).map((c) => c.entry.pid)
+}
+
 /** Kills the children still running, except the selfManaged ones, and waits up to `timeoutMs` for them. */
 export async function disposeChildren(timeoutMs: number): Promise<void> {
   const targets = [...children.values()].filter((child) => !child.selfManaged)

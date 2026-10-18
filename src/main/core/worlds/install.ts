@@ -7,7 +7,7 @@ import { copyFile, mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import type { CoreContext } from '@main/core/context'
 import type { Locator } from '@main/core/ap/locator'
-import { listApProcesses, type ProcessInfo } from '@main/core/ap/processes'
+import { listApProcesses, userApPrograms, type ProcessInfo } from '@main/core/ap/processes'
 import { sha256File } from '@main/core/system/archive'
 import { download } from '@main/core/system/downloads'
 import { backupFile, moveFile, pathExists, safeJoin, writeStreamAtomic } from '@main/core/system/fsx'
@@ -52,6 +52,8 @@ export interface WorldInstallerDeps {
   resolveWikiRelease: WikiReleaseResolver
   /** The Archipelago programs running (`restartNeeded`). Default: `listApProcesses`. */
   listProcesses?: () => Promise<ProcessInfo[]>
+  /** The pids of the app's own test generations, left out of the programs running. Default: `measurePids`. */
+  measurePids?: () => ReadonlySet<number>
   /** The clock of plan expiry. Default: `Date.now`. */
   now?: () => number
 }
@@ -257,9 +259,10 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
     return [...replaced, ...rivals]
   }
 
+  /** True when an Archipelago program the user opened runs: the app's own measures are none (Ruling 35). */
   async function isApRunning(): Promise<boolean> {
     try {
-      return (await listProcesses()).length > 0
+      return (await userApPrograms(listProcesses, deps.measurePids)).length > 0
     } catch (error) {
       ctx.log.warn('worlds: cannot list the archipelago programs', error)
       return false

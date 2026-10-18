@@ -205,6 +205,8 @@ let manifestGames: Map<string, string>
 let localTemplates: Set<string>
 let siteTemplates: Set<string>
 let processes: ProcessInfo[]
+/** The pids of the app's own test generations among them. */
+let measuring: number[]
 let sessions: SessionSummary[]
 let measure: (input: MeasureInput) => Promise<PlayerMeasure>
 /** The games refined: their profiles as kept. */
@@ -338,6 +340,7 @@ function makeDeps(): ReadyDeps {
         plandoEnabled: [],
       }),
     listProcesses: () => Promise.resolve([...processes]),
+    measurePids: () => new Set(measuring),
     now: () => clock,
   }
 }
@@ -383,6 +386,7 @@ beforeEach(() => {
   localTemplates = new Set([HK])
   siteTemplates = new Set()
   processes = []
+  measuring = []
   sessions = [session('s1', 'Vendredi', 'draft'), session('s2', 'Hier', 'generated')]
   measure = () => Promise.resolve({ checks: 131, range: null, error: null })
   kept = new Map()
@@ -885,7 +889,7 @@ describe('ready', () => {
     expect(calls.filter((call) => /^(prepare|confirm)/.test(call))).toEqual(['prepare ash', 'confirm w2'])
   })
 
-  it('restartNeeded is true when Archipelago programs run', async () => {
+  it("apRunning and restartNeeded tell the Archipelago programs running, the app's own measures left out", async () => {
     processes = [{ pid: 4242, name: 'ArchipelagoLauncher.exe' }]
     const installed = await readyFor(INDEX_ASH.id)
     expect(installed.plan.notes.apRunning).toBe(true)
@@ -900,6 +904,24 @@ describe('ready', () => {
     const quiet = await readyFor(INDEX_ASH.id)
     expect(quiet.plan.notes.apRunning).toBe(false)
     expect(quiet.outcome.restartNeeded).toBe(false)
+
+    // Only the app's own test generations (a refinement in the background): no program to restart.
+    processes = [
+      { pid: 5150, name: 'ArchipelagoGenerate.exe' },
+      { pid: 5151, name: 'ArchipelagoGenerate.exe' },
+    ]
+    measuring = [5150, 5151]
+    games.delete(ASH)
+    const measures = await readyFor(INDEX_ASH.id)
+    expect(measures.plan.notes.apRunning).toBe(false)
+    expect(measures.outcome.restartNeeded).toBe(false)
+
+    // A client the user opened, besides them: that one is.
+    processes.push({ pid: 6001, name: 'ArchipelagoTextClient.exe' })
+    games.delete(ASH)
+    const client = await readyFor(INDEX_ASH.id)
+    expect(client.plan.notes.apRunning).toBe(true)
+    expect(client.outcome.restartNeeded).toBe(true)
   })
 
   it('keeps a plan for an hour', async () => {

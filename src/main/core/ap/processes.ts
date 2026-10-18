@@ -10,6 +10,7 @@ import {
   childrenFile,
   disposeChildren,
   listChildren,
+  measureChildPids,
   programName,
   readChildren,
   sessionChildPids,
@@ -188,6 +189,31 @@ export function sessionScopedPids(): Set<number> {
   const pids = new Set(sessionChildPids())
   for (const [pid, orphan] of verified) if (orphan.sessionId !== null || orphan.scoped) pids.add(pid)
   return pids
+}
+
+/**
+ * The pids of the app's own test generations (a measure's, `scoped`): the children of this run, and
+ * the orphans of a previous run that findOrphans found running for one. No program the user opened:
+ * they never need a restart to see a world (Ruling 35).
+ */
+export function measurePids(): Set<number> {
+  const pids = new Set(measureChildPids())
+  for (const [pid, orphan] of verified) if (orphan.scoped) pids.add(pid)
+  return pids
+}
+
+/**
+ * The programs `list` finds running, the app's own test generations (`own`) left out: those of the
+ * moment it starts and of the moment it ends, since a measure may end or start while it lists.
+ */
+export async function userApPrograms(
+  list: () => Promise<ProcessInfo[]>,
+  own: () => ReadonlySet<number> = measurePids,
+): Promise<ProcessInfo[]> {
+  const before = own()
+  const running = await list()
+  const after = own()
+  return running.filter((program) => !before.has(program.pid) && !after.has(program.pid))
 }
 
 function signalTree(pid: number, signal: NodeJS.Signals): void {

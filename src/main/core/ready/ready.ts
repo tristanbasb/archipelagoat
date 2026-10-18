@@ -21,7 +21,7 @@ import type {
 } from '@shared/types'
 import { throwIfCancelled } from '../ap/install-steps'
 import type { Locator } from '../ap/locator'
-import { listApProcesses, type ProcessInfo } from '../ap/processes'
+import { listApProcesses, userApPrograms, type ProcessInfo } from '../ap/processes'
 import type { Templates } from '../ap/templates'
 import type { Measurer } from '../checks/measure'
 import type { CoreContext } from '../context'
@@ -117,6 +117,8 @@ export interface ReadyDeps {
   validationContext(games: readonly string[]): Promise<ValidationContext>
   /** The Archipelago programs running. Default: `listApProcesses`. */
   listProcesses?: () => Promise<ProcessInfo[]>
+  /** The pids of the app's own test generations, left out of the programs running. Default: `measurePids`. */
+  measurePids?: () => ReadonlySet<number>
   /** The clock of plan expiry. Default: `Date.now`. */
   now?: () => number
 }
@@ -183,9 +185,10 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
     }
   }
 
+  /** True when an Archipelago program the user opened runs: the app's own measures are none (Ruling 35). */
   async function isApRunning(): Promise<boolean> {
     try {
-      return (await listProcesses()).length > 0
+      return (await userApPrograms(listProcesses, deps.measurePids)).length > 0
     } catch (error) {
       ctx.log.warn('ready: cannot list the archipelago programs', error)
       return false

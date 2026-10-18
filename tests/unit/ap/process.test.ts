@@ -13,6 +13,7 @@ import {
   exeNameOf,
   LineSplitter,
   listChildren,
+  measureChildPids,
   readChildren,
   sessionChildPids,
   spawnAp,
@@ -553,6 +554,8 @@ describe('children registry', () => {
     expect(listChildren()).toEqual([{ pid: generate.pid, command: 'ArchipelagoGenerate' }])
     // A child that belongs to a session runs in its folder: the settings lock leaves it out.
     expect(sessionChildPids()).toEqual([generate.pid])
+    // It is no measure.
+    expect(measureChildPids()).toEqual([])
     expect(client.pid).toBeGreaterThan(0)
 
     generate.write('')
@@ -583,10 +586,13 @@ describe('children registry', () => {
     ])
     expect(readChildren(childrenFile(core.platform.paths.dataRoot))).toHaveLength(1)
     expect(sessionChildPids()).toEqual([generate.pid])
+    // A measure's test generation: no program the user opened.
+    expect(measureChildPids()).toEqual([generate.pid])
 
     generate.write('')
     await within(generate.exited, 5000)
     expect(sessionChildPids()).toEqual([])
+    expect(measureChildPids()).toEqual([])
   })
 
   it('disposeChildren kills remaining children but not selfManaged ones', async () => {

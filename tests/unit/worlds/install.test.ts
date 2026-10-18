@@ -25,6 +25,8 @@ let core: TestCore
 let install: ApInstall | null
 let paths: ApPaths
 let processes: ProcessInfo[] | Error
+/** The pids of the app's own test generations among them. */
+let measuring: number[]
 let clock: number
 let catalog: Map<string, CatalogEntry>
 /** What the wiki release resolver answers, and what it was asked. */
@@ -56,6 +58,7 @@ beforeEach(() => {
   mkdirSync(paths.customWorlds, { recursive: true })
   mkdirSync(paths.coreWorlds, { recursive: true })
   processes = []
+  measuring = []
   clock = 1_000_000
   catalog = new Map()
   wikiRelease = new AppError('NOT_FOUND')
@@ -71,6 +74,7 @@ beforeEach(() => {
     },
     listProcesses: () =>
       processes instanceof Error ? Promise.reject(processes) : Promise.resolve(processes),
+    measurePids: () => new Set(measuring),
     now: () => clock,
   })
 })
@@ -512,6 +516,15 @@ describe('confirm', () => {
     processes = [{ pid: 42, name: 'ArchipelagoServer.exe' }]
     const first = await installer.prepare({ kind: 'file', path: src }, task())
     expect((await installer.confirm(first.planId)).restartNeeded).toBe(true)
+
+    // The app's own test generations (a refinement of profiles) are no program to restart.
+    processes = [{ pid: 43, name: 'ArchipelagoGenerate.exe' }]
+    measuring = [43]
+    const measured = await installer.prepare({ kind: 'file', path: src }, task())
+    expect((await installer.confirm(measured.planId)).restartNeeded).toBe(false)
+    processes.push({ pid: 44, name: 'ArchipelagoLauncher.exe' })
+    const launcher = await installer.prepare({ kind: 'file', path: src }, task())
+    expect((await installer.confirm(launcher.planId)).restartNeeded).toBe(true)
 
     // When the programs cannot be listed, nothing says a restart is needed.
     processes = new Error('tasklist failed')
