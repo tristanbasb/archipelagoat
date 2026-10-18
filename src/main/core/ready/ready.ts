@@ -88,7 +88,7 @@ export interface Ready {
    * file the user did not pick; the errors of each step otherwise (a download, an install, the
    * templates, a destination). A profile left out for being Standard's twin builds Standard. Découverte
    * and Complet wait for the game's refinement when none is kept (`profile` reports its measures);
-   * one that fails leaves the heuristic profile (`refinementFailed`).
+   * one still made from the option names alone afterwards is said (`refinementFailed`).
    */
   run(input: ReadyRun, task: TaskHandle): Promise<ReadyOutcome>
 }
@@ -101,11 +101,12 @@ export interface ReadyDeps {
     installedGames(): Promise<ValidationContext['installedGames']>
   }
   templates: Pick<Templates, 'getSchema' | 'regenerate'>
-  profiles: Pick<Profiles, 'get' | 'yamlFor'> & {
+  profiles: Pick<Profiles, 'get' | 'profileYaml'> & {
     /**
      * The game's profiles refined for a run that waits for them, the refinement's stages reported to
-     * `task`: its refinement running joined, else one started, its measures in the foreground. Rejects
-     * as the refinement does, or with TASK_CANCELLED once `task` is cancelled.
+     * `task`: its refinement running joined (then one for the game as it is now, if that one no
+     * longer holds), else one started, its measures in the foreground. Rejects as the refinement
+     * does, or with TASK_CANCELLED once `task` is cancelled.
      */
     refineNow(game: string, task: TaskHandle): Promise<GameProfiles>
   }
@@ -139,7 +140,8 @@ interface Pending {
   templatesDone: boolean
   /**
    * The YAML of the profile built (`profile`: Standard for one left out as equal to it) and its checks,
-   * for the profile and the player name asked; whether the refinement it waited for failed.
+   * for the profile and the player name asked; whether it is a Découverte or Complet made from the
+   * option names alone.
    */
   yaml: {
     asked: ProfileId
@@ -332,37 +334,35 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
     let { yaml } = pending
     if (yaml?.asked !== input.profile || yaml.playerName !== playerName) {
       task.progress('profile', null)
-      let found = await deps.profiles.get(game)
-      let refinementFailed = false
       // Découverte and Complet wait for the game's refinement (Ruling 34): from the option names alone,
       // Hollow Knight's Découverte had 8 checks of Standard's 203. Standard is the defaults.
-      if (input.profile !== 'standard' && !found.measured) {
+      if (input.profile !== 'standard' && !(await deps.profiles.get(game)).measured) {
         try {
-          found = await deps.profiles.refineNow(game, within(task, 'profile'))
+          await deps.profiles.refineNow(game, within(task, 'profile'))
         } catch (error) {
           throwIfCancelled(task.signal)
           // The heuristic profile then, said on the end screen.
           ctx.log.debug('ready: the profiles could not be refined', { game, error: String(error) })
-          refinementFailed = true
         }
         task.progress('profile', null)
       }
-      // A profile left out of the game's is Standard's twin (Ruling 26): Standard is what is built.
-      const profile = found.profiles.some((one) => one.id === input.profile) ? input.profile : 'standard'
-      const text = await deps.profiles.yamlFor(game, profile, playerName)
+      // The profile written, its text and whether it is refined, from one read of what is kept: a
+      // profile left out is Standard's twin (Ruling 26), and a heuristic Découverte or Complet is
+      // never delivered without saying so, whatever the refinement did.
+      const made = await deps.profiles.profileYaml(game, input.profile, playerName)
       throwIfCancelled(task.signal)
       // Rejects only when cancelled: a measure that cannot run leaves the count unknown.
-      const measured = await deps.measurer.measureDoc({ sessionId: null, game, yamlText: text, task })
+      const measured = await deps.measurer.measureDoc({ sessionId: null, game, yamlText: made.text, task })
       if (measured.error !== null) {
         ctx.log.debug('ready: the YAML could not be measured', { game, code: measured.error.code })
       }
       yaml = {
         asked: input.profile,
-        profile,
+        profile: made.profile,
         playerName,
-        text,
+        text: made.text,
         checks: measured.checks,
-        refinementFailed: refinementFailed && profile !== 'standard',
+        refinementFailed: made.profile !== 'standard' && !made.measured,
       }
       pending.yaml = yaml
       pending.validated = false

@@ -335,11 +335,26 @@ export interface Profiles {
    */
   yamlFor(game: string, profile: ProfileId, playerName: string): Promise<string>
   /**
+   * The player YAML of a profile with what it was made from, read at once: the profile written,
+   * Standard (under its own name) for one left out as equal to it (Ruling 26), and whether the
+   * game's profiles are refined for its world version and option schema now.
+   */
+  profileYaml(game: string, profile: ProfileId, playerName: string): Promise<ProfileYaml>
+  /**
    * The checks of each refined profile of the games asked, from what is kept (nothing is measured),
    * for the world versions installed now; a name that differs only in accents, case or punctuation is
    * the same game. Null for a game without them.
    */
   cachedCounts(games: readonly string[]): Promise<Map<string, ProfileCounts | null>>
+}
+
+/** A profile's YAML (`Profiles.profileYaml`). */
+export interface ProfileYaml {
+  /** The profile written. */
+  profile: ProfileId
+  /** Refined; false: made from the option names alone. */
+  measured: boolean
+  text: string
 }
 
 export interface ProfilesDeps {
@@ -509,6 +524,16 @@ export function createProfiles(ctx: CoreContext, deps: ProfilesDeps): Profiles {
       const changesOf = (id: ProfileId): OptionChange[] | undefined =>
         profiles.profiles.find((one) => one.id === id)?.changes
       return yamlOf(key.schema, changesOf(profile) ?? changesOf('standard') ?? [], profile, playerName)
+    },
+
+    async profileYaml(game, profile, playerName) {
+      const { key, profiles } = await current(game)
+      const made =
+        profiles.profiles.find((one) => one.id === profile) ??
+        profiles.profiles.find((one) => one.id === 'standard')
+      const id = made?.id ?? 'standard'
+      const text = yamlOf(key.schema, made?.changes ?? [], id, playerName)
+      return { profile: id, measured: profiles.measured, text }
     },
 
     async cachedCounts(games) {

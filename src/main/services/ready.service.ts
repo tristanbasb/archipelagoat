@@ -41,7 +41,7 @@ defineService(
       profiles: {
         get: (game) => get('profiles').get(game),
         refineNow: (game, task) => get('profiles').refineNow(game, task),
-        yamlFor: (game, profile, playerName) => get('profiles').yamlFor(game, profile, playerName),
+        profileYaml: (game, profile, playerName) => get('profiles').profileYaml(game, profile, playerName),
       },
       // With the measurer's cache, in the foreground.
       measurer: { measureDoc: (input) => get('checks').measurer.measureDoc(input) },

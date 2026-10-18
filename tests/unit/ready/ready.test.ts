@@ -134,7 +134,7 @@ const changesOf = (profiles: GameProfiles, id: ProfileId): OptionChange[] =>
   (profiles.profiles.find((one) => one.id === id) ?? profiles.profiles.find((one) => one.id === 'standard'))
     ?.changes ?? []
 
-/** The YAML the fake profiles write: what Profiles.yamlFor writes, only the profile's changes as options. */
+/** The YAML the fake profiles write: what Profiles.profileYaml writes, only the profile's changes as options. */
 const yamlOf = (game: string, profile: ProfileId, playerName: string, changes: OptionChange[] = []): string =>
   [
     `name: ${playerName === '' ? 'Player{number}' : playerName}`,
@@ -209,9 +209,9 @@ let processes: ProcessInfo[]
 let measuring: number[]
 let sessions: SessionSummary[]
 let measure: (input: MeasureInput) => Promise<PlayerMeasure>
-/** The games refined: their profiles as kept. */
+/** The games refined: their profiles as kept, for their world version and schema now. */
 let kept: Map<string, GameProfiles>
-/** What refining a game gives (kept then). */
+/** What refining a game gives (Profiles.refineNow). */
 let refine: (game: string, task: TaskHandle) => Promise<GameProfiles>
 let yaml: (game: string, profile: ProfileId, playerName: string, changes: OptionChange[]) => string
 /** Each install, regeneration, YAML, measure and delivery, in order. */
@@ -226,6 +226,12 @@ let afterConfirm: () => void
 /** The files the save dialog gave. */
 let picked: PickedPaths
 let ready: Ready
+
+/** Keeps `profiles` as refined for their game's world version and schema now, and gives them. */
+function keep(profiles: GameProfiles): Promise<GameProfiles> {
+  kept.set(profiles.game, profiles)
+  return Promise.resolve(profiles)
+}
 
 function makeDeps(): ReadyDeps {
   const staged = new Map<string, CatalogEntry>()
@@ -288,16 +294,20 @@ function makeDeps(): ReadyDeps {
         localTemplates.has(game) || siteTemplates.has(game)
           ? Promise.resolve(kept.get(game) ?? profilesOf(game))
           : Promise.reject(new AppError('CHECKS_NO_SCHEMA', { game })),
-      refineNow: async (game, task) => {
+      refineNow: (game, task) => {
         calls.push(`refine ${game}`)
-        const refined = await refine(game, task)
-        kept.set(game, refined)
-        return refined
+        return refine(game, task)
       },
-      yamlFor: (game, profile, playerName) => {
-        calls.push(`yamlFor ${game} ${profile} ${playerName}`)
-        const changes = changesOf(kept.get(game) ?? profilesOf(game), profile)
-        return Promise.resolve(yaml(game, profile, playerName, changes))
+      // As Profiles.profileYaml: the kept profiles when they hold, else the heuristic ones, read once.
+      profileYaml: (game, profile, playerName) => {
+        calls.push(`profileYaml ${game} ${profile} ${playerName}`)
+        const found = kept.get(game) ?? profilesOf(game)
+        const made = found.profiles.some((one) => one.id === profile) ? profile : 'standard'
+        return Promise.resolve({
+          profile: made,
+          measured: found.measured,
+          text: yaml(game, made, playerName, changesOf(found, made)),
+        })
       },
     },
     measurer: {
@@ -393,7 +403,7 @@ beforeEach(() => {
   refine = (game, task) => {
     // The measures of a refinement, as Profiles.refine reports them.
     task.progress('generate', 50, { done: 2, total: 4 })
-    return Promise.resolve(refinedOf(game))
+    return keep(refinedOf(game))
   }
   yaml = yamlOf
   calls = []
@@ -485,7 +495,7 @@ describe('ready', () => {
       'confirm w1',
       'regenerate',
       `refine ${ASH}`,
-      `yamlFor ${ASH} discovery Tristan`,
+      `profileYaml ${ASH} discovery Tristan`,
       `measure ${ASH}`,
       `addText s1 Tristan - ${ASH}.yaml`,
     ])
@@ -509,7 +519,7 @@ describe('ready', () => {
     expect(official.plan.profiles).toEqual(profilesOf(HK))
     expect(official.stages).toEqual(['templates', 'profile', 'validate', 'deliver', 'done'])
     expect(calls).toEqual([
-      `yamlFor ${HK} standard Tristan`,
+      `profileYaml ${HK} standard Tristan`,
       `measure ${HK}`,
       `addText s1 Tristan - ${HK}.yaml`,
     ])
@@ -641,11 +651,11 @@ describe('ready', () => {
 
   it('a profile left out as equal to Standard delivers Standard and says so', async () => {
     // Refined, the game has no Complet profile: it is Standard's twin.
-    refine = (game) => Promise.resolve({ ...refinedOf(game), profiles: refinedOf(game).profiles.slice(0, 2) })
+    refine = (game) => keep({ ...refinedOf(game), profiles: refinedOf(game).profiles.slice(0, 2) })
     const { outcome } = await readyFor('hollow_knight', { profile: 'complete' })
     expect(calls).toEqual([
       `refine ${HK}`,
-      `yamlFor ${HK} standard Tristan`,
+      `profileYaml ${HK} complete Tristan`,
       `measure ${HK}`,
       `addText s1 Tristan - ${HK}.yaml`,
     ])
@@ -664,7 +674,7 @@ describe('ready', () => {
     const outcome = await ready.run(runOf(plan.planId, { profile: 'discovery' }), task.handle)
     expect(calls).toEqual([
       `refine ${HK}`,
-      `yamlFor ${HK} discovery Tristan`,
+      `profileYaml ${HK} discovery Tristan`,
       `measure ${HK}`,
       `addText s1 Tristan - ${HK}.yaml`,
     ])
@@ -708,6 +718,25 @@ describe('ready', () => {
     expect(twin.outcome).toMatchObject({ profile: 'standard', refinementFailed: false })
   })
 
+  it('never delivers the heuristic profile silently, even after a refinement that does not hold any more', async () => {
+    // Refined for a world version or schema that changed since: nothing kept holds now.
+    refine = (game) => Promise.resolve(refinedOf(game))
+    const { outcome } = await readyFor('hollow_knight', { profile: 'discovery' })
+    expect(calls).toEqual([
+      `refine ${HK}`,
+      `profileYaml ${HK} discovery Tristan`,
+      `measure ${HK}`,
+      `addText s1 Tristan - ${HK}.yaml`,
+    ])
+    // The profile id, the text and the note all come from what profileYaml read.
+    expect(outcome).toMatchObject({
+      profile: 'discovery',
+      text: yamlOf(HK, 'discovery', 'Tristan', changesOf(profilesOf(HK), 'discovery')),
+      refinementFailed: true,
+    })
+    expect(outcome.text).not.toContain('golden_feathers')
+  })
+
   it('cancelled while it waits for the refinement, the run delivers nothing; a retry waits again', async () => {
     let waiting: () => void = () => undefined
     const started = new Promise<void>((resolve) => {
@@ -728,7 +757,7 @@ describe('ready', () => {
     expect(calls).toEqual([`refine ${HK}`])
     expect(added).toEqual([])
 
-    refine = (game) => Promise.resolve(refinedOf(game))
+    refine = (game) => keep(refinedOf(game))
     const retry = taskHandle()
     const outcome = await ready.run(runOf(plan.planId, { profile: 'discovery' }), retry.handle)
     expect(stagesOf(retry)).toEqual(['profile', 'validate', 'deliver', 'done'])
@@ -815,7 +844,9 @@ describe('ready', () => {
     })
     expect(added).toEqual([{ id: 's1', fileName: `Tristan2 - ${HK}.yaml`, text: renamed }])
     // Only the name changes: the YAML measured and validated is the one asked for.
-    expect(calls.filter((call) => call.startsWith('yamlFor'))).toEqual([`yamlFor ${HK} standard Tristan`])
+    expect(calls.filter((call) => call.startsWith('profileYaml'))).toEqual([
+      `profileYaml ${HK} standard Tristan`,
+    ])
 
     // Tristan2 is taken now too.
     expect((await readyFor('hollow_knight')).outcome.playerName).toBe('Tristan3')

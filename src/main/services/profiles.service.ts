@@ -30,9 +30,11 @@ export interface ProfilesService extends Profiles {
   /**
    * Refines `game` for a « Jeu prêt » that waits for it, with the refinement's stages reported to
    * `task`: the game's refinement running is joined, else one starts at once (whatever game the
-   * background refines), its measures in the foreground while a task waits for it. Rejects as the
-   * refinement does, or with TASK_CANCELLED once `task` is cancelled: the refinement then goes on in
-   * the background, at background priority, and keeps its profiles as any other.
+   * background refines), its measures in the foreground while a task waits for it. A joined one that
+   * no longer holds once over (the world or the option schema changed meanwhile) is followed by one
+   * for the game as it is now. Resolves with the game's profiles then, `measured` only when they
+   * hold. Rejects as the refinement does, or with TASK_CANCELLED once `task` is cancelled: the
+   * refinement then goes on in the background, at background priority, and keeps its profiles.
    */
   refineNow(game: string, task: TaskHandle): Promise<GameProfiles>
 }
@@ -54,7 +56,10 @@ interface Run {
   waiters: Set<TaskHandle>
   /** Its last progress, which a task that joins it gets at once. */
   last: Parameters<TaskHandle['progress']> | null
-  /** Settles as it does; TASK_CANCELLED when its task is cancelled before it starts. */
+  /**
+   * Settles as it does, once it is over (out of `runs`, its game queued again if `again`);
+   * TASK_CANCELLED when its task is cancelled before it starts.
+   */
   done: Promise<GameProfiles>
 }
 
@@ -109,6 +114,8 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
       done: done.promise,
     }
     runs.set(game, run)
+    /** How its refinement ended; null for a task cancelled before it started. */
+    let ended: PromiseSettledResult<GameProfiles> | null = null
     startTracked(
       ctx.tasks,
       ctx.bus,
@@ -124,16 +131,24 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
           },
           log: (stream, line) => task.log(stream, line),
         }
-        const refined = refineLogged(game, relay, run.lane)
-        refined.then(done.resolve, done.reject)
-        return refined
+        return refineLogged(game, relay, run.lane).then(
+          (value) => {
+            ended = { status: 'fulfilled', value }
+            return value
+          },
+          (reason: unknown) => {
+            ended = { status: 'rejected', reason }
+            throw reason
+          },
+        )
       },
       () => {
-        // Settled already, unless the task was cancelled before its run started.
-        done.reject(new AppError('TASK_CANCELLED'))
         runs.delete(game)
         if (run.again && !waiting.includes(game)) waiting.push(game)
         startNext()
+        // Its waiters go on only now: the refinement that follows it, if any, is known.
+        if (ended?.status === 'fulfilled') done.resolve(ended.value)
+        else done.reject(ended === null ? new AppError('TASK_CANCELLED') : ended.reason)
       },
     )
     return run
@@ -236,10 +251,24 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
     async refineNow(game, task) {
       throwIfCancelled(task.signal)
       asked.add(game)
-      // Refined now rather than in its turn.
+      const joined = runs.get(game)
+      if (joined) {
+        try {
+          await join(joined, task)
+        } catch (error) {
+          throwIfCancelled(task.signal)
+          // Failed on a world replaced meanwhile: the one installed now may refine.
+          if (!joined.again) throw error
+        }
+        const now = await profiles.get(game)
+        if (now.measured) return now
+        // Refined for a world version or an option schema that changed since: refined again below.
+      }
+      // Refined now rather than in its turn (the refinement a world change queued included).
       const queued = waiting.indexOf(game)
       if (queued !== -1) waiting.splice(queued, 1)
-      return join(runs.get(game) ?? start(game), task)
+      await join(runs.get(game) ?? start(game), task)
+      return profiles.get(game)
     },
   }
 }

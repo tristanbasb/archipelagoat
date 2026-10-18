@@ -568,6 +568,25 @@ describe('profile YAMLs', () => {
     }
   })
 
+  it('profileYaml tells the profile it wrote, Standard for one left out, and whether it is refined', async () => {
+    const profiles = profilesWith(fakeMeasurer(100, [['goal', 'races', -45]]))
+    expect(await profiles.profileYaml(ASH, 'discovery', 'Tristan')).toEqual({
+      profile: 'discovery',
+      measured: false,
+      text: await profiles.yamlFor(ASH, 'discovery', 'Tristan'),
+    })
+    await profiles.refine(ASH, taskHandle().handle)
+    const discovery = await profiles.profileYaml(ASH, 'discovery', 'Tristan')
+    expect(discovery).toMatchObject({ profile: 'discovery', measured: true })
+    expect(sectionOf(discovery.text, ASH)).toMatchObject({ goal: 'races' })
+    // Refined, Complet is Standard's twin: Standard is written, under its own name (Ruling 26).
+    expect(await profiles.profileYaml(ASH, 'complete', 'Tristan')).toEqual({
+      profile: 'standard',
+      measured: true,
+      text: await profiles.yamlFor(ASH, 'standard', 'Tristan'),
+    })
+  })
+
   it('a profile left out for being Standard writes the Standard options under its own name', async () => {
     const profiles = profilesWith(fakeMeasurer(100, [['goal', 'races', -45]]))
     await profiles.refine(ASH, taskHandle().handle)
@@ -699,12 +718,15 @@ describe('the profiles service', () => {
   })
 
   function serviceWith(opts: { worlds: () => WorldInfo[]; installed: string[]; measured?: string[] }) {
+    /** The games whose refinement holds for their world version and schema now. */
+    const kept = new Set(opts.measured)
     const refine = vi.fn<Profiles['refine']>((game, task) => {
       task.progress('done', 100)
+      kept.add(game)
       return Promise.resolve({ game, profiles: [], measured: true })
     })
     const get = vi.fn((game: string) =>
-      Promise.resolve<GameProfiles>({ game, profiles: [], measured: opts.measured?.includes(game) ?? false }),
+      Promise.resolve<GameProfiles>({ game, profiles: [], measured: kept.has(game) }),
     )
     const kinds: string[] = []
     core.ctx.bus.on('task:progress', ({ kind }) => kinds.push(kind))
@@ -713,12 +735,13 @@ describe('the profiles service', () => {
         get,
         refine,
         yamlFor: () => Promise.resolve(''),
+        profileYaml: () => Promise.resolve({ profile: 'standard', measured: false, text: '' }),
         cachedCounts: () => Promise.resolve(new Map()),
       },
       worlds: { list: () => Promise.resolve(opts.worlds()) },
       worldVersion: (game) => Promise.resolve(opts.installed.includes(game) ? '1.0.0' : null),
     })
-    return { service, refine, kinds }
+    return { service, refine, kinds, kept }
   }
 
   it('refines in the background, as a profiles task, a world installed after the window opened', async () => {
@@ -901,22 +924,30 @@ describe('the profiles service', () => {
   }
 
   /** Each refinement reports its first measure, then waits for its release; what it was given is kept. */
-  function holdRefinements(refine: ReturnType<typeof serviceWith>['refine']) {
+  function holdRefinements({ refine, kept }: Pick<ReturnType<typeof serviceWith>, 'refine' | 'kept'>) {
     const held: {
       game: string
       task: TaskHandle
       priority: () => MeasurePriority
       release: () => void
+      /** Ends as one refined for a world version or schema that changed since: nothing holds now. */
+      releaseStale: () => void
+      fail: (error: AppError) => void
     }[] = []
     refine.mockImplementation(
       (game, task, priority) =>
-        new Promise<GameProfiles>((resolve) => {
+        new Promise<GameProfiles>((resolve, reject) => {
           task.progress('generate', 50, { done: 1, total: 2 })
           held.push({
             game,
             task,
             priority: () => priorityOf(priority),
-            release: () => resolve({ game, profiles: [], measured: true }),
+            release: () => {
+              kept.add(game)
+              resolve({ game, profiles: [], measured: true })
+            },
+            releaseStale: () => resolve({ game, profiles: [], measured: true }),
+            fail: reject,
           })
         }),
     )
@@ -924,8 +955,9 @@ describe('the profiles service', () => {
   }
 
   it('a « Jeu prêt » joins the refinement running in the background, its measures in the foreground while it waits', async () => {
-    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK] })
-    const runs = holdRefinements(refine)
+    const fake = serviceWith({ worlds: () => [], installed: [HK] })
+    const { service, refine } = fake
+    const runs = holdRefinements(fake)
     await service.get(HK)
     await vi.waitFor(() => expect(runs).toHaveLength(1))
     const [run] = runs
@@ -945,8 +977,9 @@ describe('the profiles service', () => {
   })
 
   it('a « Jeu prêt » starts the refinement at once in the foreground, whatever game the background refines', async () => {
-    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK, ASH] })
-    const runs = holdRefinements(refine)
+    const fake = serviceWith({ worlds: () => [], installed: [HK, ASH] })
+    const { service, refine } = fake
+    const runs = holdRefinements(fake)
     // A Short Hike is refined in the background; Hollow Knight waits for its turn.
     await service.get(ASH)
     await vi.waitFor(() => expect(runs).toHaveLength(1))
@@ -970,8 +1003,9 @@ describe('the profiles service', () => {
   })
 
   it('a « Jeu prêt » cancelled while it waits leaves the refinement to finish in the background', async () => {
-    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK] })
-    const runs = holdRefinements(refine)
+    const fake = serviceWith({ worlds: () => [], installed: [HK] })
+    const { service, refine } = fake
+    const runs = holdRefinements(fake)
     const ready = readyTask()
     const refined = service.refineNow(HK, ready.handle)
     await vi.waitFor(() => expect(runs).toHaveLength(1))
@@ -1021,6 +1055,107 @@ describe('the profiles service', () => {
     await service.get(HK)
     expect(await done).toMatchObject({ kind: 'profiles', result: { game: HK, measured: true } })
     expect(new Set(seen.get(HK))).toEqual(new Set(['background']))
+  })
+
+  it('a « Jeu prêt » that joined a refinement whose world changed meanwhile waits for the one that follows it', async () => {
+    let worlds = [world(HK, 'custom', '1.0.0')]
+    const fake = serviceWith({ worlds: () => worlds, installed: [HK] })
+    const runs = holdRefinements(fake)
+    core.lifecycle.windowReady()
+    await fake.service.get(HK)
+    await vi.waitFor(() => expect(runs).toHaveLength(1))
+    const refined = fake.service.refineNow(HK, readyTask().handle)
+
+    // Updated while it is refined: its refinement holds for the version it started with only.
+    worlds = [world(HK, 'custom', '1.1.0')]
+    core.ctx.bus.emit('worlds:changed', null)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    runs[0]?.releaseStale()
+    // The refinement its change queued, in the foreground for the run that waits.
+    await vi.waitFor(() => expect(runs).toHaveLength(2))
+    expect(runs[1]?.priority()).toBe('foreground')
+    runs[1]?.release()
+    expect(await refined).toMatchObject({ game: HK, measured: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(fake.refine).toHaveBeenCalledTimes(2)
+  })
+
+  it('a « Jeu prêt » whose joined refinement fails on a world replaced meanwhile waits for the next one', async () => {
+    let worlds = [world(HK, 'custom', '1.0.0')]
+    const fake = serviceWith({ worlds: () => worlds, installed: [HK] })
+    const runs = holdRefinements(fake)
+    core.lifecycle.windowReady()
+    await fake.service.get(HK)
+    await vi.waitFor(() => expect(runs).toHaveLength(1))
+    const refined = fake.service.refineNow(HK, readyTask().handle)
+    worlds = [world(HK, 'custom', '1.1.0')]
+    core.ctx.bus.emit('worlds:changed', null)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    runs[0]?.fail(new AppError('AP_UNKNOWN', undefined, { detail: 'world file replaced' }))
+    await vi.waitFor(() => expect(runs).toHaveLength(2))
+    runs[1]?.release()
+    expect(await refined).toMatchObject({ game: HK, measured: true })
+  })
+
+  /**
+   * A service on the real profiles whose measurer holds the first measure until released; `effects`
+   * tell, at each measure, what changes the count.
+   */
+  function heldService(effects: () => Effect[]) {
+    const held: (() => void)[] = []
+    let holding = true
+    const measureDoc = (input: MeasureInput): Promise<PlayerMeasure> => {
+      const measured = (): Promise<PlayerMeasure> => fakeMeasurer(100, effects()).measureDoc(input)
+      if (!holding) return measured()
+      holding = false
+      return new Promise((resolve) => held.push(() => void measured().then(resolve)))
+    }
+    const refinements: string[] = []
+    core.ctx.bus.on('task:done', ({ kind, taskId }) => {
+      if (kind === 'profiles') refinements.push(taskId)
+    })
+    const service = createProfilesService(core.ctx, {
+      profiles: profilesWith({ measureDoc }),
+      worlds: { list: () => Promise.resolve([]) },
+      worldVersion: () => Promise.resolve(version),
+    })
+    return { service, held, refinements }
+  }
+
+  it('a « Jeu prêt » gets the profiles refined for the world version installed while it waited', async () => {
+    // Version 1.0.0 is shorter without races, 2.0.0 with a single stick.
+    const { service, held, refinements } = heldService(() => [
+      version === '1.0.0' ? ['goal', 'races', -45] : ['sticks', 1, -45],
+    ])
+    await service.get(ASH)
+    await vi.waitFor(() => expect(held).toHaveLength(1))
+    const refined = service.refineNow(ASH, readyTask().handle)
+
+    // The world updated by the run while the background refines 1.0.0.
+    version = '2.0.0'
+    held[0]?.()
+    expect(await refined).toMatchObject({ game: ASH, measured: true })
+    expect(refinements).toHaveLength(2)
+    // What « Jeu prêt » writes: Découverte as refined for 2.0.0, neither 1.0.0's nor the heuristic one.
+    const made = await service.profileYaml(ASH, 'discovery', 'Tristan')
+    expect(made).toMatchObject({ profile: 'discovery', measured: true })
+    expect(sectionOf(made.text, ASH)).toMatchObject({ sticks: 1, goal: 'help_everyone' })
+  })
+
+  it('a « Jeu prêt » gets the profiles refined for the option schema generated while it waited', async () => {
+    const { service, held, refinements } = heldService(() => [['sticks', 1, -45]])
+    await service.get(ASH)
+    await vi.waitFor(() => expect(held).toHaveLength(1))
+    const refined = service.refineNow(ASH, readyTask().handle)
+
+    // The templates generated by the run since the background started on the site's schema.
+    schemas.set(ASH, withDefault(schema(ASH), 'cost_multiplier', 150))
+    held[0]?.()
+    expect(await refined).toMatchObject({ game: ASH, measured: true })
+    expect(refinements).toHaveLength(2)
+    const made = await service.profileYaml(ASH, 'discovery', 'Tristan')
+    expect(made).toMatchObject({ profile: 'discovery', measured: true })
+    expect(sectionOf(made.text, ASH)).toMatchObject({ sticks: 1, cost_multiplier: 150 })
   })
 
   it('logs a background refinement that fails, without failing anything else', async () => {
