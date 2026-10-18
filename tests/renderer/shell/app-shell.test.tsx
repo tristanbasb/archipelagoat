@@ -150,9 +150,13 @@ describe('app shell', () => {
   it('cold-start uri from app:pendingOpenRequests routes to /join?input=', async () => {
     const uri = 'archipelago://Goat:secret@archipelago.gg:38281'
     await renderApp({ handlers: { 'app:pendingOpenRequests': () => [{ kind: 'uri', value: uri }] } })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Rejoindre' })).toBeInTheDocument()
+    // Home, then the whole Join screen once the queued request is read: under the load of the full
+    // suite with coverage, that alone takes more than the default second (up to 1.4 s measured).
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Rejoindre' }, { timeout: 10_000 }),
+    ).toBeInTheDocument()
     expect(window.location.hash).toBe(`#/join?input=${encodeURIComponent(uri)}`)
-  })
+  }, 20_000)
 
   it('routes a file opened from the system while running', async () => {
     const { goat } = await renderApp()

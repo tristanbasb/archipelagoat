@@ -405,17 +405,26 @@ describe('measureDoc', () => {
 
 describe('the settings lock', () => {
   it('a sessionless measure running does not make settings.set throw', async () => {
-    // A real program that runs until it is killed, spawned by the measure itself (no fake spawn).
-    const sleeper = { command: process.execPath, argsPrefix: ['-e', 'setTimeout(() => {}, 60000)'] }
+    // A real program that runs until it is killed, spawned by the measure itself (no fake spawn). It
+    // writes a file once it runs: then it is the measure's own child, alive.
+    const started = join(root, 'sleeper-started')
+    const script = `require('node:fs').writeFileSync(${JSON.stringify(started)}, ''); setTimeout(() => {}, 60000)`
+    // `--`: the measure's flags go to the script. Without it Node stops at once on `--player_files_path`
+    // (« bad option »), and the measure's child is gone before the lock is asked.
+    const sleeper = { command: process.execPath, argsPrefix: ['-e', script, '--'] }
     measurer = createMeasurer(
       core.ctx,
       deps({ spawn: undefined, locator: { detect: () => Promise.resolve(install), exe: () => sleeper } }),
     )
+    const before = new Set(listChildren().map(({ pid }) => pid))
     const spy = taskSpy()
     const pending = measurer.measureDoc({ sessionId: null, game: HK, yamlText: knight, task: spy.handle })
-    await until(() => listChildren().length === 1)
-    const [child] = listChildren()
+    await until(() => existsSync(started))
+    const [child, ...others] = listChildren().filter(({ pid }) => !before.has(pid))
+    expect(others).toEqual([])
     if (!child) throw new Error('no child')
+    /** The measure's child is still running, so the lock still knows it as its own. */
+    const alive = (): boolean => listChildren().some(({ pid }) => pid === child.pid)
 
     // The system lists it as ArchipelagoGenerate, as it would the real one.
     const listing: ExecFn = (command) =>
@@ -437,6 +446,7 @@ describe('the settings lock', () => {
     } as unknown as Locator
     const settings = createApSettings(core.ctx, locator)
 
+    expect(alive()).toBe(true)
     await settings.set([{ path: ['bizhawkclient_options', 'rom_start'], value: false }])
     expect(readFileSync(join(ap, 'host.yaml'), 'utf8')).toContain('rom_start: false')
 
@@ -450,6 +460,7 @@ describe('the settings lock', () => {
             ? '"ArchipelagoBizHawkClient.exe","4242424","Console","1","10 000 K"\r\n'
             : '4242424 ArchipelagoBizH\n'),
       }))
+    expect(alive()).toBe(true)
     await expect(
       settings.set([{ path: ['bizhawkclient_options', 'rom_start'], value: true }]),
     ).rejects.toMatchObject({
@@ -459,8 +470,9 @@ describe('the settings lock', () => {
 
     spy.controller.abort()
     await expect(pending).rejects.toMatchObject({ code: 'TASK_CANCELLED' })
-    await until(() => listChildren().length === 0)
-  })
+    await until(() => !alive())
+    // A program to start and stop under the load of the whole suite: more than one wait's worth of time.
+  }, 15_000)
 })
 
 describe('measureSession', () => {

@@ -57,7 +57,10 @@ beforeEach(() => {
   store = makeStore()
 })
 
-afterEach(() => rmSync(root, { recursive: true, force: true, maxRetries: 3 }))
+afterEach(() => {
+  vi.useRealTimers()
+  rmSync(root, { recursive: true, force: true, maxRetries: 3 })
+})
 
 const dataRoot = (): string => core.platform.paths.dataRoot
 const player = (name: string, game = 'TUNIC'): string => `name: ${name}\ngame: ${game}\n${game}: {}\n`
@@ -381,6 +384,10 @@ describe('session store: player files', () => {
   })
 
   it('removeFile moves the file to backups/ instead of deleting it (spec §5)', async () => {
+    // The backup folder is named after the second of the move: one second for both moves, whatever the
+    // real clock does between them.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 9, 17, 14, 0, 0))
     const { id } = await store.create('Goat')
     const added = await store.addText(id, 'Zoe.yaml', player('Zoe'))
     const twin = await store.addText(id, 'Zoe.yaml', player('Zoe 2'))
@@ -392,7 +399,7 @@ describe('session store: player files', () => {
     const backups = join(dataRoot(), 'backups')
     const [folder, ...others] = readdirSync(backups)
     expect(others).toEqual([])
-    expect(folder).toMatch(/^\d{8}-\d{6}-player$/)
+    expect(folder).toBe('20261017-140000-player')
     // Both copies are kept, under the session's id, the second one beside the first.
     const kept = readdirSync(join(backups, folder!, id)).sort()
     expect(kept).toHaveLength(2)

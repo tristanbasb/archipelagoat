@@ -660,7 +660,9 @@ describe('ChecksPanel', () => {
     await screen.findByRole('group', { name: 'Règles' })
     expect(screen.queryByRole('region', { name: 'Checks' })).toBeNull()
     await user.click(screen.getByRole('button', { name: 'Précédent' }))
-    const bar = await screen.findByRole('progressbar', { name: 'Générations de test' })
+    // The whole check step renders again: under the load of the full suite with coverage, that alone
+    // takes more than the default second (up to 1.2 s measured).
+    const bar = await screen.findByRole('progressbar', { name: 'Générations de test' }, { timeout: 10_000 })
     expect(bar).toHaveAttribute('aria-valuenow', '40')
     expect(bar).toHaveAttribute('aria-valuetext', '1 sur 3 joueurs')
     expect(screen.getByRole('button', { name: 'Mesurer les checks' })).toBeDisabled()
@@ -672,5 +674,5 @@ describe('ChecksPanel', () => {
     expect(await within(rowOf('Knight')).findByText('200')).toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.getByRole('button', { name: 'Mesurer les checks' })).toBeEnabled()
-  })
+  }, 20_000)
 })

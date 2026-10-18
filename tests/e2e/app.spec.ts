@@ -241,15 +241,18 @@ test('reduced motion disables animations', async () => {
     )
   const card = page.locator('.player-card[data-player="1"]')
   const cta = card.locator('.player-card__cta')
+  // Polled: the CRT runs before the pointer's hover styles apply, and the media change applies later.
+  const ctaAnimation = (): Promise<string> =>
+    cta.evaluate((element) => getComputedStyle(element).animationName)
 
   // The arcade look moves by default: the CRT and, under the pointer, the PRESS START blink.
   await card.hover()
   await expect.poll(running).toBeGreaterThan(0)
-  expect(await cta.evaluate((element) => getComputedStyle(element).animationName)).toBe('player-card-blink')
+  await expect.poll(ctaAnimation).toBe('player-card-blink')
 
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect.poll(running).toBe(0)
-  expect(await cta.evaluate((element) => getComputedStyle(element).animationName)).toBe('none')
+  await expect.poll(ctaAnimation).toBe('none')
   await expect(page.locator('.crt-overlay')).toBeHidden()
 
   // A new screen comes in without a transition either.
