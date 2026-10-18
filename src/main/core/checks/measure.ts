@@ -1,6 +1,7 @@
 // Exact check counts (spec §3.4). A player is measured alone: its document goes to
 // `dataRoot/tmp/measure-<uuid>/players/`, next to the settings file its real generation would have (the
-// session's rules, or the defaults outside a session, and the ROM paths the vault resolves), and
+// session's rules, or the defaults outside a session, and the ROM paths the vault resolves; never the
+// session's passwords, which no count depends on), and
 // ArchipelagoGenerate runs there without spoiler nor progression balancing on seed 42, or on 42, 1337
 // and 2026 for a YAML that rolls dice. The count is the size of the slot's locations in the
 // `.archipelago`; the folder goes right after. At most two test generations run at once, two minutes
@@ -38,7 +39,7 @@ import type { ApSettings, SettingsEntry } from '../ap/settings'
 import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
 import { buildSessionSettingsEntries, type SessionSecrets } from '../sessions/rules'
-import type { SessionStore } from '../sessions/store'
+import type { PlayerSource, SessionStore } from '../sessions/store'
 import { SESSION_ID_RE, writeSessionHostYaml } from '../sessions/workspace'
 import { writeFileAtomic } from '../system/fsx'
 import { redact } from '../system/redact'
@@ -61,6 +62,7 @@ const PLAYER_FILE = 'p.yaml'
 const MAX_KEPT = 10_000
 /** Where a session measure's bar stands once every player is measured. */
 const MEASURED_PERCENT = 95
+/** A measure's settings file never holds passwords: a crash would leave them in tmp/. */
 const NO_SECRETS: SessionSecrets = { password: null, serverPassword: null }
 
 // --- weighted documents ------------------------------------------------------------------------------
@@ -149,14 +151,32 @@ function normalized(yamlText: string): string {
   return renderPlayerYaml(doc)
 }
 
+/** How many players a document makes: its `quantity` (a whole number above 0), else 1. */
+function quantityOf(doc: unknown): number {
+  const quantity = isRecord(doc) ? doc.quantity : undefined
+  return typeof quantity === 'number' && Number.isSafeInteger(quantity) && quantity > 0 ? quantity : 1
+}
+
 /**
- * The slot Archipelago gives each document of a session, from 1: a session keeps its files in
- * Archipelago's order (the store sorts them as Generate does), each file its documents in order.
+ * The first slot Archipelago gives each document of a session, and how many players they make: a
+ * session keeps its files in Archipelago's order (the store sorts them as Generate does), each file
+ * its documents in order, and a document with `quantity: N` takes N slots in a row.
  */
-function slotNumbers(files: readonly PlayerFile[]): Map<PlayerDoc, number> {
-  const numbers = new Map<PlayerDoc, number>()
-  for (const doc of files.flatMap((file) => file.docs)) numbers.set(doc, numbers.size + 1)
-  return numbers
+function firstSlots(files: readonly PlayerSource[]): {
+  docs: { file: PlayerFile; doc: PlayerDoc; slot: number }[]
+  players: number
+} {
+  const docs: { file: PlayerFile; doc: PlayerDoc; slot: number }[] = []
+  let next = 1
+  for (const { file, text } of files) {
+    // The documents as PlayerDoc.index counts them: the empty ones left out.
+    const loaded = loadYaml11(text).docs.filter((doc) => doc !== null && doc !== undefined)
+    for (const doc of file.docs) {
+      docs.push({ file, doc, slot: next })
+      next += quantityOf(loaded[doc.index])
+    }
+  }
+  return { docs, players: next - 1 }
 }
 
 // --- the files -----------------------------------------------------------------------------------------
@@ -227,7 +247,7 @@ export interface Measurer {
 export interface MeasurerDeps {
   locator: Pick<Locator, 'detect' | 'exe'>
   settings: Pick<ApSettings, 'makeSessionSettings'>
-  sessions: Pick<SessionStore, 'loadPlayers' | 'getSecrets' | 'get'>
+  sessions: Pick<SessionStore, 'loadPlayers' | 'get'>
   /** Game → version of the world Archipelago loads for it: a kept measure holds for that version. */
   worlds: { installedGames(): Promise<ValidationContext['installedGames']> }
   /**
@@ -254,8 +274,6 @@ interface TestRun {
   entries: SettingsEntry[]
   install: ApInstall
   sessionId: string | null
-  /** The passwords of the settings file, masked in what Archipelago prints. */
-  secrets: string[]
   task: TaskHandle
 }
 
@@ -368,9 +386,11 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
         args: buildMeasureArgs(ws, run.seed),
         cwd: dir,
         ...(run.sessionId === null ? {} : { sessionId: run.sessionId }),
+        // Its own folder and host.yaml: never a reason to refuse an edit of the global settings.
+        scoped: true,
         // The stages and lines of a test generation are not its caller's: only the signal goes through.
         task: { id: run.task.id, signal: stop.signal, progress: () => undefined, log: () => undefined },
-        mask: (line) => redact(line, run.secrets),
+        mask: (line) => redact(line),
         stallMs: TIMEOUT_MS,
         ...(deps.spawn === undefined ? {} : { spawn: deps.spawn }),
       })
@@ -390,7 +410,7 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
     const dir = path.join(tmpRoot, `${DIR_PREFIX}${randomUUID()}`)
     const ws = { players: path.join(dir, 'players'), output: path.join(dir, 'output') }
     try {
-      // Owner-only, as a session folder: its settings file holds the session's passwords.
+      // Owner-only, as a session folder.
       await mkdir(ws.players, { recursive: true, mode: 0o700 })
       await mkdir(ws.output, { mode: 0o700 })
       await writeFile(path.join(ws.players, PLAYER_FILE), run.text, 'utf8')
@@ -402,12 +422,13 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
       }
       const summary = await readMultidataFromZip(path.resolve(dir, result.zipPath))
       await deps.estimates.addFromMultidata(summary.datapackage)
-      const [slot, ...others] = summary.slots
-      if (slot === undefined || others.length > 0) {
+      // A document with `quantity: N` makes N players with the same options: the first one counts.
+      const [slot] = summary.slots
+      if (slot === undefined) {
         throw new AppError(
           'MULTIDATA_UNREADABLE',
           { reason: 'shape' },
-          { detail: `${summary.slots.length} slots in the test generation of one player` },
+          { detail: 'no slot in a test generation' },
         )
       }
       return slot.checks
@@ -445,19 +466,10 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
       // Archipelago would stop without it; a ROM only ever comes from the vault.
       const absent = needs.find((need) => need.status !== 'ok')
       if (absent) throw new AppError('AP_ROM_MISSING', { game: absent.game })
-      const { rules, secrets } =
-        sessionId === null
-          ? { rules: defaultRules(), secrets: NO_SECRETS }
-          : {
-              rules: (await deps.sessions.get(sessionId)).rules,
-              secrets: await deps.sessions.getSecrets(sessionId),
-            }
-      const entries = buildSessionSettingsEntries(rules, secrets, romPathsOf(needs))
-      const known = [secrets.password, secrets.serverPassword].filter((s): s is string => !!s)
+      const rules = sessionId === null ? defaultRules() : (await deps.sessions.get(sessionId)).rules
+      const entries = buildSessionSettingsEntries(rules, NO_SECRETS, romPathsOf(needs))
       const results = await Promise.allSettled(
-        missing.map((seed) =>
-          queue(() => generateOnce({ text, seed, entries, install, sessionId, secrets: known, task })),
-        ),
+        missing.map((seed) => queue(() => generateOnce({ text, seed, entries, install, sessionId, task }))),
       )
       let measured = false
       results.forEach((result, i) => {
@@ -569,28 +581,35 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
       const file = sessionFile(sessionId)
       const summary = await readMultidataFromZip(zipPath)
       await deps.estimates.addFromMultidata(summary.datapackage)
-      const session = await deps.sessions.get(sessionId)
+      const { files } = await deps.sessions.loadPlayers(sessionId)
       const slots = new Map(summary.slots.map((slot) => [slot.slot, slot]))
-      const numbers = slotNumbers(session.players)
-      const players = session.players.flatMap((player) =>
-        player.docs.flatMap((doc): PlayerChecks[] => {
-          const slot = slots.get(numbers.get(doc) ?? 0)
-          // A document the seed does not have (the session changed meanwhile) has no count.
-          if (slot === undefined) return []
-          return [
-            {
-              fileId: player.id,
-              docIndex: doc.index,
-              name: slot.name || (doc.name ?? ''),
-              game: slot.game || null,
-              checks: slot.checks,
-              range: null,
-              source: 'generation',
-              error: null,
-            },
-          ]
-        }),
-      )
+      const expected = firstSlots(files)
+      const players = expected.docs.flatMap(({ file: player, doc, slot: number }): PlayerChecks[] => {
+        const slot = slots.get(number)
+        if (slot === undefined) return []
+        return [
+          {
+            fileId: player.id,
+            docIndex: doc.index,
+            name: slot.name || (doc.name ?? ''),
+            game: slot.game || null,
+            checks: slot.checks,
+            range: null,
+            source: 'generation',
+            error: null,
+          },
+        ]
+      })
+      // The seed is not the session as it is now (a file added or changed meanwhile): rather no
+      // count than another player's. The last counts stay as they were.
+      if (summary.slots.length !== expected.players || players.length !== expected.docs.length) {
+        ctx.log.warn('measure: the seed does not match the session, its counts are not kept', {
+          sessionId,
+          slots: summary.slots.length,
+          players: expected.players,
+        })
+        return
+      }
       const checks: SessionChecks = { measuredAt: isoNow(), players }
       await writeFileAtomic(file, JSON.stringify(checks))
     },

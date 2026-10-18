@@ -13,6 +13,7 @@ import {
   exeNameOf,
   LineSplitter,
   listChildren,
+  readChildren,
   sessionChildPids,
   spawnAp,
   type ApProcess,
@@ -559,6 +560,32 @@ describe('children registry', () => {
     await within(client.exited, 5000)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual([])
     expect(listChildren()).toEqual([])
+    expect(sessionChildPids()).toEqual([])
+  })
+
+  it('records a scoped child, which the settings lock leaves out as a session one', async () => {
+    const generate = run({
+      exe: fake('ArchipelagoGenerate'),
+      env: { FAKE_MODE: 'fail' },
+      stdin: 'pipe',
+      scoped: true,
+    })
+    const entries = JSON.parse(
+      readFileSync(childrenFile(core.platform.paths.dataRoot), 'utf8'),
+    ) as ChildEntry[]
+    expect(entries).toEqual([
+      expect.objectContaining({
+        pid: generate.pid,
+        exe: 'ArchipelagoGenerate',
+        sessionId: null,
+        scoped: true,
+      }),
+    ])
+    expect(readChildren(childrenFile(core.platform.paths.dataRoot))).toHaveLength(1)
+    expect(sessionChildPids()).toEqual([generate.pid])
+
+    generate.write('')
+    await within(generate.exited, 5000)
     expect(sessionChildPids()).toEqual([])
   })
 

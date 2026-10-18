@@ -471,6 +471,8 @@ export interface ProcessOptions {
   cwd: string
   /** The session the program belongs to (children.json); none for a measure outside a session. */
   sessionId?: string
+  /** Its own folder and host.yaml without a session (a measure): out of the settings lock. */
+  scoped?: boolean
   task: TaskHandle
   mask: (line: string) => string
   /** The file that gets every line; none for a test generation, whose folder goes right after. */
@@ -541,6 +543,7 @@ export async function runProcess(ctx: CoreContext, o: ProcessOptions): Promise<P
     // Generate waits for Enter after any failure (brief §1.6).
     stdin: 'ignore',
     ...(o.sessionId === undefined ? {} : { sessionId: o.sessionId }),
+    ...(o.scoped === true ? { scoped: true } : {}),
     onLine,
   })
   watch()

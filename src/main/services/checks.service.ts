@@ -34,7 +34,6 @@ defineService(
       settings: { makeSessionSettings: (dir, entries) => get('settings').makeSessionSettings(dir, entries) },
       sessions: {
         get: (id) => get('sessions').get(id),
-        getSecrets: (id) => get('sessions').getSecrets(id),
         loadPlayers: (id) => get('sessions').loadPlayers(id),
       },
       worlds: { installedGames: () => get('worlds').installedGames() },

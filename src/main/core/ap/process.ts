@@ -33,6 +33,12 @@ export interface SpawnApOptions {
   /** Stopped by its owner (the server manager, with /exit), never by `disposeChildren`. */
   selfManaged?: boolean
   sessionId?: string
+  /**
+   * Runs in a folder of its own with its own host.yaml (a measure's test generation), so it never
+   * saves over the settings file of Archipelago's other programs: the settings lock leaves it out, as
+   * it does a session's programs.
+   */
+  scoped?: boolean
   onLine?: (stream: ApStream, line: string) => void
 }
 
@@ -60,6 +66,8 @@ export interface ChildEntry {
   /** The program, e.g. `ArchipelagoServer`. */
   exe: string
   sessionId: string | null
+  /** Set for a program spawned `scoped` (its own folder and host.yaml) outside a session. */
+  scoped?: true
   startedAt: string
 }
 
@@ -171,11 +179,12 @@ export const childrenFile = (dataRoot: string): string => join(dataRoot, 'run', 
 
 function isChildEntry(x: unknown): x is ChildEntry {
   if (typeof x !== 'object' || x === null) return false
-  const { pid, exe, sessionId, startedAt } = x as Record<string, unknown>
+  const { pid, exe, sessionId, scoped, startedAt } = x as Record<string, unknown>
   return (
     Number.isInteger(pid) &&
     typeof exe === 'string' &&
     (sessionId === null || typeof sessionId === 'string') &&
+    (scoped === undefined || scoped === true) &&
     typeof startedAt === 'string'
   )
 }
@@ -213,11 +222,13 @@ export function listChildren(): { pid: number; command: string }[] {
 }
 
 /**
- * The pids of the registered children that belong to a session (its generation, its local server).
- * They run in the session folder and load only that folder's host.yaml (spec §3.6).
+ * The pids of the registered children that run in a folder of their own: a session's (its generation,
+ * its local server) or a measure's (`scoped`). They load only that folder's host.yaml (spec §3.6).
  */
 export function sessionChildPids(): number[] {
-  return [...children.values()].filter((child) => child.entry.sessionId !== null).map((c) => c.entry.pid)
+  return [...children.values()]
+    .filter((child) => child.entry.sessionId !== null || child.entry.scoped === true)
+    .map((c) => c.entry.pid)
 }
 
 /** Kills the children still running, except the selfManaged ones, and waits up to `timeoutMs` for them. */
@@ -346,6 +357,7 @@ export function spawnAp(ctx: CoreContext, opts: SpawnApOptions): ApProcess {
     pid,
     exe,
     sessionId: opts.sessionId ?? null,
+    ...(opts.scoped === true ? { scoped: true as const } : {}),
     startedAt: new Date().toISOString(),
   }
   children.set(pid, { entry, selfManaged: opts.selfManaged === true, proc })

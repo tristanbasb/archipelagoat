@@ -138,7 +138,7 @@ async function probe(
 /** Orphans that findOrphans checked, with what killOrphan needs to check them again. */
 const verified = new Map<
   number,
-  { ctx: CoreContext; exe: string; procRoot: string; sessionId: string | null }
+  { ctx: CoreContext; exe: string; procRoot: string; sessionId: string | null; scoped: boolean }
 >()
 
 const isOwnChild = (pid: number): boolean => listChildren().some((child) => child.pid === pid)
@@ -159,7 +159,13 @@ export async function findOrphans(ctx: CoreContext, opts: FindOrphansOptions = {
   candidates.forEach((entry, i) => {
     if (results[i] === 'match') {
       orphans.push({ pid: entry.pid, exe: entry.exe, sessionId: entry.sessionId })
-      verified.set(entry.pid, { ctx, exe: entry.exe, procRoot, sessionId: entry.sessionId })
+      verified.set(entry.pid, {
+        ctx,
+        exe: entry.exe,
+        procRoot,
+        sessionId: entry.sessionId,
+        scoped: entry.scoped === true,
+      })
     } else if (results[i] === 'gone') {
       purged.add(entry.pid)
       verified.delete(entry.pid)
@@ -173,14 +179,14 @@ export async function findOrphans(ctx: CoreContext, opts: FindOrphansOptions = {
 }
 
 /**
- * The pids of the app's own session programs: the children of this run that belong to a session, and
- * the orphans of a previous run that findOrphans found running for one (a server under Linux). They
- * run in their session folder, so they load and save only that folder's host.yaml, never the file
+ * The pids of the app's own programs that run in a folder of their own: the children of this run that
+ * belong to a session or a measure, and the orphans of a previous run that findOrphans found running
+ * for one (a server under Linux). They load and save only that folder's host.yaml, never the file
  * Archipelago's other programs load (spec §3.6).
  */
 export function sessionScopedPids(): Set<number> {
   const pids = new Set(sessionChildPids())
-  for (const [pid, orphan] of verified) if (orphan.sessionId !== null) pids.add(pid)
+  for (const [pid, orphan] of verified) if (orphan.sessionId !== null || orphan.scoped) pids.add(pid)
   return pids
 }
 

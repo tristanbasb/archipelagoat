@@ -13,6 +13,7 @@ import {
   stopOrphan,
   parsePsOutput,
   parseTasklistCsv,
+  sessionScopedPids,
   withoutApProcesses,
 } from '@main/core/ap/processes'
 import type { ExecFn } from '@main/core/exec'
@@ -49,6 +50,7 @@ interface Entry {
   pid: number
   exe: string
   sessionId: string | null
+  scoped?: true
   startedAt: string
 }
 
@@ -276,6 +278,27 @@ describe('orphans of a previous run', () => {
       { pid: 205, exe: 'ArchipelagoServer', sessionId: null },
     ])
     expect(pidsIn(linuxFile)).toEqual([201, 202, 205])
+  })
+
+  it('an orphan of a session or a measure keeps out of the settings lock, any other one does not', async () => {
+    const core = createTestContext(root, { os: 'win32' })
+    writeEntries(childrenFile(core.platform.paths.dataRoot), [
+      entry(7101, 'ArchipelagoServer', 'session-a'),
+      { ...entry(7102, 'ArchipelagoGenerate'), scoped: true },
+      entry(7103, 'ArchipelagoGenerate'),
+    ])
+    core.ctx.exec = tasklistExec(
+      new Map([
+        [7101, 'ArchipelagoServer.exe'],
+        [7102, 'ArchipelagoGenerate.exe'],
+        [7103, 'ArchipelagoGenerate.exe'],
+      ]),
+    )
+    expect(await findOrphans(core.ctx)).toHaveLength(3)
+    const scoped = sessionScopedPids()
+    expect(scoped.has(7101)).toBe(true)
+    expect(scoped.has(7102)).toBe(true)
+    expect(scoped.has(7103)).toBe(false)
   })
 
   it('findOrphans answers nothing without a registry, or with a broken one', async () => {
