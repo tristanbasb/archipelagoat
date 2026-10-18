@@ -102,7 +102,7 @@ interface Deadline {
   release(): void
 }
 
-function startDeadline(timeoutMs: number, outer?: AbortSignal | null): Deadline {
+export function startDeadline(timeoutMs: number, outer?: AbortSignal | null): Deadline {
   const controller = new AbortController()
   let timedOut = false
   const timer = setTimeout(() => {
@@ -122,6 +122,35 @@ function startDeadline(timeoutMs: number, outer?: AbortSignal | null): Deadline 
       clearTimeout(timer)
       outer?.removeEventListener('abort', onOuterAbort)
     },
+  }
+}
+
+// --- capped bodies ------------------------------------------------------------------------------
+
+/**
+ * The body of an answer, read up to `maxBytes` and not a byte further: past it the stream is
+ * cancelled and the read fails. A `content-length` over the limit fails before a byte is read, but
+ * the declared size is never trusted: the bytes received are counted.
+ */
+export async function readCapped(res: Response, maxBytes: number): Promise<Buffer> {
+  const declared = Number(res.headers.get('content-length'))
+  if (declared > maxBytes) {
+    await res.body?.cancel().catch(() => undefined)
+    throw new Error(`${declared} bytes declared`)
+  }
+  const reader = res.body?.getReader() as ReadableStreamDefaultReader<Uint8Array> | undefined
+  if (!reader) throw new Error('no body')
+  const chunks: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) return Buffer.concat(chunks, total)
+    total += value.length
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined)
+      throw new Error('over the size limit')
+    }
+    chunks.push(value)
   }
 }
 

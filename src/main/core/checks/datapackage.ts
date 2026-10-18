@@ -8,6 +8,7 @@ import { AppError } from '@shared/errors'
 import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
 import { writeFileAtomic } from '../system/fsx'
+import { readCapped, startDeadline } from '../system/http'
 import { compactKey } from '../worlds/catalog'
 
 export const DATAPACKAGE_URL = 'https://archipelago.gg/api/datapackage'
@@ -147,36 +148,12 @@ export function createCheckEstimates(ctx: CoreContext, deps: CheckEstimatesDeps 
 
   // --- the download ---
 
-  /** The body of an answer, read up to the size limit and not a byte further. */
-  async function readBody(res: Response): Promise<string> {
-    const declared = Number(res.headers.get('content-length'))
-    if (declared > MAX_BYTES) {
-      await res.body?.cancel().catch(() => undefined)
-      throw new Error(`${declared} bytes declared`)
-    }
-    const reader = res.body?.getReader() as ReadableStreamDefaultReader<Uint8Array> | undefined
-    if (!reader) throw new Error('no body')
-    const chunks: Uint8Array[] = []
-    let total = 0
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) return Buffer.concat(chunks, total).toString('utf8')
-      total += value.length
-      if (total > MAX_BYTES) {
-        await reader.cancel().catch(() => undefined)
-        throw new Error('over the size limit')
-      }
-      chunks.push(value)
-    }
-  }
-
   async function download(): Promise<void> {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
+    const deadline = startDeadline(DOWNLOAD_TIMEOUT_MS)
     try {
       const res = await ctx.http.fetchRaw(DATAPACKAGE_URL, {
         headers: { accept: 'application/json', ...(etag === null ? {} : { 'if-none-match': etag }) },
-        signal: controller.signal,
+        signal: deadline.signal,
       })
       if (res.status === 304) {
         await res.body?.cancel().catch(() => undefined)
@@ -188,7 +165,7 @@ export function createCheckEstimates(ctx: CoreContext, deps: CheckEstimatesDeps 
         await res.body?.cancel().catch(() => undefined)
         throw new AppError('HTTP_ERROR', { status: res.status, url: DATAPACKAGE_URL })
       }
-      const answer = parseDatapackage(JSON.parse(await readBody(res)))
+      const answer = parseDatapackage(JSON.parse((await readCapped(res, MAX_BYTES)).toString('utf8')))
       let changed = false
       for (const [game, entry] of Object.entries(answer)) changed = merge(game, entry) || changed
       fetchedAt = now()
@@ -196,7 +173,7 @@ export function createCheckEstimates(ctx: CoreContext, deps: CheckEstimatesDeps 
       await save()
       if (changed) ctx.bus.emit('checks:changed', null)
     } finally {
-      clearTimeout(timer)
+      deadline.release()
     }
   }
 

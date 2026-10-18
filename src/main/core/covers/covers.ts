@@ -11,6 +11,7 @@ import { COVER_SCHEME, isCoverUrl } from '@shared/covers'
 import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
 import { pathExists, writeFileAtomic } from '../system/fsx'
+import { readCapped, startDeadline } from '../system/http'
 import { compactKey, type Catalog } from '../worlds/catalog'
 
 export type ImageType = 'png' | 'jpeg' | 'webp' | 'gif'
@@ -175,43 +176,19 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
 
   // --- the download ---
 
-  /** The body of an answer, read up to the size limit and not a byte further. */
-  async function readImage(res: Response): Promise<Buffer> {
-    const declared = Number(res.headers.get('content-length'))
-    if (declared > MAX_IMAGE_BYTES) {
-      await res.body?.cancel().catch(() => undefined)
-      throw new Error(`${declared} bytes declared`)
-    }
-    const reader = res.body?.getReader() as ReadableStreamDefaultReader<Uint8Array> | undefined
-    if (!reader) throw new Error('no body')
-    const chunks: Uint8Array[] = []
-    let total = 0
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) return Buffer.concat(chunks, total)
-      total += value.length
-      if (total > MAX_IMAGE_BYTES) {
-        await reader.cancel().catch(() => undefined)
-        throw new Error('over the size limit')
-      }
-      chunks.push(value)
-    }
-  }
-
   /**
    * GET with one deadline for the answer and its body. Redirects are followed here, a few times, and
    * only to a cover host: the platform would follow them anywhere.
    */
   async function fetchImage(url: string): Promise<Buffer> {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
+    const deadline = startDeadline(DOWNLOAD_TIMEOUT_MS)
     try {
       let target = url
       for (let redirects = 0; ; redirects++) {
         const res = await ctx.http.fetchRaw(target, {
           headers: { accept: 'image/*' },
           redirect: 'manual',
-          signal: controller.signal,
+          signal: deadline.signal,
         })
         if (res.status >= 300 && res.status < 400) {
           await res.body?.cancel().catch(() => undefined)
@@ -225,10 +202,10 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
           await res.body?.cancel().catch(() => undefined)
           throw new Error(`HTTP ${res.status}`)
         }
-        return await readImage(res)
+        return await readCapped(res, MAX_IMAGE_BYTES)
       }
     } finally {
-      clearTimeout(timer)
+      deadline.release()
     }
   }
 
