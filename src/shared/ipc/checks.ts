@@ -1,9 +1,7 @@
 import { z } from 'zod'
+import { MAX_TARGET } from '../checks'
 import type { BalanceTarget, GameEstimate, Session, SessionChecks, TaskRef } from '../types'
 import { channel, nonEmpty } from './contract'
-
-/** A target given as a number of checks: no game has this many locations. */
-const MAX_TARGET = 100_000
 
 const BalanceTargetSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('median') }),

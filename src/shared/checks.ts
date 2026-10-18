@@ -2,6 +2,9 @@
 // for the balancing proposals of the main process and for the Checks panel.
 import type { BalanceTarget, PlayerChecks } from './types'
 
+/** The most checks a target given as a number may ask for: no game has this many locations. */
+export const MAX_TARGET = 100_000
+
 /** How far from the target a count may be before it is flagged: a quarter of the target. */
 const OFF_TARGET = 0.25
 

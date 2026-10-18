@@ -23,6 +23,8 @@ const EVENT_INVALIDATIONS = {
   'worlds:changed': ['worlds:list', 'doctor:run', 'studio:games', 'catalog:list'],
   // The table of the sizes of the games changed (the datapackage was refreshed, a game was generated).
   'checks:changed': ['checks:estimate'],
+  // A generation read the exact checks of its players from its multidata before it ended.
+  'task:done': ['checks:lastSession'],
   // A local server started, stopped or crashed: its game is live, or over (the main process records
   // that before it sends the state).
   'server:state': ['session:list', 'session:get'],
@@ -46,6 +48,9 @@ export function useEventInvalidation(): void {
   useEvent('ap:installed', () => refresh(EVENT_INVALIDATIONS['ap:installed']))
   useEvent('worlds:changed', () => refresh(EVENT_INVALIDATIONS['worlds:changed']))
   useEvent('checks:changed', () => refresh(EVENT_INVALIDATIONS['checks:changed']))
+  useEvent('task:done', ({ kind }) => {
+    if (kind === 'generate') refresh(EVENT_INVALIDATIONS['task:done'])
+  })
   useEvent('server:state', () => refresh(EVENT_INVALIDATIONS['server:state']))
 
   // A catalog that resolves (fetched, or set after a refresh) may know covers it did not.

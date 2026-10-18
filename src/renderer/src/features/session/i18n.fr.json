@@ -155,6 +155,63 @@
       "warning": "Alerte"
     }
   },
+  "checksPanel": {
+    "title": "Checks",
+    "intro": "Combien de checks chaque joueur aura. C’est une indication\u00a0: elle ne bloque jamais la suite.",
+    "measure": "Mesurer les checks",
+    "measuring": "Mesure des checks…",
+    "playersDone": "{{done}} sur {{total}} joueurs",
+    "target": {
+      "label": "Cible",
+      "short": "Court",
+      "median": "Moyen",
+      "long": "Long",
+      "count": "Nombre",
+      "countLabel": "Nombre de checks visé",
+      "invalid": "Entre un nombre de checks entre 1 et 100\u00a0000.",
+      "goal": "Cible\u00a0: {{value}}",
+      "unknown": "Mesure les checks pour fixer la cible."
+    },
+    "checksCount_one": "{{count}} check",
+    "checksCount_other": "{{count}} checks",
+    "unit_one": "check",
+    "unit_other": "checks",
+    "upTo_one": "jusqu’à {{count}} check",
+    "upTo_other": "jusqu’à {{count}} checks",
+    "unmeasured": "Pas encore mesuré",
+    "rangeHint": "selon la graine",
+    "source": {
+      "measure": "mesuré",
+      "generation": "partie générée"
+    },
+    "gap": {
+      "on": "Dans la cible",
+      "above": "{{percent}}\u00a0% au-dessus de la cible",
+      "below": "{{percent}}\u00a0% en dessous de la cible"
+    },
+    "suggest": "Proposer des réglages",
+    "suggestLabel": "Proposer des réglages pour {{name}}",
+    "suggesting": "Recherche de réglages pour {{name}}…",
+    "variantsDone_one": "{{count}} essai mesuré",
+    "variantsDone_other": "{{count}} essais mesurés",
+    "proposals": {
+      "eyebrow": "TUNING",
+      "title": "Réglages proposés pour {{name}}",
+      "intro": "{{name}} est à {{checks}}, la cible est de {{goal}}. Chaque proposition a été mesurée\u00a0; rien n’est écrit tant que tu n’appliques pas.",
+      "listLabel": "Propositions",
+      "proposal": "Proposition {{n}}",
+      "changes": "Options changées",
+      "diffLabel": "Modifications du YAML",
+      "apply": "Appliquer",
+      "applying": "Application…",
+      "empty": "Aucune option de {{game}} ne change sa taille\u00a0: il n’y a rien à proposer pour ce joueur.",
+      "outdated": "Cette proposition n’est plus valable\u00a0: le fichier du joueur a changé depuis, ou elle date de plus d’une heure.",
+      "again": "Chercher de nouveau",
+      "needMeasure": "Mesure d’abord les checks de la partie, puis réessaie.",
+      "applied": "Réglages appliqués à {{name}}",
+      "appliedBody": "Les checks sont mesurés de nouveau."
+    }
+  },
   "rename": {
     "eyebrow": "NAME ENTRY",
     "title": "Renommer {{name}}",

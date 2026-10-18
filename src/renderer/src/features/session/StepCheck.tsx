@@ -1,6 +1,6 @@
 // Step 2: what stops the game from generating, with a fix next to each problem: install a missing
 // world, rename a player, provide a ROM, or fix the YAML in the Studio. Next stays locked while the
-// validation is blocking, and says why.
+// validation is blocking, and says why. The Checks panel below tells how long each player's game will be.
 import {
   IconAlertOctagon,
   IconAlertTriangle,
@@ -35,6 +35,7 @@ import {
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useWorldInstall, type WorldInstall } from '../../hooks/useWorldInstall'
 import { describeError } from '../../lib/errors'
+import { ChecksPanel } from './ChecksPanel'
 import { PlayerGames } from './PlayerGames'
 import { RenameDialog, type RenameTarget } from './RenameDialog'
 import { StepNav } from './StepNav'
@@ -207,6 +208,8 @@ export function StepCheck({ session, onBack, onNext }: StepCheckProps): React.JS
                 </ul>
               </PixelPanel>
             )}
+            {/* Informative: how many checks each player has. It never blocks the step. */}
+            {session.players.length > 0 && <ChecksPanel session={session} />}
             {report.okFiles > 0 && (
               <p className="check-step__ok">
                 <IconCircleCheck aria-hidden="true" />

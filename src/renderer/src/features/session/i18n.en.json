@@ -155,6 +155,63 @@
       "warning": "Warning"
     }
   },
+  "checksPanel": {
+    "title": "Checks",
+    "intro": "How many checks each player will have. It is only a guide: it never blocks the next step.",
+    "measure": "Measure the checks",
+    "measuring": "Measuring the checks…",
+    "playersDone": "{{done}} of {{total}} players",
+    "target": {
+      "label": "Target",
+      "short": "Short",
+      "median": "Medium",
+      "long": "Long",
+      "count": "Number",
+      "countLabel": "Target number of checks",
+      "invalid": "Enter a number of checks from 1 to 100,000.",
+      "goal": "Target: {{value}}",
+      "unknown": "Measure the checks to set the target."
+    },
+    "checksCount_one": "{{count}} check",
+    "checksCount_other": "{{count}} checks",
+    "unit_one": "check",
+    "unit_other": "checks",
+    "upTo_one": "up to {{count}} check",
+    "upTo_other": "up to {{count}} checks",
+    "unmeasured": "Not measured yet",
+    "rangeHint": "depends on the seed",
+    "source": {
+      "measure": "measured",
+      "generation": "generated game"
+    },
+    "gap": {
+      "on": "On target",
+      "above": "{{percent}}% above the target",
+      "below": "{{percent}}% below the target"
+    },
+    "suggest": "Suggest settings",
+    "suggestLabel": "Suggest settings for {{name}}",
+    "suggesting": "Looking for settings for {{name}}…",
+    "variantsDone_one": "{{count}} try measured",
+    "variantsDone_other": "{{count}} tries measured",
+    "proposals": {
+      "eyebrow": "TUNING",
+      "title": "Suggested settings for {{name}}",
+      "intro": "{{name}} is at {{checks}}, the target is {{goal}}. Each proposal was measured; nothing is written until you apply it.",
+      "listLabel": "Proposals",
+      "proposal": "Proposal {{n}}",
+      "changes": "Options changed",
+      "diffLabel": "Changes to the YAML",
+      "apply": "Apply",
+      "applying": "Applying…",
+      "empty": "No option of {{game}} changes its size: there is nothing to suggest for this player.",
+      "outdated": "This proposal is no longer valid: the player’s file has changed since, or it is more than an hour old.",
+      "again": "Look again",
+      "needMeasure": "Measure the game’s checks first, then try again.",
+      "applied": "Settings applied to {{name}}",
+      "appliedBody": "The checks are being measured again."
+    }
+  },
   "rename": {
     "eyebrow": "NAME ENTRY",
     "title": "Rename {{name}}",

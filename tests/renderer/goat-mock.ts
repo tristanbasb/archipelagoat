@@ -129,6 +129,8 @@ export function installGoatMock(handlers: GoatHandlers = {}, options: GoatMockOp
     // And no size is known for any game.
     'checks:estimate': ({ games }) =>
       Object.fromEntries(games.map((game) => [game, { max: null, profiles: null }])),
+    // No session has been measured.
+    'checks:lastSession': () => null,
   }
   const table = { ...defaults, ...handlers } as Record<string, ((input: unknown) => unknown) | undefined>
 

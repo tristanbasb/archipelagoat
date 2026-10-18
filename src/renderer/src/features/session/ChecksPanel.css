@@ -1,0 +1,214 @@
+/* The Checks panel of step 2: the target, one row per player document, the proposals dialog. */
+.checks-panel__intro {
+  margin-bottom: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+.checks-target {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.checks-target__count {
+  width: 120px;
+}
+
+.checks-target .input-frame[data-invalid] {
+  --pb-color: var(--neon-pink);
+}
+
+.checks-target__goal {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+}
+
+.checks-target__goal[data-problem] {
+  color: color-mix(in srgb, var(--neon-pink) 70%, #ffffff);
+}
+
+.checks-panel__progress,
+.checks-panel__error {
+  margin-bottom: var(--sp-4);
+}
+
+.checks-panel__loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-6);
+  color: var(--neon-cyan);
+}
+
+/* ---- One row per player document ------------------------------------------------------------ */
+
+.checks-rows {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checks-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-3);
+  background: color-mix(in srgb, var(--bg-0) 55%, transparent);
+  box-shadow: inset 2px 0 0 var(--line-strong);
+}
+
+.checks-row[data-off] {
+  box-shadow: inset 2px 0 0 var(--neon-yellow);
+}
+
+.checks-row[data-error] {
+  box-shadow: inset 2px 0 0 var(--neon-pink);
+}
+
+.checks-row__who {
+  display: grid;
+  flex: 1 1 220px;
+  gap: var(--sp-2);
+  justify-items: start;
+  min-width: 0;
+}
+
+.checks-row__name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The count and how far it is from the target: one column, so that the rows line up. */
+.checks-row__result {
+  display: grid;
+  flex: 0 0 240px;
+  margin-left: auto;
+  gap: var(--sp-2);
+  justify-items: start;
+}
+
+.checks-row__figure {
+  display: grid;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.checks-row__value {
+  font-size: var(--fs-16);
+}
+
+.checks-row__unit,
+.checks-row__note {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+}
+
+.checks-row__error {
+  flex-basis: 100%;
+  font-size: var(--fs-13);
+}
+
+.checks-row__error span {
+  color: var(--text-dim);
+}
+
+/* ---- The proposals ----------------------------------------------------------------------------- */
+
+.checks-dialog {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.checks-dialog__outdated {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: color-mix(in srgb, var(--neon-yellow) 6%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+}
+
+.checks-proposals {
+  display: grid;
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checks-proposal {
+  --pb-color: var(--line-strong);
+  --pb-fill: var(--bg-1);
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+
+.checks-proposal__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.checks-proposal__title {
+  flex: 1;
+  font-size: var(--fs-14);
+}
+
+.checks-proposal__checks {
+  color: var(--tone-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.checks-proposal__changes {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-13);
+  list-style: none;
+}
+
+.checks-proposal__changes code {
+  padding: 1px 6px;
+  background: var(--bg-3);
+  color: var(--neon-cyan);
+  font-size: var(--fs-12);
+}
+
+/* The lines of the player's YAML the proposal changes. */
+.checks-diff {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  background: var(--bg-0);
+  font-size: var(--fs-12);
+}
+
+.checks-diff__line {
+  display: block;
+  padding: 0 var(--sp-3);
+  white-space: pre;
+}
+
+.checks-diff__line[data-kind='add'] {
+  background: color-mix(in srgb, var(--neon-green) 12%, transparent);
+  color: color-mix(in srgb, var(--neon-green) 78%, #ffffff);
+}
+
+.checks-diff__line[data-kind='del'] {
+  background: color-mix(in srgb, var(--neon-pink) 10%, transparent);
+  color: color-mix(in srgb, var(--neon-pink) 70%, #ffffff);
+}
