@@ -29,7 +29,15 @@ describe('defaultConfig', () => {
       firstRunDone: false,
       firstLocalHostDone: false,
       webhostUrl: 'https://archipelago.gg',
+      playerName: '',
+      readyDestination: 'session',
     })
+  })
+
+  it("defaults playerName to '' and readyDestination to 'session'", () => {
+    const config = defaultConfig('linux')
+    expect(config.playerName).toBe('')
+    expect(config.readyDestination).toBe('session')
   })
 
   it('enables the linux desktop integration on linux only', () => {
@@ -68,6 +76,39 @@ describe('config store', () => {
     expect(store.get()).toEqual(defaultConfig('win32'))
   })
 
+  it('stores a trimmed playerName and the last ready destination', () => {
+    const store = createConfigStore(file, 'win32')
+    const next = store.update({ playerName: '  Tristan ', readyDestination: 'studio' })
+    expect(next.playerName).toBe('Tristan')
+    expect(next.readyDestination).toBe('studio')
+    const reloaded = createConfigStore(file, 'win32').get()
+    expect(reloaded.playerName).toBe('Tristan')
+    expect(reloaded.readyDestination).toBe('studio')
+    // An empty name is allowed: the YAML then falls back to Player{number}.
+    expect(store.update({ playerName: '   ' }).playerName).toBe('')
+  })
+
+  it('accepts a 16-character playerName and rejects a longer one with INVALID_INPUT', () => {
+    const store = createConfigStore(file, 'win32')
+    expect(store.update({ playerName: 'x'.repeat(16) }).playerName).toBe('x'.repeat(16))
+    // The limit applies to the trimmed name.
+    expect(store.update({ playerName: ` ${'y'.repeat(16)} ` }).playerName).toBe('y'.repeat(16))
+    expect(() => store.update({ playerName: 'x'.repeat(17) })).toThrow(/INVALID_INPUT/)
+    expect(store.get().playerName).toBe('y'.repeat(16))
+  })
+
+  it('rejects a playerName longer than 16 characters', () => {
+    const store = createConfigStore(file, 'win32')
+    expect(() => store.update({ playerName: 'a-very-long-player-name' })).toThrow(/INVALID_INPUT/)
+    expect(store.get()).toEqual(defaultConfig('win32'))
+  })
+
+  it('rejects an unknown readyDestination', () => {
+    const store = createConfigStore(file, 'win32')
+    expect(() => store.update({ readyDestination: 'cloud' } as never)).toThrow(/INVALID_INPUT/)
+    expect(store.get().readyDestination).toBe('session')
+  })
+
   it('updateInternal changes main-only fields and merges nested objects', () => {
     const bus = createEventBus(silentLogger)
     const changed = vi.fn()
@@ -96,6 +137,15 @@ describe('config store', () => {
       ...defaults,
       showAfterDark: true,
       effects: { ...defaults.effects, glow: false },
+    })
+
+    writeFileSync(
+      join(dir, 'names.json'),
+      JSON.stringify({ playerName: 'x'.repeat(40), readyDestination: 'cloud', showAfterDark: true }),
+    )
+    expect(createConfigStore(join(dir, 'names.json'), 'win32').get()).toEqual({
+      ...defaults,
+      showAfterDark: true,
     })
   })
 

@@ -101,6 +101,68 @@ describe('settings screen', () => {
     expect(screen.getByRole('switch', { name: 'Mondes 18+' })).toHaveAttribute('aria-checked', 'true')
   })
 
+  it('edits the player name from the settings', async () => {
+    const { user, goat } = await renderSettings()
+    const field = screen.getByRole('textbox', { name: 'Nom du joueur' })
+    expect(field).toHaveValue('')
+    expect(field).toHaveAccessibleDescription(/Utilisé pour les YAML créés par l’app/)
+
+    await user.type(field, 'Tristan')
+    // Saved when the field is left, not at every keystroke.
+    expect(goat.inputsOf('app:setConfig')).toEqual([])
+    await user.tab()
+
+    expect(goat.inputsOf('app:setConfig')).toEqual([{ playerName: 'Tristan' }])
+    expect(goat.config().playerName).toBe('Tristan')
+    expect(field).toHaveValue('Tristan')
+  })
+
+  it('saves the player name on Enter, trimmed, and only when it changed', async () => {
+    const { user, goat } = await renderSettings({ config: { playerName: 'Tristan' } })
+    const field = screen.getByRole('textbox', { name: 'Nom du joueur' })
+    expect(field).toHaveValue('Tristan')
+
+    // Left as it was: nothing to save.
+    await user.type(field, ' ')
+    await user.tab()
+    expect(goat.inputsOf('app:setConfig')).toEqual([])
+    expect(field).toHaveValue('Tristan')
+
+    await user.clear(field)
+    await user.type(field, '  Goat  {Enter}')
+    expect(goat.inputsOf('app:setConfig')).toEqual([{ playerName: 'Goat' }])
+    await waitFor(() => expect(field).toHaveValue('Goat'))
+
+    // An empty name is a valid choice: the YAML files are then named Player{number}.
+    await user.clear(field)
+    await user.tab()
+    expect(goat.inputsOf('app:setConfig')).toEqual([{ playerName: 'Goat' }, { playerName: '' }])
+  })
+
+  it('stops the player name at 16 characters, the slot name limit', async () => {
+    const { user } = await renderSettings()
+    const field = screen.getByRole('textbox', { name: 'Nom du joueur' })
+    await user.type(field, 'abcdefghijklmnopqrst')
+    expect(field).toHaveValue('abcdefghijklmnop')
+  })
+
+  it('a refused player name goes back to the saved one and says why', async () => {
+    const { user } = await renderSettings({
+      config: { playerName: 'Tristan' },
+      handlers: {
+        'app:setConfig': () => {
+          throw new AppError('INVALID_INPUT')
+        },
+      },
+    })
+    const field = screen.getByRole('textbox', { name: 'Nom du joueur' })
+    await user.clear(field)
+    await user.type(field, 'Goat')
+    await user.tab()
+    expect(await screen.findByText('Requête invalide')).toBeInTheDocument()
+    expect(field).toHaveValue('Tristan')
+  })
+
   it('a refused config change rolls the switch back and says why', async () => {
     const { user } = await renderSettings({
       handlers: {

@@ -34,6 +34,10 @@ export interface AppConfig {
   /** A local server was hosted once: Windows already asked to let it through its firewall. */
   firstLocalHostDone: boolean
   webhostUrl: string
+  /** Player name in the YAML files the app creates (a slot name: 16 characters at most); empty means `Player{number}`. */
+  playerName: string
+  /** Where the last "Jeu prêt" went, offered again the next time. */
+  readyDestination: 'session' | 'file' | 'studio'
 }
 
 export interface ApPaths {

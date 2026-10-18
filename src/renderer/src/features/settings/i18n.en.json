@@ -12,7 +12,9 @@
     },
     "languageHint": "Auto follows the system language (here: {{language}}).",
     "afterDark": "18+ worlds",
-    "afterDarkHint": "Also show adults-only worlds in the catalog."
+    "afterDarkHint": "Also show adults-only worlds in the catalog.",
+    "playerName": "Player name",
+    "playerNameHint": "Used in the YAML files the app creates."
   },
   "effects": {
     "eyebrow": "FX",

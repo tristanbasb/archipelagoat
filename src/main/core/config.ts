@@ -1,7 +1,7 @@
 // The app settings (userData/config.json): deep-merged updates, atomic writes, config:changed events.
 import { z } from 'zod'
 import { AppError } from '@shared/errors'
-import { AppConfigPatch } from '@shared/ipc/app'
+import { AppConfigPatch, PLAYER_NAME_MAX } from '@shared/ipc/app'
 import { describeZodError } from '@shared/ipc/contract'
 import type { AppConfig, OS } from '@shared/types'
 import type { EventBus } from './events'
@@ -34,6 +34,8 @@ export function defaultConfig(os: OS): AppConfig {
     firstRunDone: false,
     firstLocalHostDone: false,
     webhostUrl: 'https://archipelago.gg',
+    playerName: '',
+    readyDestination: 'session',
   }
 }
 
@@ -53,6 +55,8 @@ const StoredConfig = z.object({
   firstRunDone: flag,
   firstLocalHostDone: flag,
   webhostUrl: z.string().min(1).optional().catch(undefined),
+  playerName: z.string().trim().max(PLAYER_NAME_MAX).optional().catch(undefined),
+  readyDestination: z.enum(['session', 'file', 'studio']).optional().catch(undefined),
 })
 
 type ConfigPatch = {

@@ -49,6 +49,8 @@ export const TEST_CONFIG: AppConfig = {
   firstRunDone: true,
   firstLocalHostDone: false,
   webhostUrl: 'https://archipelago.gg',
+  playerName: '',
+  readyDestination: 'session',
 }
 
 export const TEST_INFO: AppInfo = {

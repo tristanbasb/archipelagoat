@@ -2,6 +2,9 @@ import { z } from 'zod'
 import type { AppConfig, AppInfo, OpenRequest } from '../types'
 import { channel, nonEmpty, voidInput } from './contract'
 
+/** The longest slot name Archipelago accepts. */
+export const PLAYER_NAME_MAX = 16
+
 export const EffectsSchema = z.strictObject({
   crt: z.boolean(),
   glow: z.boolean(),
@@ -23,6 +26,8 @@ export const AppConfigPatch = z
     allowPlaintextSecrets: z.boolean(),
     firstRunDone: z.boolean(),
     firstLocalHostDone: z.boolean(),
+    playerName: z.string().trim().max(PLAYER_NAME_MAX),
+    readyDestination: z.enum(['session', 'file', 'studio']),
   })
   .partial()
 

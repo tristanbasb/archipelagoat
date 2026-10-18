@@ -12,7 +12,9 @@
     },
     "languageHint": "Auto suit la langue du système (ici\u00a0: {{language}}).",
     "afterDark": "Mondes 18+",
-    "afterDarkHint": "Montre aussi les mondes réservés aux adultes dans le catalogue."
+    "afterDarkHint": "Montre aussi les mondes réservés aux adultes dans le catalogue.",
+    "playerName": "Nom du joueur",
+    "playerNameHint": "Utilisé pour les YAML créés par l’app."
   },
   "effects": {
     "eyebrow": "FX",

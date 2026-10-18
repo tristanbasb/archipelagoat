@@ -203,6 +203,14 @@ describe('ipc contract', () => {
     expect(input.safeParse({ webhostUrl: 'https://evil.example' }).success).toBe(false)
   })
 
+  it('app:setConfig takes the player name (16 characters at most) and the last ready destination', () => {
+    const input = channels['app:setConfig'].input
+    expect(input.safeParse({ playerName: 'Tristan', readyDestination: 'file' }).success).toBe(true)
+    expect(input.safeParse({ playerName: '' }).success).toBe(true)
+    expect(input.safeParse({ playerName: 'x'.repeat(17) }).success).toBe(false)
+    expect(input.safeParse({ readyDestination: 'cloud' }).success).toBe(false)
+  })
+
   it('validates nested shared types', () => {
     expect(channels['session:update'].input.safeParse({ id: 's', rules: RULE_PRESETS.race }).success).toBe(
       true,

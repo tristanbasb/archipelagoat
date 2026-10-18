@@ -26,6 +26,8 @@ const FALLBACK_CONFIG: AppConfig = {
   firstRunDone: false,
   firstLocalHostDone: false,
   webhostUrl: 'https://archipelago.gg',
+  playerName: '',
+  readyDestination: 'session',
 }
 
 const useConfigStore = create<{ config: AppConfig | null }>(() => ({ config: null }))
