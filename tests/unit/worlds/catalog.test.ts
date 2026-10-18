@@ -1398,7 +1398,8 @@ describe('createCatalog', () => {
     expect(remote.requests).toEqual([])
   })
 
-  it('the saved catalog of the previous version is dropped and fetched again', async () => {
+  /** The catalog file as 0.1 saved it (version 2): this one, its wiki pages without their cover. */
+  async function savedBy01(): Promise<{ file: string; older: Record<string, unknown> }> {
     await newCatalog().snapshot(false)
     const file = join(catalogDir(), 'catalog.json')
     const saved = JSON.parse(readFileSync(file, 'utf8')) as {
@@ -1407,7 +1408,6 @@ describe('createCatalog', () => {
     }
     expect(saved.version).toBe(3)
     expect(saved.wiki.pages.some((page) => typeof page.cover === 'string')).toBe(true)
-    // What version 2 wrote: wiki pages without their cover.
     const older = {
       ...saved,
       version: 2,
@@ -1418,7 +1418,42 @@ describe('createCatalog', () => {
         ),
       },
     }
+    return { file, older }
+  }
+
+  it('reads back the catalog 0.1 saved (version 2), without covers, even offline', async () => {
+    const { file, older } = await savedBy01()
     writeFileSync(file, JSON.stringify(older))
+    // The first launch of 0.2, offline.
+    remote.offline = true
+    remote.requests = []
+    clock = START + 2 * HOUR
+
+    const again = newCatalog()
+    expect(again.lookup('pmd_eos')?.latest?.sha256).toBe(SHA.pmd032)
+    expect(again.lookup('wiki:Hexcells Infinite')).toMatchObject({
+      download: { kind: 'github-latest', repo: 'chainsawkitten/hexcellsinfiniteap' },
+      cover: null,
+    })
+    const offline = await again.snapshot(false)
+    expect(offline).toMatchObject({
+      fetchedAt: '2026-10-17T08:00:00.000Z',
+      stale: true,
+      errors: ['NETWORK_OFFLINE'],
+    })
+    expect(offline.entries).toHaveLength(13)
+    expect(offline.entries.filter((entry) => entry.cover !== null)).toEqual([])
+
+    // Online again: the covers come with the next refresh, saved as version 3.
+    remote.offline = false
+    await again.snapshot(true)
+    expect(again.lookup('wiki:Frogmonster')?.cover).toContain('/300px-Frogmonster.jpg')
+    expect((JSON.parse(readFileSync(file, 'utf8')) as { version: number }).version).toBe(3)
+  })
+
+  it('a saved catalog of another version is dropped and fetched again', async () => {
+    const { file, older } = await savedBy01()
+    writeFileSync(file, JSON.stringify({ ...older, version: 1 }))
     remote.requests = []
     clock = START + HOUR / 2
 

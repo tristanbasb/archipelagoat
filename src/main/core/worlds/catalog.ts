@@ -894,6 +894,23 @@ const savedSchema = z.object({
     .nullable(),
 })
 
+/**
+ * A file saved by 0.1 (version 2) as version 3: the same, its wiki pages without a cover until the next
+ * refresh, so that a first launch offline still has its catalog. Any other version is left as it is
+ * (and dropped).
+ */
+function fromVersion2(data: unknown): unknown {
+  if (!isTable(data) || data.version !== 2) return data
+  const { wiki } = data
+  if (!isTable(wiki) || !Array.isArray(wiki.pages)) return { ...data, version: SAVED_VERSION }
+  const pages: unknown[] = wiki.pages
+  return {
+    ...data,
+    version: SAVED_VERSION,
+    wiki: { ...wiki, pages: pages.map((page) => (isTable(page) ? { ...page, cover: null } : page)) },
+  }
+}
+
 const treeSchema = z.object({
   tree: z.array(z.object({ path: z.string(), type: z.string(), sha: z.string() })),
 })
@@ -942,7 +959,7 @@ export function createCatalog(ctx: CoreContext, deps: CatalogDeps): Catalog {
   const now = deps.now ?? Date.now
   const optOut = deps.optOut ?? optOutList
 
-  const saved = savedSchema.safeParse(readJsonSync(savedFile))
+  const saved = savedSchema.safeParse(fromVersion2(readJsonSync(savedFile)))
   let ionium: IoniumData | null = null
   let wiki: WikiData | null = null
   let fetchedAt: string | null = null
