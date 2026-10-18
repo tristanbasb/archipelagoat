@@ -272,6 +272,37 @@ describe('app shell', () => {
     expect(screen.queryByText(/Génération de la partie/)).toBeNull()
   })
 
+  it('a measure or a search for settings is told by the session wizard that asked for it, by a toast anywhere else', async () => {
+    // In the wizard, the Checks panel shows how it ended.
+    const inWizard = await renderApp({ route: '/session/new', handlers: { 'session:list': () => [] } })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Partie' })).toBeInTheDocument()
+    inWizard.goat.emit('task:done', { taskId: 'm1', kind: 'measure', result: null })
+    inWizard.goat.emit('task:failed', { taskId: 'm2', kind: 'measure', error: { code: 'MEASURE_TIMEOUT' } })
+    // A task of another screen still toasts: the silence above is the measure's.
+    inWizard.goat.emit('task:done', { taskId: 'a1', kind: 'ap-install', result: null })
+    expect(await screen.findByText('Archipelago est installé')).toBeInTheDocument()
+    expect(screen.queryByText('Les checks sont mesurés')).toBeNull()
+    expect(screen.queryByText(/^Échec\s: Mesure des checks$/)).toBeNull()
+    cleanup()
+
+    // Elsewhere it is a toast, leading to the sessions.
+    const { goat, user } = await renderApp({ handlers: { 'ap:detect': () => null } })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Accueil' })).toBeInTheDocument()
+    goat.emit('task:done', { taskId: 'm3', kind: 'measure', result: null })
+    goat.emit('task:failed', { taskId: 'm5', kind: 'measure', error: { code: 'MEASURE_TIMEOUT' } })
+    expect(await screen.findByText(/^Échec\s: Mesure des checks$/)).toBeInTheDocument()
+    const done = await screen.findByText('Les checks sont mesurés')
+    await user.click(
+      within(done.closest('[role="status"], [role="alert"], li, div') as HTMLElement).getByRole('button', {
+        name: 'Voir',
+      }),
+    )
+    expect(await screen.findByRole('heading', { level: 1, name: 'Partie' })).toBeInTheDocument()
+    // And on its screen again, a failure is the panel's to tell: no second toast.
+    goat.emit('task:failed', { taskId: 'm4', kind: 'measure', error: { code: 'MEASURE_TIMEOUT' } })
+    expect(screen.getAllByText(/^Échec\s: Mesure des checks$/)).toHaveLength(1)
+  })
+
   it('names the stage of the running task in the status bar, never its raw code', async () => {
     const { goat, user } = await renderApp()
     const bar = screen.getByRole('contentinfo', { name: 'Barre d’état' })

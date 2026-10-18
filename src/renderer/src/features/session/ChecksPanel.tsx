@@ -33,6 +33,7 @@ import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useTask } from '../../hooks/useTask'
 import { describeError } from '../../lib/errors'
 import { stageLabel } from '../../lib/task-stages'
+import { useTasksStore } from '../../stores/tasks'
 import { PlayerGames } from './PlayerGames'
 import './ChecksPanel.css'
 
@@ -141,7 +142,6 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
     onSuccess: ({ taskId }) => setMeasureId(taskId),
   })
   const measureTask = useTask(measureId)
-  const measuring = startMeasure.isPending || (measureId !== null && measureTask.status === 'running')
   const failed: AppErrorData | null =
     startMeasure.error ?? (measureTask.status === 'failed' ? measureTask.error : null)
   // A measure that was cancelled elsewhere says nothing.
@@ -170,6 +170,24 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
   const searching = suggestion !== null && suggestFailure === null && !suggestDone ? suggestion : null
   // A suggestion that was cancelled elsewhere says nothing.
   const dialogOpen = suggestDone || (suggestFailure !== null && suggestFailure.code !== 'TASK_CANCELLED')
+
+  // A run of the panel is followed by its id. One it did not start, or lost track of when the step was
+  // left and come back to, is found among the running `measure` tasks the app knows (a task's kind is
+  // known from its first event): it keeps the panel busy and shows its progress, as the first run did.
+  const otherRun = useTasksStore((state) =>
+    searching === null
+      ? (Object.values(state.tasks).find(
+          (task) =>
+            task.kind === 'measure' &&
+            task.status === 'running' &&
+            task.taskId !== measureId &&
+            task.taskId !== suggestion?.taskId,
+        ) ?? null)
+      : null,
+  )
+  const ownRun = measureId !== null && measureTask.status === 'running'
+  const measuring = startMeasure.isPending || ownRun || otherRun !== null
+  const measureProgress = ownRun ? measureTask.progress : (otherRun?.progress ?? null)
 
   const suggest = (row: Row, exact: Exact): void => {
     if (target === null || goal === null || exact.game === null) return
@@ -287,9 +305,9 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
         <ProgressBar
           className="checks-panel__progress"
           tone="cyan"
-          percent={measureTask.progress?.percent ?? null}
-          label={stageLabel(measureTask.progress, t) ?? p('measuring')}
-          valueText={playersDone(measureTask.progress?.detail, p)}
+          percent={measureProgress?.percent ?? null}
+          label={stageLabel(measureProgress, t) ?? p('measuring')}
+          valueText={playersDone(measureProgress?.detail, p)}
         />
       )}
       {searching && (

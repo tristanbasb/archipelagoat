@@ -23,7 +23,8 @@ const EVENT_INVALIDATIONS = {
   'worlds:changed': ['worlds:list', 'doctor:run', 'studio:games', 'catalog:list'],
   // The table of the sizes of the games changed (the datapackage was refreshed, a game was generated).
   'checks:changed': ['checks:estimate'],
-  // A generation read the exact checks of its players from its multidata before it ended.
+  // A generation read the exact checks of its players from its multidata before it ended; a measure
+  // (which the check step may have been left during) wrote them.
   'task:done': ['checks:lastSession'],
   // A local server started, stopped or crashed: its game is live, or over (the main process records
   // that before it sends the state).
@@ -49,7 +50,7 @@ export function useEventInvalidation(): void {
   useEvent('worlds:changed', () => refresh(EVENT_INVALIDATIONS['worlds:changed']))
   useEvent('checks:changed', () => refresh(EVENT_INVALIDATIONS['checks:changed']))
   useEvent('task:done', ({ kind }) => {
-    if (kind === 'generate') refresh(EVENT_INVALIDATIONS['task:done'])
+    if (kind === 'generate' || kind === 'measure') refresh(EVENT_INVALIDATIONS['task:done'])
   })
   useEvent('server:state', () => refresh(EVENT_INVALIDATIONS['server:state']))
 

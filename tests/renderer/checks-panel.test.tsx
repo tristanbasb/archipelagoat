@@ -13,7 +13,7 @@ import type {
 import { ChecksPanel } from '@renderer/features/session/ChecksPanel'
 import { StepCheck } from '@renderer/features/session/StepCheck'
 import { installGoatMock, type GoatHandlers } from './goat-mock'
-import { renderWithProviders } from './render-app'
+import { renderApp, renderWithProviders } from './render-app'
 
 const NOW = '2026-10-18T10:00:00.000Z'
 const COVER = `goat-cover://${'cd'.repeat(32)}.jpg`
@@ -69,6 +69,15 @@ const KNIGHT = counted('f3', 'Knight', 'Hollow Knight', 200)
 
 /** The median is 110: Knight is 82 % above it, the other two are within a quarter of it. */
 const MEASURED: SessionChecks = { measuredAt: NOW, players: [LINK(), MADELINE(), KNIGHT()] }
+
+/** A check that finds nothing to fix. */
+const READY: SessionValidation = {
+  files: SESSION.players.map((file) => ({ fileId: file.id, docs: file.docs })),
+  sessionIssues: [],
+  missingWorlds: [],
+  romNeeds: [],
+  blocking: false,
+}
 
 const PROPOSALS: BalanceProposal[] = [
   {
@@ -590,14 +599,7 @@ describe('ChecksPanel', () => {
   })
 
   it('is informative: the check step goes on with a flagged player', async () => {
-    const validation: SessionValidation = {
-      files: SESSION.players.map((file) => ({ fileId: file.id, docs: file.docs })),
-      sessionIssues: [],
-      missingWorlds: [],
-      romNeeds: [],
-      blocking: false,
-    }
-    installGoatMock({ 'checks:lastSession': () => MEASURED, 'session:validate': () => validation })
+    installGoatMock({ 'checks:lastSession': () => MEASURED, 'session:validate': () => READY })
     const onNext = vi.fn()
     const { user } = await renderWithProviders(
       <StepCheck session={SESSION} onBack={vi.fn()} onNext={onNext} />,
@@ -609,5 +611,47 @@ describe('ChecksPanel', () => {
     expect(next).toBeEnabled()
     await user.click(next)
     expect(onNext).toHaveBeenCalledOnce()
+  })
+
+  it('keeps following a measure when the step is left and come back to, and reads its end', async () => {
+    let last: SessionChecks | null = null
+    const { goat, user } = await renderApp({
+      route: '/session/s1?step=2',
+      config: { effects: { crt: false, glow: false, animations: false, sounds: false } },
+      handlers: {
+        'session:get': () => SESSION,
+        'session:validate': () => READY,
+        'checks:lastSession': () => last,
+        'checks:measureSession': () => ({ taskId: 'm1' }),
+      },
+    })
+    await user.click(await screen.findByRole('button', { name: 'Mesurer les checks' }))
+    await waitFor(() => expect(goat.inputsOf('checks:measureSession')).toHaveLength(1))
+    goat.emit('task:progress', {
+      taskId: 'm1',
+      kind: 'measure',
+      stage: 'generate',
+      percent: 40,
+      detail: { done: 1, total: 3 },
+    })
+    expect(await screen.findByRole('progressbar', { name: 'Générations de test' })).toBeInTheDocument()
+
+    // Next, then back: the panel is mounted again, and the run goes on.
+    await user.click(screen.getByRole('button', { name: 'Suivant' }))
+    await screen.findByRole('group', { name: 'Règles' })
+    expect(screen.queryByRole('region', { name: 'Checks' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Précédent' }))
+    const bar = await screen.findByRole('progressbar', { name: 'Générations de test' })
+    expect(bar).toHaveAttribute('aria-valuenow', '40')
+    expect(bar).toHaveAttribute('aria-valuetext', '1 sur 3 joueurs')
+    expect(screen.getByRole('button', { name: 'Mesurer les checks' })).toBeDisabled()
+    expect(goat.inputsOf('checks:measureSession')).toHaveLength(1)
+
+    // It ends while this panel is not the one that started it: the rows are read again.
+    last = MEASURED
+    goat.emit('task:done', { taskId: 'm1', kind: 'measure', result: MEASURED })
+    expect(await within(rowOf('Knight')).findByText('200')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Mesurer les checks' })).toBeEnabled()
   })
 })

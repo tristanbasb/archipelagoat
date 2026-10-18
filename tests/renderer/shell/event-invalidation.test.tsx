@@ -93,17 +93,21 @@ describe('query invalidation on main-process events', () => {
     expect(invalidated).toEqual(['checks:estimate'])
   })
 
-  it('a finished generation refreshes the last checks of the sessions, read from its multidata', async () => {
+  it('a finished generation or measure refreshes the last checks of the sessions, whatever the screen', async () => {
     const { goat, queryClient } = await renderApp({ route: '/settings', handlers: { 'ap:detect': () => AP } })
     await screen.findByRole('heading', { level: 1, name: 'Réglages' })
     const invalidated = recordInvalidations(queryClient)
 
+    // A generation read the counts from its multidata; a measure, which the check step may have been
+    // left during, wrote them.
     goat.emit('task:done', { taskId: 'g1', kind: 'generate', result: null })
     expect(invalidated).toEqual(['checks:lastSession'])
+    goat.emit('task:done', { taskId: 'm1', kind: 'measure', result: null })
+    expect(invalidated).toEqual(['checks:lastSession', 'checks:lastSession'])
 
     // Any other task ending leaves them as they are.
     goat.emit('task:done', { taskId: 'i1', kind: 'ap-install', result: null })
-    expect(invalidated).toEqual(['checks:lastSession'])
+    expect(invalidated).toEqual(['checks:lastSession', 'checks:lastSession'])
   })
 
   it('server:state refreshes the sessions: a server that starts or ends makes its game live or over', async () => {

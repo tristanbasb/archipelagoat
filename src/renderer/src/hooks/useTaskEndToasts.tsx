@@ -40,6 +40,10 @@ export function taskOwner(kind: TaskKind, taskId: string, failed: boolean): Owne
       return screen('/join')
     case 'templates':
       return screen('/studio')
+    case 'measure':
+      // Asked from the Checks panel of a session's check step (a measure, or a search for settings),
+      // which tells how it ended; elsewhere the toast leads to the sessions.
+      return { to: '/session/new', shows: (pathname) => pathname.startsWith('/session/') }
     case 'generate':
     case 'webhost-host': {
       const id = sessionOfTask(taskId)
