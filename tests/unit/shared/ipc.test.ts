@@ -50,6 +50,7 @@ const CHANNEL_TABLE = [
   'worlds:setEnabled',
   'worlds:remove',
   'catalog:list',
+  'checks:estimate',
   'covers:get',
   'studio:games',
   'studio:schema',
@@ -275,6 +276,7 @@ describe('ipc events', () => {
         'app:quitRequested',
         'config:changed',
         'worlds:changed',
+        'checks:changed',
         'ap:installed',
       ].sort(),
     )

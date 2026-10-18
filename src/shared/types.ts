@@ -565,3 +565,19 @@ export interface ServerHistory {
   events: ServerEvent[]
   log: string[]
 }
+
+/** The three ways to play a game that the profiles offer (spec §2.3). */
+export type ProfileId = 'discovery' | 'standard' | 'complete'
+
+/** The checks of each profile of a game, for the profiles that are known. */
+export type ProfileCounts = Partial<Record<ProfileId, number>>
+
+/**
+ * What is known about the size of a game before generating anything: `max` is the number of
+ * locations the game can have (the datapackage), null when no table knows it; `profiles` is null
+ * until the profiles are computed.
+ */
+export interface GameEstimate {
+  max: number | null
+  profiles: ProfileCounts | null
+}

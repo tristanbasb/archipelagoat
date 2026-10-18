@@ -559,6 +559,95 @@ describe('WorldsScreen', () => {
     expect(hollowKnight.querySelector('img')).toBeNull()
   })
 
+  it('shows on a card how many checks the game can have, and nothing when it is not known', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'checks:estimate': ({ games }) =>
+        Object.fromEntries(
+          games.map((game) => [game, { max: game === 'Hollow Knight' ? 740 : null, profiles: null }]),
+        ),
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+
+    const hollowKnight = within(grid).getByRole('article', { name: 'Hollow Knight' })
+    expect(await within(hollowKnight).findByText('jusqu’à 740 checks')).toBeInTheDocument()
+    const celeste = within(grid).getByRole('article', { name: 'Celeste' })
+    expect(within(celeste).queryByText(/jusqu’à/)).toBeNull()
+    // One ask for the whole page of cards, not one per card.
+    expect(goat.inputsOf('checks:estimate')).toEqual([
+      { games: ['Celeste', 'Hollow Knight', 'Pokemon Emerald'] },
+    ])
+  })
+
+  it('writes the checks in the language of the app, one check in the singular', async () => {
+    installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'checks:estimate': ({ games }) =>
+        Object.fromEntries(
+          games.map((game) => [game, { max: game === 'Celeste' ? 1 : 1623, profiles: null }]),
+        ),
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog', lang: 'en' })
+    const grid = await screen.findByRole('list', { name: 'Catalog worlds' })
+
+    const celeste = within(grid).getByRole('article', { name: 'Celeste' })
+    expect(await within(celeste).findByText('up to 1 check')).toBeInTheDocument()
+    expect(
+      within(within(grid).getByRole('article', { name: 'Hollow Knight' })).getByText('up to 1623 checks'),
+    ).toBeInTheDocument()
+
+    await act(() => i18n.changeLanguage('fr'))
+    expect(within(celeste).getByText('jusqu’à 1 check')).toBeInTheDocument()
+  })
+
+  it('asks for the estimates of the cards on the page, and of those a "show more" adds', async () => {
+    const many = Array.from({ length: 60 }, (_, n) =>
+      entry({ id: `world_${String(n).padStart(2, '0')}`, game: `World ${String(n).padStart(2, '0')}` }),
+    )
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => ({ ...SNAPSHOT, entries: many }),
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    await waitFor(() => expect(goat.inputsOf('checks:estimate')).toHaveLength(1))
+    expect(goat.inputsOf('checks:estimate')[0]?.games).toHaveLength(48)
+
+    await user.click(screen.getByRole('button', { name: /Afficher plus/ }))
+    await waitFor(() => expect(goat.inputsOf('checks:estimate')).toHaveLength(2))
+    expect(goat.inputsOf('checks:estimate')[1]?.games).toHaveLength(60)
+  })
+
+  it('shows the estimates a refresh of the datapackage brings, without leaving the catalog', async () => {
+    let refreshed = false
+    const { goat } = await renderApp({
+      route: '/worlds?tab=catalog',
+      handlers: {
+        'worlds:list': () => WORLDS,
+        'catalog:list': () => SNAPSHOT,
+        'checks:estimate': ({ games }) =>
+          Object.fromEntries(
+            games.map((game) => [
+              game,
+              { max: refreshed && game === 'Celeste' ? 700 : null, profiles: null },
+            ]),
+          ),
+      },
+    })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    const celeste = within(grid).getByRole('article', { name: 'Celeste' })
+    await waitFor(() => expect(goat.inputsOf('checks:estimate')).toHaveLength(1))
+    expect(within(celeste).queryByText(/jusqu’à/)).toBeNull()
+
+    // The first ask of a run starts the refresh in main, which says when the table has changed.
+    refreshed = true
+    goat.emit('checks:changed', null)
+    expect(await within(celeste).findByText('jusqu’à 700 checks')).toBeInTheDocument()
+  })
+
   it('credits the wiki for the game images as well, under its license', async () => {
     installGoatMock({ 'worlds:list': () => WORLDS, 'catalog:list': () => SNAPSHOT })
     await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog', lang: 'fr' })

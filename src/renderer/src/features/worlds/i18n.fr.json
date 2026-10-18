@@ -145,6 +145,8 @@
     "by": "par {{name}}",
     "version": "v{{version}}",
     "latestRelease": "Dernière version sur GitHub",
+    "maxChecks_one": "jusqu’à {{count}} check",
+    "maxChecks_other": "jusqu’à {{count}} checks",
     "romHelp": "Il faut ta propre ROM du jeu pour générer une partie. ArchipelaGOAT n’en fournit aucune.",
     "popTrackerHelp": "Un pack PopTracker existe pour suivre ta progression.",
     "afterDarkHelp": "Contenu pour adultes.",

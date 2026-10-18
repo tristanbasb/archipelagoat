@@ -126,6 +126,9 @@ export function installGoatMock(handlers: GoatHandlers = {}, options: GoatMockOp
     'tasks:list': () => [],
     // No game has a cover unless a test says so: the pixel sprite stays.
     'covers:get': () => ({ url: null }),
+    // And no size is known for any game.
+    'checks:estimate': ({ games }) =>
+      Object.fromEntries(games.map((game) => [game, { max: null, profiles: null }])),
   }
   const table = { ...defaults, ...handlers } as Record<string, ((input: unknown) => unknown) | undefined>
 

@@ -269,6 +269,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+.catalog-card__checks {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .catalog-card__maintainer {
   overflow: hidden;
   text-overflow: ellipsis;

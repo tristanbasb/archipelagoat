@@ -27,6 +27,8 @@ export type EventPayloads = {
   'app:quitRequested': QuitRequest
   'config:changed': AppConfig
   'worlds:changed': null
+  /** The table of game sizes changed (datapackage refreshed, or a game generated for the first time). */
+  'checks:changed': null
   /**
    * The install the app uses changed: installed or updated by the app, or installed, updated or
    * removed outside it (null when none is left).

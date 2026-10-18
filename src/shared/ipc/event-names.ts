@@ -12,6 +12,7 @@ export const EVENT_NAMES = [
   'app:quitRequested',
   'config:changed',
   'worlds:changed',
+  'checks:changed',
   'ap:installed',
 ] as const
 

@@ -1,7 +1,7 @@
 // The "Catalog" tab: the worlds of the community index for this Archipelago version, joined with
 // the Archipelago wiki (status, maintainer, categories), then the worlds only the wiki lists. Search,
 // filters, and an install button that goes through the trust screen.
-import { useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQueryClient } from '@tanstack/react-query'
 import {
   IconArrowBigUpLines,
   IconBook2,
@@ -355,14 +355,7 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
         </div>
       </div>
 
-      {/* Kept mounted when empty, so that the list does not jump in and out while typing. */}
-      <ul className="catalog-grid" aria-label={t('screens.worlds.catalog.listLabel')}>
-        {shown.slice(0, limit).map((entry) => (
-          <li key={entry.id}>
-            <CatalogCard entry={entry} onInstall={onInstall} onOpen={open} />
-          </li>
-        ))}
-      </ul>
+      <CatalogCards entries={shown.slice(0, limit)} onInstall={onInstall} onOpen={open} />
 
       {shown.length > limit && (
         <div className="worlds-catalog__more">
@@ -498,7 +491,46 @@ interface CatalogCardProps {
   onOpen: (url: string) => void
 }
 
-function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.Element {
+/**
+ * The cards of the page. One ask gives the size of every game of the page (not one per card); it
+ * is answered from the tables on disk, and asked again when main says they changed.
+ */
+function CatalogCards({
+  entries,
+  onInstall,
+  onOpen,
+}: { entries: CatalogEntry[] } & Omit<CatalogCardProps, 'entry'>): React.JSX.Element {
+  const { t } = useTranslation()
+  const games = [...new Set(entries.map((entry) => entry.game).filter((game) => game !== ''))]
+  const estimates = useIpcQuery(
+    'checks:estimate',
+    { games },
+    // The page changes with the search: the sizes already known stay while the new ones come.
+    { enabled: games.length > 0, placeholderData: keepPreviousData },
+  )
+  return (
+    // Kept mounted when empty, so that the list does not jump in and out while typing.
+    <ul className="catalog-grid" aria-label={t('screens.worlds.catalog.listLabel')}>
+      {entries.map((entry) => (
+        <li key={entry.id}>
+          <CatalogCard
+            entry={entry}
+            maxChecks={estimates.data?.[entry.game]?.max ?? null}
+            onInstall={onInstall}
+            onOpen={onOpen}
+          />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function CatalogCard({
+  entry,
+  maxChecks,
+  onInstall,
+  onOpen,
+}: CatalogCardProps & { maxChecks: number | null }): React.JSX.Element {
   const { t } = useTranslation()
   const titleId = useId()
   const game = entry.displayName
@@ -548,6 +580,11 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
           {/* Its version is only known once installed: GitHub is not asked for every card. */}
           {!entry.latest && entry.download?.kind === 'github-latest' && (
             <span className="catalog-card__version">{t('screens.worlds.catalog.latestRelease')}</span>
+          )}
+          {maxChecks !== null && (
+            <span className="catalog-card__checks">
+              {t('screens.worlds.catalog.maxChecks', { count: maxChecks })}
+            </span>
           )}
           {maintainer && (
             <span className="catalog-card__maintainer">
