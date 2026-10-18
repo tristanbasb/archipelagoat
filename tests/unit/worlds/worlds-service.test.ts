@@ -44,8 +44,9 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true, maxRetries: 3 }))
 
+const tunicFile = (): string => join(paths.customWorlds, 'tunic.apworld')
 const tunic = (version: string): Promise<string> =>
-  makeApworld(join(paths.customWorlds, 'tunic.apworld'), {
+  makeApworld(tunicFile(), {
     manifest: apworldManifest('TUNIC', { world_version: version }),
   })
 
@@ -62,24 +63,26 @@ describe('worlds service: installedGames', () => {
     })
     await makeApworld(join(core.platform.paths.dataRoot, 'disabled-worlds', 'zork.apworld'), { game: 'Zork' })
     writeFileSync(join(paths.customWorlds, 'broken.apworld'), 'not a zip')
-    expect(await worlds.installedGames()).toEqual(new Map([['TUNIC', { worldVersion: '3.1.0' }]]))
+    expect(await worlds.installedGames()).toEqual(
+      new Map([['TUNIC', { worldVersion: '3.1.0', file: tunicFile() }]]),
+    )
   })
 
   it('is cached until worlds:changed or ap:installed', async () => {
     await tunic('3.1.0')
     stamp(paths.customWorlds)
-    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '3.1.0' })
+    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '3.1.0', file: tunicFile() })
     // Rewritten in place, the folder's time as it was: the cache answers.
     await tunic('4.0.0')
     stamp(paths.customWorlds)
-    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '3.1.0' })
+    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '3.1.0', file: tunicFile() })
     core.ctx.bus.emit('worlds:changed', null)
-    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '4.0.0' })
+    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '4.0.0', file: tunicFile() })
     await tunic('5.0.0')
     stamp(paths.customWorlds)
-    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '4.0.0' })
+    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '4.0.0', file: tunicFile() })
     core.ctx.bus.emit('ap:installed', install)
-    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '5.0.0' })
+    expect((await worlds.installedGames()).get('TUNIC')).toEqual({ worldVersion: '5.0.0', file: tunicFile() })
     // A copy: changing it does not change the cache.
     ;(await worlds.installedGames()).clear()
     expect((await worlds.installedGames()).has('TUNIC')).toBe(true)
@@ -110,7 +113,7 @@ describe('worlds service: installedGames', () => {
     await tunic('3.1.0')
     const games = await worlds.installedGames()
     expect(games.get('A Link to the Past')).toEqual({ worldVersion: null })
-    expect(games.get('TUNIC')).toEqual({ worldVersion: '3.1.0' })
+    expect(games.get('TUNIC')).toEqual({ worldVersion: '3.1.0', file: tunicFile() })
     expect(games.size).toBeGreaterThan(50)
   })
 
@@ -165,7 +168,7 @@ describe('installedGamesOf', () => {
   ): WorldInfo => ({
     id: `${game}-${worldVersion}`,
     fileName: `${game}.apworld`,
-    path: '',
+    path: `/worlds/${game}.apworld`,
     location: 'custom',
     module: String(game),
     game,
@@ -198,9 +201,9 @@ describe('installedGamesOf', () => {
       ]),
     ).toEqual(
       new Map([
-        ['A', { worldVersion: '2.0.0' }],
-        ['D', { worldVersion: null }],
-        ['B', { worldVersion: '1.0.0' }],
+        ['A', { worldVersion: '2.0.0', file: '/worlds/A.apworld' }],
+        ['D', { worldVersion: null, file: '/worlds/D.apworld' }],
+        ['B', { worldVersion: '1.0.0', file: '/worlds/B.apworld' }],
       ]),
     )
   })

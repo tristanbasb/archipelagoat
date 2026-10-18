@@ -44,6 +44,7 @@ import { SESSION_ID_RE, writeSessionHostYaml } from '../sessions/workspace'
 import { writeFileAtomic } from '../system/fsx'
 import { redact } from '../system/redact'
 import type { TaskHandle } from '../tasks'
+import { loadedWorldVersion } from '../worlds/world-version'
 import { loadYaml11 } from '../yaml/load'
 import { gamesIn, type ValidationContext } from '../yaml/validate'
 import { parsePlayerYaml, renderPlayerYaml } from '../yaml/writer'
@@ -510,8 +511,14 @@ export function createMeasurer(ctx: CoreContext, deps: MeasurerDeps): Measurer {
     const install = await deps.locator.detect()
     if (!install) throw new AppError('AP_NOT_INSTALLED')
     const installed = await deps.worlds.installedGames()
-    // A count holds for these worlds at these versions (Archipelago's own for its core worlds).
-    const worlds = games.map((game) => [game, installed.get(game)?.worldVersion ?? install.version])
+    // A count holds for these worlds at these versions (Archipelago's own for its core worlds, its file
+    // for a custom world without one).
+    const worlds = await Promise.all(
+      games.map(async (game) => [
+        game,
+        (await loadedWorldVersion(installed, game, install.version)) ?? install.version,
+      ]),
+    )
     const yamlHash = createHash('sha256').update(text).digest('hex')
     const keyOf = (seed: number): string => JSON.stringify([worlds, yamlHash, seed])
 

@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,6 +13,7 @@ import {
   type ProfilesDeps,
 } from '@main/core/profiles/profiles'
 import type { TaskHandle } from '@main/core/tasks'
+import { loadedWorldVersion } from '@main/core/worlds/world-version'
 import { loadYaml11 } from '@main/core/yaml/load'
 import { parseTemplate } from '@main/core/yaml/template-parser'
 import { validatePlayerDocs, type ValidationContext } from '@main/core/yaml/validate'
@@ -472,6 +473,30 @@ describe('refined profiles', () => {
     expect(await profiles.get(ASH)).toEqual(heuristicProfiles(schema(ASH)))
   })
 
+  it('a custom world without world_version keeps its refinement until its file is updated', async () => {
+    const world = join(root, 'ash.apworld')
+    writeFileSync(world, 'v1')
+    utimesSync(world, 1_700_000_000, 1_700_000_000)
+    const installed: ValidationContext['installedGames'] = new Map([
+      [ASH, { worldVersion: null, file: world }],
+    ])
+    // The service's own: the version of the world Archipelago loads, its file's for this one.
+    const profiles = createProfiles(core.ctx, {
+      templates: { getSchema: (game) => Promise.resolve(schema(game)) },
+      measurer: fakeMeasurer(100, [['goal', 'races', -45]]),
+      worldVersion: (game) => loadedWorldVersion(installed, game, '0.6.8'),
+    })
+    const refined = await profiles.refine(ASH, taskHandle().handle)
+    expect(await profiles.get(ASH)).toEqual(refined)
+    expect((await profiles.cachedCounts([ASH])).get(ASH)).toMatchObject({ standard: 100 })
+
+    // Updated (the catalog always offers it, its version being unknown): measured anew before it counts.
+    writeFileSync(world, 'version 2')
+    utimesSync(world, 1_700_000_100, 1_700_000_100)
+    expect(await profiles.get(ASH)).toEqual(heuristicProfiles(schema(ASH)))
+    expect((await profiles.cachedCounts([ASH])).get(ASH)).toBeNull()
+  })
+
   it('a game without schema is CHECKS_NO_SCHEMA', async () => {
     const profiles = profilesWith(fakeMeasurer(100))
     const noSchema = { code: 'CHECKS_NO_SCHEMA', params: { game: 'Nowhere' } }
@@ -713,6 +738,28 @@ describe('the profiles service', () => {
     core.ctx.bus.emit('worlds:changed', null)
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(refine).toHaveBeenCalledTimes(2)
+  })
+
+  it('refines again a custom world without world_version once its file is updated', async () => {
+    const file = join(root, 'ash.apworld')
+    writeFileSync(file, 'v1')
+    utimesSync(file, 1_700_000_000, 1_700_000_000)
+    const { refine } = serviceWith({
+      worlds: () => [{ ...world(ASH, 'custom', null), path: file }],
+      installed: [ASH],
+    })
+    core.lifecycle.windowReady()
+
+    // The same file: nothing to refine.
+    core.ctx.bus.emit('worlds:changed', null)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refine).not.toHaveBeenCalled()
+
+    writeFileSync(file, 'version 2')
+    utimesSync(file, 1_700_000_100, 1_700_000_100)
+    core.ctx.bus.emit('worlds:changed', null)
+    await vi.waitFor(() => expect(refine).toHaveBeenCalledTimes(1))
+    expect(refine.mock.calls[0]?.[0]).toBe(ASH)
   })
 
   it('takes the worlds a change finds before the window opened as already there', async () => {

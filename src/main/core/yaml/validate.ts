@@ -10,8 +10,11 @@ import type { GameSchema, Issue, OptionSchema, PlayerDoc, PlayerFile } from '@sh
 import { YamlFloat } from './load'
 
 export interface ValidationContext {
-  /** The games Archipelago loads (exact case), with the world_version of the world it loads. */
-  installedGames: Map<string, { worldVersion: string | null }>
+  /**
+   * The games Archipelago loads (exact case), with the world_version of the world it loads and, for a
+   * custom world, its file (or folder).
+   */
+  installedGames: Map<string, { worldVersion: string | null; file?: string }>
   /** The installed Archipelago version; '' when unknown. */
   apVersion: string
   schemaFor(game: string): GameSchema | undefined

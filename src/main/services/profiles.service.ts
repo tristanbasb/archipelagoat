@@ -6,6 +6,7 @@
 import type { CoreContext } from '@main/core/context'
 import { createProfiles, type Profiles } from '@main/core/profiles/profiles'
 import { startTracked, type TaskHandle } from '@main/core/tasks'
+import { loadedWorldVersion } from '@main/core/worlds/world-version'
 import { AppError } from '@shared/errors'
 import type { GameProfiles } from '@shared/types'
 // The `checks`, `locator` and `templates` entries of Services, used below.
@@ -13,7 +14,7 @@ import type {} from './checks.service'
 import type {} from './locator.service'
 import { defineService } from './registry'
 import type {} from './templates.service'
-import { installedGamesOf, type InstalledGames, type Worlds } from './worlds.service'
+import { installedGamesOf, type Worlds } from './worlds.service'
 
 declare module '@main/services/registry' {
   interface Services {
@@ -88,17 +89,26 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
 
   // --- the worlds installed ---
 
-  /** The custom worlds Archipelago loads, by game; null when they could not be listed. */
-  const customGames = (): Promise<InstalledGames | null> =>
+  /**
+   * The custom worlds Archipelago loads: game → version (its file's for one without world_version,
+   * read now: the file may be replaced later); null when they could not be listed.
+   */
+  const customGames = (): Promise<Map<string, string | null> | null> =>
     deps.worlds.list().then(
-      (worlds) => installedGamesOf(worlds.filter((world) => world.location === 'custom')),
+      async (worlds) => {
+        const games = installedGamesOf(worlds.filter((world) => world.location === 'custom'))
+        const versions = [...games.keys()].map(
+          async (game) => [game, await loadedWorldVersion(games, game, null)] as const,
+        )
+        return new Map(await Promise.all(versions))
+      },
       (error: unknown) => {
         ctx.log.warn('profiles: cannot list the worlds', error)
         return null
       },
     )
   /** The custom worlds as they were at the last look; null before the window opens. */
-  let known: Promise<InstalledGames | null> | null = null
+  let known: Promise<Map<string, string | null> | null> | null = null
   ctx.lifecycle.onWindowReady(() => {
     known ??= customGames()
   })
@@ -109,8 +119,8 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
     if (before === null) return
     void Promise.all([before, after]).then(([was, now]) => {
       if (was === null || now === null) return
-      for (const [game, { worldVersion }] of now) {
-        if (!was.has(game) || was.get(game)?.worldVersion !== worldVersion) refineInBackground(game)
+      for (const [game, version] of now) {
+        if (!was.has(game) || was.get(game) !== version) refineInBackground(game)
       }
     })
   })
@@ -147,12 +157,13 @@ defineService(
   'profiles',
   (ctx, get) => {
     // Resolved on use: nothing is detected nor scanned before a profile is asked for or a world changes.
-    const worldVersion = async (game: string): Promise<string | null> => {
-      const installed = await get('worlds').installedGames()
-      if (!installed.has(game)) return null
-      // A core world has no version of its own: Archipelago's.
-      return installed.get(game)?.worldVersion ?? (await get('locator').detect())?.version ?? null
-    }
+    // A core world has no version of its own: Archipelago's.
+    const worldVersion = async (game: string): Promise<string | null> =>
+      loadedWorldVersion(
+        await get('worlds').installedGames(),
+        game,
+        (await get('locator').detect())?.version ?? null,
+      )
     return createProfilesService(ctx, {
       profiles: createProfiles(ctx, {
         templates: { getSchema: (game) => get('templates').getSchema(game) },

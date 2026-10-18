@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
@@ -12,6 +21,7 @@ import { buildValidationContext, type ValidationContextDeps } from '@main/core/s
 import type { ExecFn } from '@main/core/exec'
 import type { TaskHandle } from '@main/core/tasks'
 import { loadYaml11 } from '@main/core/yaml/load'
+import type { ValidationContext } from '@main/core/yaml/validate'
 import { AppError } from '@shared/errors'
 import type { ApInstall, ApPaths, RomNeed } from '@shared/types'
 import { createTestContext, hostOs, silentLogger, type TestCore } from '../../helpers/core'
@@ -58,7 +68,7 @@ let estimates: CheckEstimates
 let runs: FakeRun[]
 let outcome: (run: FakeRun) => Outcome | Promise<Outcome>
 let romNeeds: (games: readonly string[]) => Promise<RomNeed[]>
-let installed: Map<string, { worldVersion: string | null }>
+let installed: ValidationContext['installedGames']
 let entriesSeen: SettingsEntry[][]
 let measurer: Measurer
 
@@ -323,6 +333,29 @@ describe('measureDoc', () => {
     expect(runs).toHaveLength(2)
     await measureOne(knight.replace('RandomizeGrubs: true', 'RandomizeGrubs: false'), HK)
     expect(runs).toHaveLength(3)
+  })
+
+  it('tells a custom world without world_version by its file: updated, its YAML is measured again', async () => {
+    const world = join(root, 'hollow_knight.apworld')
+    writeFileSync(world, 'v1')
+    utimesSync(world, 1_700_000_000, 1_700_000_000)
+    installed.set(HK, { worldVersion: null, file: world })
+    expect(await measureOne(knight, HK)).toMatchObject({ checks: 203 })
+
+    // The same file: kept, in this run and the next.
+    expect(await measureOne(knight, HK)).toMatchObject({ checks: 203 })
+    const again = createMeasurer(core.ctx, deps())
+    expect(
+      await again.measureDoc({ sessionId: null, game: HK, yamlText: knight, task: taskSpy().handle }),
+    ).toMatchObject({ checks: 203 })
+    expect(runs).toHaveLength(1)
+
+    // Updated (the catalog always offers it, its version being unknown): the count may differ.
+    writeFileSync(world, 'version 2')
+    utimesSync(world, 1_700_000_100, 1_700_000_100)
+    outcome = () => ({ checks: 240 })
+    expect(await measureOne(knight, HK)).toMatchObject({ checks: 240 })
+    expect(runs).toHaveLength(2)
   })
 
   it('a weighted YAML is measured on seeds 42, 1337 and 2026 and reported as a range', async () => {

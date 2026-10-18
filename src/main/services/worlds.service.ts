@@ -37,7 +37,10 @@ declare module '@main/services/registry' {
 
 const isLoaded = (world: WorldInfo): boolean => !world.states.some((s) => NOT_LOADED_STATES.has(s))
 
-/** Game → version of the world Archipelago loads for it (a shadowed one only when it is alone). */
+/**
+ * Game → version of the world Archipelago loads for it (a shadowed one only when it is alone), and the
+ * file of a custom one.
+ */
 export function installedGamesOf(worlds: readonly WorldInfo[]): InstalledGames {
   const games: InstalledGames = new Map()
   const loaded = worlds.filter((world) => world.game !== null && isLoaded(world))
@@ -47,7 +50,10 @@ export function installedGamesOf(worlds: readonly WorldInfo[]): InstalledGames {
   ]
   for (const world of winnersFirst) {
     if (world.game !== null && !games.has(world.game)) {
-      games.set(world.game, { worldVersion: world.manifest?.worldVersion ?? null })
+      games.set(world.game, {
+        worldVersion: world.manifest?.worldVersion ?? null,
+        ...(world.location === 'custom' ? { file: world.path } : {}),
+      })
     }
   }
   return games
