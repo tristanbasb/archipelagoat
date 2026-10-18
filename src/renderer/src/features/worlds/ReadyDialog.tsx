@@ -822,7 +822,12 @@ function ReadyForm({
           checked={choices.update}
           onChange={(checked) => onChange({ update: checked })}
           label={r('update', { version: entry.latest?.version ?? '' })}
-          description={r('updateHint', { version: entry.installedVersion ?? '' })}
+          // A world without a version in its manifest is installed as 'unknown': nothing to tell.
+          description={
+            entry.installedVersion === null || entry.installedVersion === 'unknown'
+              ? undefined
+              : r('updateHint', { version: entry.installedVersion })
+          }
         />
       )}
     </fieldset>

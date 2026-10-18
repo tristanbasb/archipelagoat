@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { AppError } from '@shared/errors'
 import type {
@@ -391,6 +391,25 @@ describe('« Jeu prêt » dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Installer et préparer' }))
     await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(1))
     expect(goat.inputsOf('ready:run')[0]).toMatchObject({ profile: 'discovery' })
+  })
+
+  it('offers the update of an installed world, with its installed version only when it is known', async () => {
+    const installedAt = (installedVersion: string): CatalogSnapshot => ({
+      ...SNAPSHOT,
+      entries: [{ ...CELESTE, installedVersion }, FROGMONSTER, EMERALD, SHAPEZ],
+    })
+    const behind = { 'ready:prepare': () => plan({ installed: true, updateAvailable: true }) }
+    const known = await openReady({ ...behind, 'catalog:list': () => installedAt('0.9.0') })
+    expect(
+      within(known.dialog).getByRole('switch', { name: 'Installer d’abord la version 1.0.0' }),
+    ).toHaveAccessibleDescription('Tu as la version 0.9.0.')
+    cleanup()
+
+    // A world without a version in its manifest: nothing to tell.
+    const { dialog } = await openReady({ ...behind, 'catalog:list': () => installedAt('unknown') })
+    const update = within(dialog).getByRole('switch', { name: 'Installer d’abord la version 1.0.0' })
+    expect(update).not.toHaveAccessibleDescription()
+    expect(within(dialog).queryByText(/Tu as la version/)).toBeNull()
   })
 
   it('the player name is prefilled from the settings', async () => {
