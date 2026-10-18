@@ -1,5 +1,6 @@
 // The "Installed" tab: every world Archipelago can see (added ones first, then the ones it ships),
-// with its state, version and actions: open its folder, set it aside, remove it.
+// with its state, version and actions: « Jeu prêt » when the catalog lists its game, open its folder,
+// set it aside, remove it.
 import {
   IconAlertOctagon,
   IconBan,
@@ -12,13 +13,15 @@ import {
   IconPackageOff,
   IconPlayerPause,
   IconPlayerPlay,
+  IconPlayerPlayFilled,
   IconRefresh,
   IconTrash,
 } from '@tabler/icons-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useId, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import type { WorldInfo, WorldState } from '@shared/types'
+import type { CatalogEntry, WorldInfo, WorldState } from '@shared/types'
 import {
   Badge,
   EmptyState,
@@ -37,14 +40,17 @@ import { cx } from '../../design/classes'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { WORLD_QUERIES } from '../../hooks/useWorldInstall'
 import { describeError } from '../../lib/errors'
+import { invoke } from '../../lib/goat'
 import { GameCover } from './GameCover'
 import {
   ACTIONABLE_STATES,
   badgeStates,
   countStates,
   formatBytes,
+  isLoadedWorld,
   matchesQuery,
   parentDir,
+  readyEntryOf,
   STATE_ORDER,
   worldName,
 } from './model'
@@ -82,14 +88,22 @@ const SKELETON_ROWS = 5
 export interface InstalledListProps {
   /** Switches to the catalog tab. */
   onBrowseCatalog: () => void
+  /** Opens « Jeu prêt » for the catalog entry of an installed world. */
+  onReady: (entry: CatalogEntry) => void
 }
 
-export function InstalledList({ onBrowseCatalog }: InstalledListProps): React.JSX.Element {
+export function InstalledList({ onBrowseCatalog, onReady }: InstalledListProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const toast = useToast()
   const showError = useErrorToast()
+  const queryClient = useQueryClient()
   const worlds = useIpcQuery('worlds:list', undefined)
+  // « Jeu prêt » starts from a catalog entry. The catalog is only read from the cache here (its tab
+  // fetches it): once loaded, the rows whose game it lists offer « Jeu prêt »; before, every world
+  // Archipelago loads does, and the catalog is asked on the click.
+  const catalog = useIpcQuery('catalog:list', {}, { enabled: false })
+  const [resolving, setResolving] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [origin, setOrigin] = useState<Origin>('all')
@@ -219,6 +233,28 @@ export function InstalledList({ onBrowseCatalog }: InstalledListProps): React.JS
       setEnabled.mutate({ worldId: world.id, enabled: world.location === 'disabled' }),
     onRename: (world: WorldInfo) => rename.mutate({ worldId: world.id, enabled: true }),
     onRemove: setRemoving,
+    readyEntry: (world: WorldInfo): CatalogEntry | 'ask' | null =>
+      catalog.data ? readyEntryOf(world, catalog.data.entries) : isLoadedWorld(world) ? 'ask' : null,
+    resolving,
+    onReady: (world: WorldInfo, known: CatalogEntry | 'ask') => {
+      if (known !== 'ask') {
+        onReady(known)
+        return
+      }
+      setResolving(world.id)
+      queryClient
+        .fetchQuery({ queryKey: ['catalog:list', {}], queryFn: () => invoke('catalog:list', {}) })
+        .then((snapshot) => {
+          const entry = readyEntryOf(world, snapshot.entries)
+          if (entry) onReady(entry)
+          else
+            toast.push({
+              tone: 'info',
+              title: t('screens.worlds.ready.notInCatalog', { game: worldName(world) }),
+            })
+        }, showError)
+        .finally(() => setResolving(null))
+    },
   }
 
   return (
@@ -359,6 +395,14 @@ interface RowActions {
   onToggle: (world: WorldInfo) => void
   onRename: (world: WorldInfo) => void
   onRemove: (world: WorldInfo) => void
+  /**
+   * The catalog entry « Jeu prêt » starts from for the world; `ask` while the catalog is not loaded
+   * (it is asked on the click); null when the world offers none.
+   */
+  readyEntry: (world: WorldInfo) => CatalogEntry | 'ask' | null
+  /** The world whose catalog entry is being asked. */
+  resolving: string | null
+  onReady: (world: WorldInfo, entry: CatalogEntry | 'ask') => void
 }
 
 function WorldRows({
@@ -384,6 +428,9 @@ function WorldRow({
   onToggle,
   onRename,
   onRemove,
+  readyEntry,
+  resolving,
+  onReady,
 }: { world: WorldInfo } & RowActions): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const nameId = useId()
@@ -393,6 +440,7 @@ function WorldRow({
   const editable = world.location !== 'core'
   const busy = busyId === world.id
   const states = badgeStates(world)
+  const ready = readyEntry(world)
 
   return (
     <article
@@ -426,6 +474,21 @@ function WorldRow({
         )}
         {version === null && <span className="sr-only">{t('screens.worlds.installed.versionUnknown')}</span>}
       </span>
+      {/* Its own column, empty when not offered: the versions and the actions stay lined up. */}
+      <div className="world-row__ready">
+        {ready !== null && (
+          <NeonButton
+            variant="secondary"
+            size="sm"
+            icon={<IconPlayerPlayFilled />}
+            aria-label={t('screens.worlds.ready.openFor', { game })}
+            loading={resolving === world.id}
+            onClick={() => onReady(world, ready)}
+          >
+            {t('screens.worlds.ready.open')}
+          </NeonButton>
+        )}
+      </div>
       <div className="world-row__actions">
         {/* An AppImage's core worlds sit inside its mount: they have no folder to open. */}
         {world.path !== '' && (

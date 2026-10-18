@@ -1,5 +1,5 @@
 // Pure helpers of the worlds screen: names, search, versions, states and sizes.
-import { isNewerVersion } from '@shared/catalog'
+import { isInstallable, isNewerVersion } from '@shared/catalog'
 import type { CatalogEntry, WorldInfo, WorldState } from '@shared/types'
 import type { Tone } from '../../design/classes'
 
@@ -70,6 +70,47 @@ export function countStates(worlds: readonly WorldInfo[]): Record<WorldState, nu
   const counts = Object.fromEntries(STATE_ORDER.map((state) => [state, 0])) as Record<WorldState, number>
   for (const world of worlds) for (const state of new Set(world.states)) counts[state] += 1
   return counts
+}
+
+/**
+ * « Jeu prêt » can start from the entry: a core world or one already installed (nothing to download),
+ * or one the catalog can download. A world downloaded by hand from its page keeps that page instead.
+ */
+export function offersReady(entry: CatalogEntry): boolean {
+  return entry.trust === 'core' || entry.installedVersion !== null || isInstallable(entry)
+}
+
+/** States in which Archipelago does not load a world (or loads another copy of its game). */
+const UNLOADED_STATES: ReadonlySet<WorldState> = new Set([
+  'disabled',
+  'corrupt',
+  'incompatible',
+  'bad-name',
+  'shadowed',
+])
+
+/** Archipelago loads this copy of the world: a game can be played from it. */
+export const isLoadedWorld = (world: WorldInfo): boolean =>
+  !world.states.some((state) => UNLOADED_STATES.has(state))
+
+/** Letters and digits only, lowercase, without accents: "Pokémon: Crystal" finds "Pokemon Crystal". */
+const compact = (text: string): string => normalize(text).replace(/[^\p{L}\p{N}]/gu, '')
+
+/**
+ * The catalog entry « Jeu prêt » starts from for an installed world Archipelago loads: the one of its
+ * game, else of the same name told apart by punctuation or accents alone, else (no game known) the
+ * one its module is the id of. Null for a world not loaded or that the catalog does not list.
+ */
+export function readyEntryOf(world: WorldInfo, entries: readonly CatalogEntry[]): CatalogEntry | null {
+  if (!isLoadedWorld(world)) return null
+  const game = world.game ?? world.manifest?.game ?? null
+  const byGame =
+    game === null
+      ? undefined
+      : (entries.find((entry) => entry.game === game) ??
+        entries.find((entry) => compact(entry.game) === compact(game)))
+  const found = byGame ?? entries.find((entry) => entry.id === world.module)
+  return found !== undefined && offersReady(found) ? found : null
 }
 
 /** An installed world for which the catalog has a later version. */

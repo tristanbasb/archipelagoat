@@ -7,6 +7,10 @@
   pointer-events: none;
 }
 
+.pixel-confetti[data-over-dialogs] {
+  z-index: calc(var(--z-modal) + 1);
+}
+
 .pixel-confetti__piece {
   position: absolute;
   top: -24px;

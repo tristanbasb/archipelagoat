@@ -166,5 +166,92 @@
     "credits": "Catalog sources",
     "creditsWiki": "Statuses, maintainers, categories and game images: <wiki>Archipelago wiki</wiki>, licensed CC BY-NC-SA 4.0.",
     "creditsIndex": "World list and checksums: <index>ionium-ap/Archipelago-index</index>."
+  },
+  "ready": {
+    "open": "Ready to play",
+    "openFor": "Ready to play: {{game}}",
+    "eyebrow": "PRESS START",
+    "title": "Ready to play: {{game}}",
+    "loading": "Working out the plan…",
+    "planFailed": "This game cannot be prepared",
+    "notInCatalog": "{{game}} is not in the catalog: “Ready to play” cannot start from this world.",
+    "state": {
+      "toInstall": "To install",
+      "installed": "Installed",
+      "update": "Update available"
+    },
+    "noAp": {
+      "title": "Archipelago is not installed",
+      "body": "“Ready to play” installs the world and makes your YAML with Archipelago. Install it first, then come back here.",
+      "action": "Install Archipelago"
+    },
+    "trust": {
+      "verified": "A world of the community index with a verified checksum: “Install and prepare” is your confirmation.",
+      "changed": "This world’s trust level changed since the dialog opened: read the warning before going on."
+    },
+    "profile": {
+      "label": "Profile",
+      "changes": "Profile changes",
+      "afterInstall": "Checks and changes are worked out after the install: the profile you pick is built then."
+    },
+    "name": {
+      "label": "Player name",
+      "hint": "16 characters at most. Empty: Player1, Player2…"
+    },
+    "destination": {
+      "label": "Destination",
+      "session": "Session",
+      "file": "File",
+      "studio": "Studio",
+      "pickSession": "Session",
+      "newSession": "New session…",
+      "newName": "Name of the new session",
+      "fileHint": "You pick where to save it when the preparation starts.",
+      "studioHint": "The YAML opens in the Studio, to fine-tune it before saving it.",
+      "studioDirty": "The Studio’s unsaved draft will be replaced."
+    },
+    "update": "Install version {{version}} first",
+    "updateHint": "You have version {{version}}.",
+    "prepare": "Prepare",
+    "installAndPrepare": "Install and prepare",
+    "starting": "Starting…",
+    "running": {
+      "waiting": "Starting…",
+      "steps": {
+        "install": "Install",
+        "templates": "Templates",
+        "profile": "YAML and checks",
+        "validate": "Check",
+        "deliver": "Delivery"
+      },
+      "stop": "Stop"
+    },
+    "done": {
+      "eyebrow": "STAGE CLEAR",
+      "title": "Ready!",
+      "summary": "{{profile}} · {{checks}}",
+      "unmeasured": "checks not measured",
+      "session": "Added to the session “{{name}}”.",
+      "sessionUnnamed": "Added to the session.",
+      "file": "Saved here:",
+      "openSession": "Open the session",
+      "openFolder": "Open the folder",
+      "openInStudio": "Open in the Studio",
+      "studio": "The YAML of {{game}} is in the Studio"
+    },
+    "notes": {
+      "title": "Good to know",
+      "rom": "ROM required",
+      "romBody": "You need your own ROM of {{game}} to generate the game: ArchipelaGOAT provides none.",
+      "romAction": "Open the vault",
+      "popTracker": "PopTracker available",
+      "popTrackerBody": "A PopTracker pack exists to follow your progress.",
+      "guide": "Setup guide",
+      "guideBody": "The wiki explains how to install and launch {{game}}.",
+      "guideAction": "Open the guide",
+      "restart": "Restart Archipelago",
+      "restartBody": "Its open programs will only see {{game}} after a restart.",
+      "runningBody": "Archipelago programs are open: restart them if they do not find {{game}}."
+    }
   }
 }

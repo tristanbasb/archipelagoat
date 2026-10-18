@@ -27,7 +27,9 @@
   );
   --pb-step: var(--corner-sm);
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto 72px 100px;
+  /* Cover, name, states, version, « Jeu prêt » (empty when not offered), actions: fixed columns, so
+     that every row lines up with the others. */
+  grid-template-columns: 40px minmax(0, 1fr) auto 72px 112px 100px;
   align-items: center;
   gap: var(--sp-4);
   min-height: 60px;
@@ -124,7 +126,8 @@
   color: var(--text-dim);
 }
 
-.world-row__actions {
+.world-row__actions,
+.world-row__ready {
   display: flex;
   justify-content: flex-end;
   gap: var(--sp-1);

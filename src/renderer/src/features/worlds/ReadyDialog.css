@@ -1,0 +1,391 @@
+/* « Jeu prêt »: the cartridge's label (cover, trust, source), the choices, the life bar, stage clear. */
+.ready-dialog {
+  display: grid;
+  gap: var(--sp-5);
+}
+
+/* ---- Head ----------------------------------------------------------------------------------- */
+
+.ready-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3);
+  background:
+    radial-gradient(70% 120% at 0% 100%, color-mix(in srgb, var(--tone) 18%, transparent), transparent 70%),
+    color-mix(in srgb, var(--bg-0) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 22%, transparent);
+  clip-path: var(--clip-corner);
+}
+
+.ready-head__cover {
+  flex: none;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--tone) 35%, transparent));
+}
+
+.ready-head__facts {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.ready-head__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.ready-head__version {
+  color: var(--tone-ink);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Trust ---------------------------------------------------------------------------------- */
+
+.ready-trust {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.ready-trust__tier {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+/* A verified world: one line, the main button is the confirmation. */
+.ready-trust-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--neon-cyan) 7%, var(--bg-1));
+  box-shadow: inset 2px 0 0 var(--neon-cyan);
+  color: var(--text);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.ready-trust-line svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--neon-cyan);
+}
+
+/* Something to read before going on (a trust that changed, a Studio draft about to be replaced). */
+.ready-notice {
+  padding: var(--sp-2) var(--sp-3);
+  background: color-mix(in srgb, var(--tone) 9%, var(--bg-1));
+  box-shadow: inset 2px 0 0 var(--tone);
+  color: var(--text);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+/* ---- Choices -------------------------------------------------------------------------------- */
+
+.ready-form {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ready-section {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.ready-section__title {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ready-section__hint {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+/* The three profiles as wide segments, their checks under their name. */
+.ready-profiles.segmented {
+  display: flex;
+  width: 100%;
+}
+
+.ready-profiles .segmented__option {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 48px;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.ready-profile {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.ready-profile__name {
+  font-size: var(--fs-14);
+}
+
+.ready-profile__checks {
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ready-profile__checks[data-measured] {
+  color: var(--neon-yellow);
+}
+
+.segmented__option[aria-checked='true'] .ready-profile__checks {
+  color: #fff;
+}
+
+.ready-changes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ready-changes li {
+  padding: 3px 8px;
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  clip-path: var(--clip-corner-sm);
+}
+
+/* Name on the left, destination on the right; one column when narrow. */
+.ready-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--sp-5);
+}
+
+.ready-field__icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.ready-destination .segmented {
+  width: 100%;
+}
+
+/* ---- Run ------------------------------------------------------------------------------------ */
+
+.ready-run {
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    radial-gradient(80% 120% at 50% 0%, color-mix(in srgb, var(--tone) 15%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-5);
+}
+
+.ready-run__bar .progress__label {
+  color: var(--text);
+  font-size: var(--fs-14);
+  font-weight: 700;
+}
+
+.ready-steps {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ready-steps__step {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--fs-12);
+  text-align: center;
+}
+
+.ready-steps__dot {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-3);
+}
+
+.ready-steps__step[data-state='done'] .ready-steps__dot {
+  background: color-mix(in srgb, var(--neon-green) 70%, transparent);
+}
+
+.ready-steps__step[data-state='current'] {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.ready-steps__step[data-state='current'] .ready-steps__dot {
+  background: var(--neon-violet);
+  box-shadow: var(--glow-violet);
+  animation: ready-blink 0.8s steps(1, end) infinite;
+}
+
+@keyframes ready-blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* ---- Stage clear ---------------------------------------------------------------------------- */
+
+.ready-clear {
+  --pb-color: var(--tone-line);
+  --pb-fill:
+    radial-gradient(90% 140% at 50% 0%, color-mix(in srgb, var(--tone) 18%, transparent), transparent 65%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-1));
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-5);
+  text-align: center;
+}
+
+.ready-clear__eyebrow {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--neon-yellow) 60%, transparent);
+  animation: ready-clear-flash 1.2s steps(6, end) 1;
+}
+
+@keyframes ready-clear-flash {
+  0%,
+  33%,
+  66% {
+    opacity: 1;
+  }
+  16%,
+  50%,
+  83% {
+    opacity: 0;
+  }
+}
+
+.ready-clear__title {
+  color: var(--tone-ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-28);
+  line-height: 1.3;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--tone) 50%, transparent);
+}
+
+.ready-clear__summary {
+  color: var(--text);
+  font-size: var(--fs-16);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ready-clear__where {
+  max-width: 100%;
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+  overflow-wrap: anywhere;
+}
+
+.ready-clear__path {
+  color: var(--neon-cyan);
+  font-family: var(--font-mono);
+}
+
+/* « À savoir »: one row per thing to know, its action on the right. */
+.ready-notes {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.ready-notes__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ready-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: color-mix(in srgb, var(--bg-0) 60%, transparent);
+  box-shadow: inset 2px 0 0 var(--note-color, var(--neon-cyan));
+}
+
+.ready-note[data-note='rom'] {
+  --note-color: var(--neon-yellow);
+}
+
+.ready-note[data-note='restart'] {
+  --note-color: var(--neon-pink);
+}
+
+.ready-note__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  color: var(--note-color, var(--neon-cyan));
+}
+
+.ready-note__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ready-note__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.ready-note__title {
+  color: var(--text);
+  font-size: var(--fs-13);
+  font-weight: 700;
+}
+
+.ready-note__body {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}
+
+/* An outlined panel, without the error look: Archipelago is simply missing. */
+.ready-noap {
+  --pb-color: var(--tone-line);
+  --pb-fill: color-mix(in srgb, var(--tone) 6%, var(--bg-1));
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.ready-noap__title {
+  color: var(--tone-ink);
+  font-weight: 700;
+}
+
+.ready-noap__body {
+  color: var(--text-dim);
+  font-size: var(--fs-13);
+}

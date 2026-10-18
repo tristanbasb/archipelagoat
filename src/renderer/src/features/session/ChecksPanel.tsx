@@ -32,6 +32,7 @@ import {
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useTask } from '../../hooks/useTask'
 import { describeError } from '../../lib/errors'
+import { optionValueText } from '../../lib/option-text'
 import { stageLabel } from '../../lib/task-stages'
 import { useTasksStore } from '../../stores/tasks'
 import { PlayerGames } from './PlayerGames'
@@ -602,13 +603,6 @@ function ProposalsDialog({
   )
 }
 
-/** An option's value as the YAML writes it. */
-function show(value: unknown): string {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-  return JSON.stringify(value)
-}
-
 interface ProposalItemProps {
   proposal: BalanceProposal
   n: number
@@ -633,7 +627,8 @@ function ProposalItem({ proposal, n, applying, onApply }: ProposalItemProps): Re
       <ul className="checks-proposal__changes" aria-label={p('proposals.changes')}>
         {proposal.changes.map((change) => (
           <li key={change.key}>
-            <code>{change.key}</code> <span>{`${show(change.from)} → ${show(change.to)}`}</span>
+            <code>{change.key}</code>{' '}
+            <span>{`${optionValueText(change.from)} → ${optionValueText(change.to)}`}</span>
           </li>
         ))}
       </ul>

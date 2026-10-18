@@ -3,10 +3,10 @@
 // site) and the way back to the defaults, as rows of chips. Each one starts over from the defaults.
 import { IconRestore, IconSparkles, IconWand } from '@tabler/icons-react'
 import { useId } from 'react'
-import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import type { GameProfile } from '@shared/types'
 import { Tooltip } from '../../design/components'
+import { optionValueText, profileChecksText } from '../../lib/option-text'
 import './PresetMenu.css'
 
 export interface PresetMenuProps {
@@ -17,16 +17,6 @@ export interface PresetMenuProps {
   onApply: (preset: string | null) => void
   onApplyProfile: (profile: GameProfile) => void
   className?: string
-}
-
-/** An option value as a change list reads it: text as it is, anything else as JSON. */
-const valueText = (value: unknown): string => (typeof value === 'string' ? value : JSON.stringify(value))
-
-/** A profile's checks: "≈ 203 checks", a range "180–230 checks" for a YAML that rolls dice, or not measured. */
-function checksText(profile: GameProfile, t: TFunction): string {
-  if (profile.checks === null) return t('profiles.notMeasured')
-  if (profile.range !== null) return t('profiles.range', { min: profile.range[0], max: profile.range[1] })
-  return t('profiles.checks', { count: profile.checks })
 }
 
 function ProfileChip({
@@ -46,7 +36,9 @@ function ProfileChip({
         ) : (
           <ul className="preset-changes">
             {profile.changes.map(({ key, from, to }) => (
-              <li key={key}>{t('profiles.change', { key, from: valueText(from), to: valueText(to) })}</li>
+              <li key={key}>
+                {t('profiles.change', { key, from: optionValueText(from), to: optionValueText(to) })}
+              </li>
             ))}
           </ul>
         )
@@ -60,7 +52,7 @@ function ProfileChip({
       >
         {t(`profiles.names.${profile.id}`)}{' '}
         <span className="preset-chip__checks" data-measured={profile.checks !== null || undefined}>
-          {checksText(profile, t)}
+          {profileChecksText(profile, t)}
         </span>
       </button>
     </Tooltip>

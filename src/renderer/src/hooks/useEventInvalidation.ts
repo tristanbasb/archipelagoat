@@ -33,6 +33,12 @@ const EVENT_INVALIDATIONS = {
 } as const satisfies Partial<Record<EventName, readonly ChannelName[]>>
 
 /**
+ * « Jeu prêt » delivered a YAML: into a session, maybe one it created, whatever screen is open by then
+ * (the worlds screen may have been left during the run). A world it installed is `worlds:changed`'s.
+ */
+const READY_DONE_INVALIDATIONS: readonly ChannelName[] = ['session:list', 'session:get']
+
+/**
  * covers:get answers null for reasons that pass: the catalog it looks covers up in is not built yet
  * (only catalog:list builds it), or After Dark is hidden. Those answers are asked again when either
  * changes; the cache of a null answer also expires by itself (GameCover).
@@ -52,6 +58,7 @@ export function useEventInvalidation(): void {
   useEvent('checks:changed', () => refresh(EVENT_INVALIDATIONS['checks:changed']))
   useEvent('task:done', ({ kind }) => {
     if (kind === 'generate' || kind === 'measure') refresh(EVENT_INVALIDATIONS['task:done'])
+    if (kind === 'ready') refresh(READY_DONE_INVALIDATIONS)
   })
   useEvent('server:state', () => refresh(EVENT_INVALIDATIONS['server:state']))
 

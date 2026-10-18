@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
-import type { ServerState, SessionSummary } from '@shared/types'
+import type { CatalogEntry, ReadyPlan, ServerState, SessionSummary } from '@shared/types'
 import { renderApp } from '../render-app'
 
 function fxRoot(): Element {
@@ -18,6 +18,43 @@ const SESSIONS: SessionSummary[] = [
     hostingMode: 'local',
   },
 ]
+
+/** A world of the index, and the plan « Jeu prêt » makes for it. */
+const READY_ENTRY: CatalogEntry = {
+  id: 'celeste',
+  source: 'index',
+  game: 'Celeste',
+  displayName: 'Celeste',
+  homepage: null,
+  tags: [],
+  supported: true,
+  afterDark: false,
+  requiresRomAtGeneration: false,
+  hasPopTracker: false,
+  cover: null,
+  wiki: null,
+  latest: {
+    version: '1.0.0',
+    url: 'https://github.com/example/celeste/celeste.apworld',
+    sha256: 'ab'.repeat(32),
+  },
+  download: null,
+  installedVersion: null,
+  trust: 'indexed-verified',
+}
+const READY_PLAN: ReadyPlan = {
+  planId: 'plan-1',
+  entryId: 'celeste',
+  game: 'Celeste',
+  apInstalled: true,
+  installed: false,
+  updateAvailable: false,
+  trust: 'indexed-verified',
+  needsTrustConsent: false,
+  profiles: { game: 'Celeste', profiles: [], measured: false },
+  sessions: [],
+  notes: { romRequired: false, popTracker: false, setupUrl: null, apRunning: false },
+}
 
 describe('app shell', () => {
   it('renders each route with its screen heading (stub title) inside the layout', async () => {
@@ -303,9 +340,19 @@ describe('app shell', () => {
     expect(screen.getAllByText(/^Échec\s: Mesure des checks$/)).toHaveLength(1)
   })
 
-  it('« Jeu prêt » is told by its dialog on the worlds screen, by a toast anywhere else', async () => {
-    const onWorlds = await renderApp({ route: '/worlds' })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Mondes' })).toBeInTheDocument()
+  it('« Jeu prêt » is told by its dialog while it is open, by a toast otherwise', async () => {
+    const onWorlds = await renderApp({
+      route: '/worlds?tab=catalog',
+      handlers: {
+        'worlds:list': () => [],
+        'catalog:list': () => ({ entries: [READY_ENTRY], fetchedAt: null, stale: false, errors: [] }),
+        'ready:prepare': () => READY_PLAN,
+      },
+    })
+    const card = await screen.findByRole('article', { name: 'Celeste' })
+    await onWorlds.user.click(within(card).getByRole('button', { name: 'Jeu prêt : Celeste' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Jeu prêt : Celeste' })
+    await within(dialog).findByRole('button', { name: 'Installer et préparer' })
     onWorlds.goat.emit('task:done', { taskId: 'r1', kind: 'ready', result: null })
     onWorlds.goat.emit('task:failed', { taskId: 'r2', kind: 'ready', error: { code: 'AP_YAML_INVALID' } })
     // A task of another screen still toasts: the silence above is the dialog's.
@@ -313,6 +360,12 @@ describe('app shell', () => {
     expect(await screen.findByText('Archipelago est installé')).toBeInTheDocument()
     expect(screen.queryByText('Le jeu est prêt')).toBeNull()
     expect(screen.queryByText(/^Échec\s: Jeu prêt$/)).toBeNull()
+
+    // No dialog open: a run's end is a toast, even on the worlds screen.
+    await onWorlds.user.click(within(dialog).getByRole('button', { name: 'Fermer la fenêtre' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    onWorlds.goat.emit('task:done', { taskId: 'r3', kind: 'ready', result: null })
+    expect(await screen.findByText('Le jeu est prêt')).toBeInTheDocument()
     cleanup()
 
     const { goat, user } = await renderApp({ handlers: { 'ap:detect': () => null } })

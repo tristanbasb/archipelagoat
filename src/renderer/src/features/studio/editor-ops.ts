@@ -209,15 +209,20 @@ export function humanize(name: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
-/** The file name to propose for a doc: its player name without placeholders, else its game. */
-export function suggestedFileName(doc: EditorDoc): string {
-  const clean = (text: string): string =>
+/** `text` fit for a file name: no placeholder ({number}), no character Windows refuses, no control. */
+export function fileNamePart(text: string): string {
+  return (
     text
       .replace(/\{[^}]*\}/g, '')
       .replace(/[<>:"/\\|?*]/g, '')
       // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u001f]/g, '')
       .trim()
-  const base = clean(doc.name) || clean(doc.game) || 'Player'
+  )
+}
+
+/** The file name to propose for a doc: its player name without placeholders, else its game. */
+export function suggestedFileName(doc: EditorDoc): string {
+  const base = fileNamePart(doc.name) || fileNamePart(doc.game) || 'Player'
   return `${base}.yaml`
 }

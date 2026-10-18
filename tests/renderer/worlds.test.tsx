@@ -368,7 +368,7 @@ describe('WorldsScreen', () => {
     await renderWithProviders(<WorldsScreen />, { route: '/worlds' })
 
     const alttp = await screen.findByRole('article', { name: 'A Link to the Past' })
-    expect(within(alttp).queryByRole('button')).toBeNull()
+    expect(within(alttp).queryByRole('button', { name: /Ouvrir le dossier/ })).toBeNull()
     const crystal = screen.getByRole('article', { name: 'Pokemon Crystal' })
     expect(
       within(crystal).getByRole('button', { name: 'Ouvrir le dossier de Pokemon Crystal' }),

@@ -46,7 +46,8 @@ export interface TrustDialogProps {
   onPickFile?: () => void
 }
 
-const TIER_TONE: Record<TrustTier, Tone> = {
+/** The color of a dialog about a world of each trust tier. */
+export const TIER_TONE: Record<TrustTier, Tone> = {
   core: 'green',
   'indexed-verified': 'cyan',
   'wiki-release': 'yellow',
@@ -170,20 +171,10 @@ function PrepareError({
 }): React.JSX.Element {
   const { t } = useTranslation()
   const { title, body, detail } = describeError(error, t)
-  // No release to install from the catalog: the page it names has the file, which the player then
-  // installs from here.
-  const unavailable = error.code === 'WORLD_RELEASE_UNAVAILABLE'
-  const page = unavailable ? error.params?.url : undefined
-  const actions = unavailable ? (
-    <>
-      {typeof page === 'string' && isAllowedExternalUrl(page) && <OpenPageButton url={page} />}
-      {onPickFile && (
-        <NeonButton variant="primary" size="sm" icon={<IconFileUpload />} onClick={onPickFile}>
-          {t('worldInstall.pickFile')}
-        </NeonButton>
-      )}
-    </>
-  ) : undefined
+  const actions =
+    error.code === 'WORLD_RELEASE_UNAVAILABLE' ? (
+      <ReleaseUnavailableActions page={error.params?.url} onPickFile={onPickFile} />
+    ) : undefined
   return (
     <ErrorPanel
       title={title}
@@ -192,6 +183,31 @@ function PrepareError({
       detailLabel={t('common.technicalDetails')}
       actions={actions}
     />
+  )
+}
+
+/**
+ * No release to install from the catalog (WORLD_RELEASE_UNAVAILABLE): the page it names has the file,
+ * which the player then installs from here (or from the « Jeu prêt » dialog).
+ */
+export function ReleaseUnavailableActions({
+  page,
+  onPickFile,
+}: {
+  /** The `url` param of the error. */
+  page: string | number | undefined
+  onPickFile?: () => void
+}): React.JSX.Element {
+  const { t } = useTranslation()
+  return (
+    <>
+      {typeof page === 'string' && isAllowedExternalUrl(page) && <OpenPageButton url={page} />}
+      {onPickFile && (
+        <NeonButton variant="primary" size="sm" icon={<IconFileUpload />} onClick={onPickFile}>
+          {t('worldInstall.pickFile')}
+        </NeonButton>
+      )}
+    </>
   )
 }
 
@@ -216,7 +232,6 @@ interface PlanReviewProps {
 
 function PlanReview({ plan, worlds, error, acked, onAck }: PlanReviewProps): React.JSX.Element {
   const { t } = useTranslation()
-  const ackId = useId()
   const manifest = plan.manifest
   const authors = manifest?.authors.length ? manifest.authors.join(', ') : t('worldInstall.authorsUnknown')
   const apRange = [
@@ -316,28 +331,7 @@ function PlanReview({ plan, worlds, error, acked, onAck }: PlanReviewProps): Rea
         </section>
       )}
 
-      <div className="trust-dialog__code pixel-border tone-pink">
-        <IconShieldExclamation className="trust-dialog__code-icon" aria-hidden="true" />
-        <div>
-          <p className="trust-dialog__code-title">{t('worldInstall.codeTitle')}</p>
-          <p className="trust-dialog__code-body">{t('worldInstall.codeBody')}</p>
-          <label className="trust-dialog__ack" htmlFor={ackId}>
-            <input
-              id={ackId}
-              type="checkbox"
-              checked={acked}
-              onChange={(event) => {
-                sfx.play('blip')
-                onAck(event.target.checked)
-              }}
-            />
-            <span className="trust-dialog__box" aria-hidden="true">
-              <IconCheck />
-            </span>
-            <span>{t('worldInstall.ack')}</span>
-          </label>
-        </div>
-      </div>
+      <CodeWarning acked={acked} onAck={onAck} />
 
       {described && (
         <ErrorPanel
@@ -347,6 +341,45 @@ function PlanReview({ plan, worlds, error, acked, onAck }: PlanReviewProps): Rea
           detailLabel={t('common.technicalDetails')}
         />
       )}
+    </div>
+  )
+}
+
+/**
+ * "An APWorld is code": the warning a world from the wiki or from nowhere known needs acknowledged
+ * before it is installed (here, and in the « Jeu prêt » dialog).
+ */
+export function CodeWarning({
+  acked,
+  onAck,
+}: {
+  acked: boolean
+  onAck: (checked: boolean) => void
+}): React.JSX.Element {
+  const { t } = useTranslation()
+  const ackId = useId()
+  return (
+    <div className="trust-dialog__code pixel-border tone-pink">
+      <IconShieldExclamation className="trust-dialog__code-icon" aria-hidden="true" />
+      <div>
+        <p className="trust-dialog__code-title">{t('worldInstall.codeTitle')}</p>
+        <p className="trust-dialog__code-body">{t('worldInstall.codeBody')}</p>
+        <label className="trust-dialog__ack" htmlFor={ackId}>
+          <input
+            id={ackId}
+            type="checkbox"
+            checked={acked}
+            onChange={(event) => {
+              sfx.play('blip')
+              onAck(event.target.checked)
+            }}
+          />
+          <span className="trust-dialog__box" aria-hidden="true">
+            <IconCheck />
+          </span>
+          <span>{t('worldInstall.ack')}</span>
+        </label>
+      </div>
     </div>
   )
 }

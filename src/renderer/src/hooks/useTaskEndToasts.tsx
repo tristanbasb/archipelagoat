@@ -9,6 +9,7 @@ import type { AppErrorData } from '@shared/errors'
 import type { TaskKind } from '@shared/types'
 import { useToast } from '../design/components'
 import { sessionOfTask } from '../features/session/wizard-runs'
+import { isReadyDialogOpen } from '../features/worlds/ready-runs'
 import { describeError } from '../lib/errors'
 import { useEvent } from './useEvent'
 
@@ -46,8 +47,9 @@ export function taskOwner(kind: TaskKind, taskId: string, failed: boolean): Owne
     case 'templates':
       return screen('/studio')
     case 'ready':
-      // Asked from the « Jeu prêt » dialog of the worlds screen, which tells how it ended.
-      return screen('/worlds')
+      // Asked from the « Jeu prêt » dialog of the worlds screen, which tells how it ended while it is
+      // open (a run can be stopped there, not closed); a screen left meanwhile leaves it to the toast.
+      return { to: '/worlds', shows: () => isReadyDialogOpen() }
     case 'measure':
       // Asked from the Checks panel of a session's check step (a measure, or a search for settings),
       // which tells how it ended; elsewhere the toast leads to the sessions.

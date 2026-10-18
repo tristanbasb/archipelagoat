@@ -1,5 +1,5 @@
-// Pixel confetti over the whole window, for a successful generation. Nothing is drawn when the
-// animations are off (settings or the OS "reduce motion"); `onDone` still fires.
+// Pixel confetti over the whole window, for a success (a generation, « Jeu prêt »). Nothing is
+// drawn when the animations are off (settings or the OS "reduce motion"); `onDone` still fires.
 import { useEffect, useEffectEvent, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cssVars } from '../../design/classes'
@@ -44,7 +44,14 @@ function makePieces(): Piece[] {
   }))
 }
 
-export function PixelConfetti({ onDone }: { onDone?: () => void }): React.JSX.Element | null {
+export function PixelConfetti({
+  onDone,
+  overDialogs = false,
+}: {
+  onDone?: () => void
+  /** Above the dialogs (still under the toasts), for a success told by a dialog. */
+  overDialogs?: boolean
+}): React.JSX.Element | null {
   const { animations } = useEffectsPrefs()
   const container = usePortalContainer()
   const [pieces] = useState(makePieces)
@@ -57,7 +64,7 @@ export function PixelConfetti({ onDone }: { onDone?: () => void }): React.JSX.El
 
   if (!animations) return null
   return createPortal(
-    <div className="pixel-confetti" aria-hidden="true">
+    <div className="pixel-confetti" data-over-dialogs={overDialogs || undefined} aria-hidden="true">
       {pieces.map((piece, index) => (
         <span
           key={index}

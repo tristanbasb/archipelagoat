@@ -1,11 +1,13 @@
 // The worlds screen (spec §4.2.3): the installed APWorlds and the community catalog, in two tabs.
 // Installs go through useWorldInstall (trust screen first); `?install=<path>` (one per file, from
-// a drop or a file opened with the app) queues file installs, one after the other. The lists
-// refresh on `worlds:changed` through the app shell (useEventInvalidation).
+// a drop or a file opened with the app) queues file installs, one after the other. « Jeu prêt »
+// opens from a catalog card or an installed row. The lists refresh on `worlds:changed` through the
+// app shell (useEventInvalidation).
 import { IconFileImport, IconPackages, IconWorldDownload } from '@tabler/icons-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
+import type { CatalogEntry } from '@shared/types'
 import { NeonButton, Tabs } from '../../design/components'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useWorldInstall } from '../../hooks/useWorldInstall'
@@ -14,6 +16,7 @@ import { useConfig } from '../../stores/config'
 import { CatalogGrid } from './CatalogGrid'
 import { InstalledList } from './InstalledList'
 import { visibleEntries } from './model'
+import { ReadyDialog, type ReadyRequest } from './ReadyDialog'
 import { useErrorToast } from './useErrorToast'
 import './WorldsScreen.css'
 
@@ -26,8 +29,12 @@ export function WorldsScreen(): React.JSX.Element {
   const { showAfterDark } = useConfig()
   const showError = useErrorToast()
   const tab: Tab = params.get('tab') === 'catalog' ? 'catalog' : 'installed'
+  const [ready, setReady] = useState<ReadyRequest | null>(null)
+  const openings = useRef(0)
+  const openReady = (entry: CatalogEntry): void => setReady({ id: ++openings.current, entry })
 
-  // The counts of the tabs. The catalog is only read from the cache: its tab fetches it.
+  // The counts of the tabs. The catalog is only read from the cache: its tab fetches it (and « Jeu
+  // prêt » asked from an installed row before it was ever loaded).
   const worlds = useIpcQuery('worlds:list', undefined)
   const catalog = useIpcQuery('catalog:list', {}, { enabled: false })
 
@@ -132,13 +139,17 @@ export function WorldsScreen(): React.JSX.Element {
         ]}
       >
         {tab === 'installed' ? (
-          <InstalledList onBrowseCatalog={() => showTab('catalog')} />
+          <InstalledList onBrowseCatalog={() => showTab('catalog')} onReady={openReady} />
         ) : (
-          <CatalogGrid onInstall={(entry) => void start({ kind: 'catalog', id: entry.id })} />
+          <CatalogGrid
+            onInstall={(entry) => void start({ kind: 'catalog', id: entry.id })}
+            onReady={openReady}
+          />
         )}
       </Tabs>
 
       {dialog}
+      <ReadyDialog request={ready} onClose={() => setReady(null)} />
     </div>
   )
 }

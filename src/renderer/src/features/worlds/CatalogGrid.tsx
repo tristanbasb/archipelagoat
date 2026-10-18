@@ -1,6 +1,7 @@
 // The "Catalog" tab: the worlds of the community index for this Archipelago version, joined with
 // the Archipelago wiki (status, maintainer, categories), then the worlds only the wiki lists. Search,
-// filters, and an install button that goes through the trust screen.
+// filters, « Jeu prêt » (a world and its YAML in one dialog), and an install button that goes through
+// the trust screen.
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query'
 import {
   IconArrowBigUpLines,
@@ -13,6 +14,7 @@ import {
   IconFilterOff,
   IconLicense,
   IconMap2,
+  IconPlayerPlayFilled,
   IconRating18Plus,
   IconRefresh,
   IconRoute,
@@ -51,7 +53,7 @@ import { describeError } from '../../lib/errors'
 import { useConfig } from '../../stores/config'
 import { GameCover } from './GameCover'
 import { spriteTone } from './GameSprite'
-import { hasUpdate, matchesQuery, statusTone, visibleEntries } from './model'
+import { hasUpdate, matchesQuery, offersReady, statusTone, visibleEntries } from './model'
 import { SearchField } from './SearchField'
 import { useErrorToast } from './useErrorToast'
 import './CatalogGrid.css'
@@ -133,9 +135,11 @@ function distinct(values: readonly (string | null | undefined)[], collator: Intl
 export interface CatalogGridProps {
   /** Starts the install of a catalog world (trust screen first). */
   onInstall: (entry: CatalogEntry) => void
+  /** Opens « Jeu prêt » for a catalog world. */
+  onReady: (entry: CatalogEntry) => void
 }
 
-export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element {
+export function CatalogGrid({ onInstall, onReady }: CatalogGridProps): React.JSX.Element {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -362,7 +366,7 @@ export function CatalogGrid({ onInstall }: CatalogGridProps): React.JSX.Element 
         </div>
       </div>
 
-      <CatalogCards entries={shown.slice(0, limit)} onInstall={onInstall} onOpen={open} />
+      <CatalogCards entries={shown.slice(0, limit)} onInstall={onInstall} onReady={onReady} onOpen={open} />
 
       {shown.length > limit && (
         <div className="worlds-catalog__more">
@@ -495,6 +499,7 @@ function FilterChip({
 interface CatalogCardProps {
   entry: CatalogEntry
   onInstall: (entry: CatalogEntry) => void
+  onReady: (entry: CatalogEntry) => void
   onOpen: (url: string) => void
 }
 
@@ -506,6 +511,7 @@ interface CatalogCardProps {
 function CatalogCards({
   entries,
   onInstall,
+  onReady,
   onOpen,
 }: { entries: CatalogEntry[] } & Omit<CatalogCardProps, 'entry'>): React.JSX.Element {
   const { t } = useTranslation()
@@ -525,6 +531,7 @@ function CatalogCards({
             entry={entry}
             estimate={estimates.data?.[entry.game]}
             onInstall={onInstall}
+            onReady={onReady}
             onOpen={onOpen}
           />
         </li>
@@ -537,6 +544,7 @@ function CatalogCard({
   entry,
   estimate,
   onInstall,
+  onReady,
   onOpen,
 }: CatalogCardProps & { estimate: GameEstimate | undefined }): React.JSX.Element {
   const { t } = useTranslation()
@@ -547,6 +555,7 @@ function CatalogCard({
   const installed = entry.installedVersion !== null
   const update = hasUpdate(entry)
   const maxChecks = estimate?.max ?? null
+  const ready = offersReady(entry)
 
   return (
     <article
@@ -647,32 +656,46 @@ function CatalogCard({
         </div>
       </div>
       <footer className="catalog-card__foot">
-        <InstallAction entry={entry} onInstall={onInstall} onOpen={onOpen} />
-        <div className="catalog-card__links">
-          {entry.wiki && (
-            <LinkButton
-              tip={t('screens.worlds.catalog.wikiPage')}
-              label={t('screens.worlds.catalog.wikiPageOf', { game })}
-              icon={<IconBook2 />}
-              onClick={() => entry.wiki && onOpen(entry.wiki.url)}
-            />
-          )}
-          {entry.wiki?.setupUrl && (
-            <LinkButton
-              tip={t('screens.worlds.catalog.setup')}
-              label={t('screens.worlds.catalog.setupOf', { game })}
-              icon={<IconRoute />}
-              onClick={() => entry.wiki?.setupUrl && onOpen(entry.wiki.setupUrl)}
-            />
-          )}
-          {entry.homepage && (
-            <LinkButton
-              tip={t('screens.worlds.catalog.homepage')}
-              label={t('screens.worlds.catalog.homepageOf', { game })}
-              icon={<IconExternalLink />}
-              onClick={() => entry.homepage && onOpen(entry.homepage)}
-            />
-          )}
+        {/* The main action: the world and a YAML to play it, in one dialog. */}
+        {ready && (
+          <NeonButton
+            size="sm"
+            icon={<IconPlayerPlayFilled />}
+            className="catalog-card__ready"
+            aria-label={t('screens.worlds.ready.openFor', { game })}
+            onClick={() => onReady(entry)}
+          >
+            {t('screens.worlds.ready.open')}
+          </NeonButton>
+        )}
+        <div className="catalog-card__foot-row">
+          <InstallAction entry={entry} secondary={ready} onInstall={onInstall} onOpen={onOpen} />
+          <div className="catalog-card__links">
+            {entry.wiki && (
+              <LinkButton
+                tip={t('screens.worlds.catalog.wikiPage')}
+                label={t('screens.worlds.catalog.wikiPageOf', { game })}
+                icon={<IconBook2 />}
+                onClick={() => entry.wiki && onOpen(entry.wiki.url)}
+              />
+            )}
+            {entry.wiki?.setupUrl && (
+              <LinkButton
+                tip={t('screens.worlds.catalog.setup')}
+                label={t('screens.worlds.catalog.setupOf', { game })}
+                icon={<IconRoute />}
+                onClick={() => entry.wiki?.setupUrl && onOpen(entry.wiki.setupUrl)}
+              />
+            )}
+            {entry.homepage && (
+              <LinkButton
+                tip={t('screens.worlds.catalog.homepage')}
+                label={t('screens.worlds.catalog.homepageOf', { game })}
+                icon={<IconExternalLink />}
+                onClick={() => entry.homepage && onOpen(entry.homepage)}
+              />
+            )}
+          </div>
         </div>
       </footer>
     </article>
@@ -721,7 +744,16 @@ function ProfileChecks({ counts }: { counts: ProfileCounts | null }): React.JSX.
   )
 }
 
-function InstallAction({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.Element {
+/**
+ * Install (or update) the world alone, without a YAML. `secondary` next to « Jeu prêt », which is then
+ * the card's main button.
+ */
+function InstallAction({
+  entry,
+  secondary,
+  onInstall,
+  onOpen,
+}: Omit<CatalogCardProps, 'onReady'> & { secondary: boolean }): React.JSX.Element {
   const { t } = useTranslation()
   const game = entry.displayName
   if (hasUpdate(entry)) {
@@ -764,7 +796,7 @@ function InstallAction({ entry, onInstall, onOpen }: CatalogCardProps): React.JS
   if (isInstallable(entry)) {
     return (
       <NeonButton
-        variant="primary"
+        variant={secondary ? 'secondary' : 'primary'}
         size="sm"
         icon={<IconDownload />}
         aria-label={t('screens.worlds.catalog.installGame', { game })}

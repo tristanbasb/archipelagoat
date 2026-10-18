@@ -308,14 +308,25 @@
   display: inline-flex;
 }
 
+/* « Jeu prêt » across the card when it can start from it, then installing alone and the links. */
 .catalog-card__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: var(--sp-2);
   margin-top: var(--sp-3);
   padding: var(--sp-3) var(--sp-4) var(--sp-4);
   border-top: 1px dashed var(--line);
+}
+
+.catalog-card__ready.neon-btn {
+  width: 100%;
+}
+
+.catalog-card__foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
 }
 
 .catalog-card__links {
