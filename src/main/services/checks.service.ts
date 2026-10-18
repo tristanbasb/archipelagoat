@@ -1,18 +1,23 @@
 // The `checks` service: how many checks each game can have, from the datapackage of archipelago.gg and
-// from the games the app generated itself, and the exact checks of players, from test generations.
+// from the games the app generated itself, the exact checks of players, from test generations, and
+// the proposals that bring a player's checks toward the session's target.
+import { createBalancer, type Balancer } from '@main/core/checks/balance'
 import { createCheckEstimates, type CheckEstimates } from '@main/core/checks/datapackage'
 import { createMeasurer, type Measurer } from '@main/core/checks/measure'
-// The `locator`, `processes`, `sessions`, `settings` and `worlds` entries of Services, used below.
+// The `locator`, `processes`, `sessions`, `settings`, `templates` and `worlds` entries of Services,
+// used below.
 import type {} from './locator.service'
 import type {} from './processes.service'
 import { defineService } from './registry'
 import type {} from './sessions.service'
 import type {} from './settings.service'
+import type {} from './templates.service'
 import type {} from './worlds.service'
 
 export interface Checks {
   estimates: CheckEstimates
   measurer: Measurer
+  balancer: Balancer
 }
 
 declare module '@main/services/registry' {
@@ -42,7 +47,16 @@ defineService(
       // An orphan test generation of the previous run holds its folder until it is killed.
       orphansStopped: get('processes').ready,
     })
-    return { estimates, measurer }
+    // Its measures go through the measurer: with the session's rules and ROMs, and its cache.
+    const balancer = createBalancer(ctx, {
+      templates: { getSchema: (game) => get('templates').getSchema(game) },
+      measurer,
+      sessions: {
+        readFile: (id, fileId) => get('sessions').readFile(id, fileId),
+        replaceFile: (id, fileId, text) => get('sessions').replaceFile(id, fileId, text),
+      },
+    })
+    return { estimates, measurer, balancer }
   },
   // Eager: the measure folders a previous run left are removed at startup.
   { eager: true },

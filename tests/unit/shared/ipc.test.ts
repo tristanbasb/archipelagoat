@@ -8,6 +8,7 @@ import type { EventPayloads } from '@shared/ipc/events'
 import { RULE_PRESETS } from '@shared/rules'
 import type {
   AppConfig,
+  BalanceTarget,
   EditorDoc,
   JoinTarget,
   OpenRequest,
@@ -53,6 +54,8 @@ const CHANNEL_TABLE = [
   'checks:estimate',
   'checks:measureSession',
   'checks:lastSession',
+  'checks:suggest',
+  'checks:apply',
   'covers:get',
   'studio:games',
   'studio:schema',
@@ -260,6 +263,8 @@ describe('ipc contract', () => {
     expectTypeOf<ChannelInput<'studio:render'>['doc']>().toEqualTypeOf<EditorDoc>()
     expectTypeOf<ChannelInput<'doctor:fix'>['checkId']>().toEqualTypeOf<DoctorCheckId>()
     expectTypeOf<ChannelInput<'webhost:host'>['consent']>().toEqualTypeOf<true>()
+    expectTypeOf<ChannelInput<'checks:suggest'>['target']>().toEqualTypeOf<BalanceTarget>()
+    expectTypeOf<ChannelOutput<'checks:apply'>>().toEqualTypeOf<Session>()
   })
 })
 

@@ -615,3 +615,28 @@ export interface SessionChecks {
   measuredAt: string
   players: PlayerChecks[]
 }
+
+/**
+ * What a session's checks aim at (spec §3.5): the median of its measured counts, short (0.6 × the
+ * median), long (1.5 ×), or a number of checks.
+ */
+export type BalanceTarget =
+  { kind: 'median' } | { kind: 'short' } | { kind: 'long' } | { kind: 'count'; value: number }
+
+/** One option a proposal changes, with its value before (the default when the YAML leaves it out). */
+export interface OptionChange {
+  key: string
+  from: unknown
+  to: unknown
+}
+
+/**
+ * A way to bring a player's checks toward the target: the options it changes, the checks a measure
+ * gave with them, and the lines of the player's YAML it changes (`-` before, `+` after).
+ */
+export interface BalanceProposal {
+  id: string
+  changes: OptionChange[]
+  checks: number
+  diff: string
+}
