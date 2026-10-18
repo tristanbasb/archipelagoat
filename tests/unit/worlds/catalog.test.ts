@@ -67,6 +67,7 @@ const madePage = (title: string, fields: Partial<WikiPage> = {}): WikiPage => ({
   homepage: null,
   download: null,
   repos: [],
+  cover: null,
   ...fields,
 })
 const memberTitles = (name: string): Set<string> =>
@@ -472,6 +473,8 @@ describe('parseWikiPages', () => {
       homepage: 'https://github.com/ArchipelagoMW-HollowKnight/Archipelago.HollowKnight',
       download: null,
       repos: ['archipelagomw-hollowknight/archipelago.hollowknight'],
+      // The wiki has no thumbnail of this picture: it is the picture itself.
+      cover: 'https://static.wikitide.net/archipelagowiki/7/75/Hollow_Knight_Cover.png',
     })
 
     const second = parseWikiPages(fixtureJson('wiki-page2.json'))
@@ -489,6 +492,8 @@ describe('parseWikiPages', () => {
         pageUrl: 'https://github.com/qixils/NeoForgeAP/releases/latest',
       },
       repos: ['qixils/neoforgeap'],
+      cover:
+        'https://static.wikitide.net/archipelagowiki/thumb/e/ea/Minecraftlogo.jpg/300px-Minecraftlogo.jpg',
     })
     // Several download links: the GitHub one gives the repository, the Thunderstore one nothing.
     expect(page('Schedule I')).toMatchObject({
@@ -505,6 +510,7 @@ describe('parseWikiPages', () => {
       homepage: null,
       download: null,
       repos: [],
+      cover: null,
     })
     // A world only the wiki lists: its repository link, which is not the one it is downloaded from.
     expect(page('Frogmonster')).toEqual({
@@ -519,6 +525,7 @@ describe('parseWikiPages', () => {
         pageUrl: 'https://github.com/Rooby-Roo/FrogmonsterAPWorld/releases/latest',
       },
       repos: ['rooby-roo/archipelago', 'rooby-roo/frogmonsterapworld'],
+      cover: 'https://static.wikitide.net/archipelagowiki/thumb/d/da/Frogmonster.jpg/300px-Frogmonster.jpg',
     })
     // Paragraphs are separated like line breaks.
     expect(page('Hexcells Infinite')?.maintainer).toBe('Heaxeus (old version), Chainsawkitten (fork)')
@@ -643,6 +650,7 @@ describe('parseWikiPages', () => {
           pageUrl: 'https://github.com/foo/bar/releases/latest',
         },
         repos: ['foo/bar'],
+        cover: null,
       },
     ])
     expect(parseWikiPages(null)).toEqual([])
@@ -657,8 +665,96 @@ describe('parseWikiPages', () => {
         homepage: null,
         download: null,
         repos: [],
+        cover: null,
       },
     ])
+  })
+
+  it('reads the boxart thumbnail of an infobox', () => {
+    const real = (title: string): string | null | undefined =>
+      allPages().find((page) => page.title === title)?.cover
+    // Protocol-relative links are made https; the 300 px thumbnail is preferred to the picture.
+    expect(real('Frogmonster')).toBe(
+      'https://static.wikitide.net/archipelagowiki/thumb/d/da/Frogmonster.jpg/300px-Frogmonster.jpg',
+    )
+    expect(real('Pokemon Crystal')).toBe(
+      'https://static.wikitide.net/archipelagowiki/thumb/f/fe/Pokemoncrystal.png/300px-Pokemoncrystal.png',
+    )
+    // An absolute link keeps its query string (Wikimedia Commons pictures carry one).
+    expect(real('Celeste')).toBe(
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Celeste_box_art_full.png/330px-Celeste_box_art_full.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+    )
+
+    const cover = (...items: unknown[]): string | null | undefined => {
+      const infoboxes = JSON.stringify([{ data: items }])
+      return parseWikiPages({ query: { pages: [{ title: 'X', pageprops: { infoboxes } }] } })[0]?.cover
+    }
+    const media = (...images: unknown[]): unknown => ({ type: 'media', data: images })
+    const image = (fields: Record<string, unknown>): Record<string, unknown> => ({
+      isImage: true,
+      source: 'boxart',
+      ...fields,
+    })
+    // Without a thumbnail, the picture itself.
+    expect(cover(media(image({ url: '//static.wikitide.net/a/a1/Game.png' })))).toBe(
+      'https://static.wikitide.net/a/a1/Game.png',
+    )
+    expect(
+      cover(media(image({ url: 'https://upload.wikimedia.org/x/Game.png?a=1&b=2', thumbnail: '' }))),
+    ).toBe('https://upload.wikimedia.org/x/Game.png?a=1&b=2')
+    // The boxart, though another picture comes first; else the first picture.
+    expect(
+      cover(
+        media(
+          image({ source: 'logo', url: '//static.wikitide.net/logo.png' }),
+          image({ url: '//static.wikitide.net/box.png', thumbnail: '//static.wikitide.net/t/box.png' }),
+        ),
+      ),
+    ).toBe('https://static.wikitide.net/t/box.png')
+    expect(
+      cover(
+        media(image({ source: 'logo', url: '//static.wikitide.net/logo.png' })),
+        media(image({ source: 'screenshot', url: '//static.wikitide.net/shot.png' })),
+      ),
+    ).toBe('https://static.wikitide.net/logo.png')
+    // A picture inside a group of the infobox.
+    expect(
+      cover({
+        type: 'group',
+        data: { value: [media(image({ url: '//static.wikitide.net/grouped.png' }))] },
+      }),
+    ).toBe('https://static.wikitide.net/grouped.png')
+    // Only web links: a thumbnail that is not one gives way to the picture.
+    expect(
+      cover(media(image({ url: '//static.wikitide.net/box.png', thumbnail: 'javascript:alert(1)' }))),
+    ).toBe('https://static.wikitide.net/box.png')
+    expect(cover(media(image({ url: 'data:image/png;base64,AAAA', thumbnail: 'ftp://x/y.png' })))).toBeNull()
+  })
+
+  it('a page without media has cover null', () => {
+    const real = (title: string): string | null | undefined =>
+      allPages().find((page) => page.title === title)?.cover
+    // The real pages with no picture: no infobox at all, or an infobox without one.
+    expect(real('Sonic Adventure 2 Battle')).toBeNull()
+    expect(real("Keymaster's Keep")).toBeNull()
+    expect(real('Hunie Pop')).toBeNull()
+
+    const cover = (infoboxes: unknown): string | null | undefined =>
+      parseWikiPages({ query: { pages: [{ title: 'X', pageprops: { infoboxes } }] } })[0]?.cover
+    const withItem = (item: unknown): string => JSON.stringify([{ data: [item] }])
+    expect(cover(undefined)).toBeNull()
+    expect(cover('{')).toBeNull()
+    // Not an image, no image flag, no address, an empty list, data that is not a list.
+    for (const item of [
+      { type: 'media', data: [{ isImage: false, isVideo: true, url: '//static.wikitide.net/v.webm' }] },
+      { type: 'media', data: [{ url: '//static.wikitide.net/unknown.png' }] },
+      { type: 'media', data: [{ isImage: true, source: 'boxart' }] },
+      { type: 'media', data: [] },
+      { type: 'media', data: { isImage: true, url: '//static.wikitide.net/table.png' } },
+      { type: 'data', data: { source: 'boxart', value: '//static.wikitide.net/data.png' } },
+    ]) {
+      expect(cover(withItem(item)), JSON.stringify(item)).toBeNull()
+    }
   })
 })
 
@@ -715,6 +811,8 @@ describe('joinCatalog', () => {
       afterDark: false,
       requiresRomAtGeneration: false,
       hasPopTracker: true,
+      cover:
+        'https://static.wikitide.net/archipelagowiki/thumb/f/fe/Pokemoncrystal.png/300px-Pokemoncrystal.png',
       wiki: {
         title: 'Pokemon Crystal',
         url: 'https://archipelago.miraheze.org/wiki/Pokemon_Crystal',
@@ -880,6 +978,7 @@ describe('joinCatalog', () => {
       afterDark: false,
       requiresRomAtGeneration: false,
       hasPopTracker: false,
+      cover: 'https://static.wikitide.net/archipelagowiki/thumb/d/da/Frogmonster.jpg/300px-Frogmonster.jpg',
       wiki: {
         title: 'Frogmonster',
         url: 'https://archipelago.miraheze.org/wiki/Frogmonster',
@@ -922,6 +1021,27 @@ describe('joinCatalog', () => {
       ),
     )
     expect(tagged['wiki:Frogmonster']).toMatchObject({ requiresRomAtGeneration: true, hasPopTracker: true })
+  })
+
+  it('index entries joined to a wiki page carry its cover, wiki entries too', () => {
+    const entries = byId(joinCatalog(allWorlds(), allPages(), [], joinOptions()))
+    const thumb = (path: string): string => `https://static.wikitide.net/archipelagowiki/${path}`
+    // Joined by game name, and by repository (the page is named otherwise).
+    expect(entries.pokemon_crystal?.cover).toBe(
+      thumb('thumb/f/fe/Pokemoncrystal.png/300px-Pokemoncrystal.png'),
+    )
+    expect(entries.pmd_eos?.cover).toBe(thumb('thumb/7/7b/Explorers_of_Sky.jpg/299px-Explorers_of_Sky.jpg'))
+    // A picture the wiki holds only at full size.
+    expect(entries.hk?.cover).toBe(thumb('7/75/Hollow_Knight_Cover.png'))
+    // The wiki entries: the page's own.
+    expect(entries['wiki:Frogmonster']?.cover).toBe(thumb('thumb/d/da/Frogmonster.jpg/300px-Frogmonster.jpg'))
+    expect(entries['wiki:BK Simulator']?.cover).toBe(thumb('3/38/BK_Simulator_Cover.png'))
+    // A wiki page with no picture.
+    expect(entries["wiki:Keymaster's Keep"]?.cover).toBeNull()
+    // An index entry no page is joined to has none.
+    const alone = joinCatalog(allWorlds(), [], [], joinOptions())
+    expect(alone.length).toBeGreaterThan(0)
+    expect(alone.map((entry) => entry.cover)).toEqual(alone.map(() => null))
   })
 
   it('never lists twice a world of the index, nor one it disables, nor one shipped with Archipelago', () => {
@@ -1206,6 +1326,11 @@ describe('createCatalog', () => {
     const again = newCatalog()
     // The last snapshot is read back before anything is fetched.
     expect(again.lookup('pmd_eos')?.latest?.sha256).toBe(SHA.pmd032)
+    // The covers are read back with it.
+    expect(again.lookup('pokemon_crystal')?.cover).toBe(
+      'https://static.wikitide.net/archipelagowiki/thumb/f/fe/Pokemoncrystal.png/300px-Pokemoncrystal.png',
+    )
+    expect(again.lookup("wiki:Keymaster's Keep")?.cover).toBeNull()
     expect(again.lookup('wiki:Hexcells Infinite')).toMatchObject({
       homepage: 'https://github.com/Chainsawkitten/HexcellsInfiniteAPWorld',
       download: { kind: 'github-latest', repo: 'chainsawkitten/hexcellsinfiniteap' },
@@ -1216,24 +1341,23 @@ describe('createCatalog', () => {
     expect(remote.requests).toEqual([])
   })
 
-  it('drops a catalog saved by an older version and fetches it again', async () => {
+  it('the saved catalog of the previous version is dropped and fetched again', async () => {
     await newCatalog().snapshot(false)
     const file = join(catalogDir(), 'catalog.json')
     const saved = JSON.parse(readFileSync(file, 'utf8')) as {
       version: number
       wiki: { pages: Record<string, unknown>[] }
     }
-    expect(saved.version).toBe(2)
-    // What version 1 wrote: wiki pages without their repository link and download.
+    expect(saved.version).toBe(3)
+    expect(saved.wiki.pages.some((page) => typeof page.cover === 'string')).toBe(true)
+    // What version 2 wrote: wiki pages without their cover.
     const older = {
       ...saved,
-      version: 1,
+      version: 2,
       wiki: {
         ...saved.wiki,
         pages: saved.wiki.pages.map((page) =>
-          Object.fromEntries(
-            Object.entries(page).filter(([key]) => key !== 'homepage' && key !== 'download'),
-          ),
+          Object.fromEntries(Object.entries(page).filter(([key]) => key !== 'cover')),
         ),
       },
     }
@@ -1250,7 +1374,8 @@ describe('createCatalog', () => {
     expect(wikiRequests(remote)).toHaveLength(5)
     // The blobs of the index were kept: none is downloaded again.
     expect(rawRequests(remote)).toEqual([])
-    expect((JSON.parse(readFileSync(file, 'utf8')) as { version: number }).version).toBe(2)
+    expect((JSON.parse(readFileSync(file, 'utf8')) as { version: number }).version).toBe(3)
+    expect(again.lookup('wiki:Frogmonster')?.cover).toContain('/300px-Frogmonster.jpg')
   })
 
   it('returns stale snapshot from disk when offline or rate limited', async () => {

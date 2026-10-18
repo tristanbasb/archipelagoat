@@ -311,6 +311,7 @@ describe('prepare', () => {
       afterDark: false,
       requiresRomAtGeneration: true,
       hasPopTracker: false,
+      cover: null,
       wiki: null,
       latest: { version: '3.1.0', url, sha256: sha256(bytes) },
       download: null,
@@ -370,6 +371,7 @@ describe('prepare', () => {
       afterDark: false,
       requiresRomAtGeneration: false,
       hasPopTracker: false,
+      cover: null,
       wiki: {
         title: 'Frogmonster',
         url: 'https://archipelago.miraheze.org/wiki/Frogmonster',

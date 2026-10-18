@@ -88,6 +88,7 @@ function entry(fields: Partial<CatalogEntry> & Pick<CatalogEntry, 'id' | 'game'>
     afterDark: false,
     requiresRomAtGeneration: false,
     hasPopTracker: false,
+    cover: null,
     wiki: null,
     latest: {
       version: '1.0.0',

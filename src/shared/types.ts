@@ -204,6 +204,8 @@ export interface CatalogEntry {
   afterDark: boolean
   requiresRomAtGeneration: boolean
   hasPopTracker: boolean
+  /** The boxart of its wiki page (the 300 px thumbnail, else the picture): an absolute web link. */
+  cover: string | null
   wiki: {
     title: string
     url: string

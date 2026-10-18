@@ -1,9 +1,9 @@
 // The APWorld catalog (spec §3.9): the worlds of the ionium index (ionium-ap/Archipelago-index) as the
 // installed Archipelago sees them, joined with the Archipelago wiki (status, maintainer, setup guide,
-// categories), then the worlds only the wiki lists. A refresh costs one GitHub API call (the tree of
-// the index); the files of the index come from raw.githubusercontent.com, which is not rate limited,
-// and only those whose blob changed. What was fetched is kept on disk: offline or rate limited, the
-// catalog answers from it, marked stale.
+// cover, categories), then the worlds only the wiki lists. A refresh costs one GitHub API call (the
+// tree of the index); the files of the index come from raw.githubusercontent.com, which is not rate
+// limited, and only those whose blob changed. What was fetched is kept on disk: offline or rate
+// limited, the catalog answers from it, marked stale.
 import { createHash } from 'node:crypto'
 import { readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
@@ -50,8 +50,8 @@ const RETRY_MS = 5 * 60 * 1000
 const REQUEST_TIMEOUT_MS = 60_000
 /** A wiki listing that keeps asking for more after this many requests is not followed. */
 const MAX_WIKI_REQUESTS = 20
-/** 2: wiki pages keep their repository link and download. */
-const SAVED_VERSION = 2
+/** 3: wiki pages keep their cover. */
+const SAVED_VERSION = 3
 
 // --- types ----------------------------------------------------------------------------------------
 
@@ -123,6 +123,8 @@ export interface WikiPage {
   download: CatalogDownload | null
   /** `owner/repo`, lowercase, of the GitHub links of its download and repository fields. */
   repos: string[]
+  /** The boxart of its infobox (see `infoboxCover`); null without one. */
+  cover: string | null
 }
 
 /** Worlds whose maintainers asked to stay out of the catalog (resources/catalog-optout.json). */
@@ -492,28 +494,60 @@ function htmlLinks(html: string): string[] {
   return links
 }
 
-/** `pageprops.infoboxes` (a JSON string, PortableInfobox): the value of each `source`. */
-function infoboxFields(raw: unknown): Map<string, string> {
-  const fields = new Map<string, string>()
+/** The items of `pageprops.infoboxes` (a JSON string, PortableInfobox), groups flattened, in order. */
+function infoboxItems(raw: unknown): Table[] {
+  const items: Table[] = []
   let boxes: unknown
   try {
     boxes = typeof raw === 'string' ? JSON.parse(raw) : null
   } catch {
-    return fields
+    return items
   }
-  const walk = (items: unknown): void => {
-    if (!Array.isArray(items)) return
-    for (const item of items) {
-      if (!isTable(item) || !isTable(item.data)) continue
-      const { source, value } = item.data
-      if (item.type === 'group') walk(value)
-      else if (item.type === 'data' && typeof source === 'string' && typeof value === 'string') {
-        if (!fields.has(source)) fields.set(source, value)
-      }
+  const walk = (list: unknown): void => {
+    if (!Array.isArray(list)) return
+    for (const item of list) {
+      if (!isTable(item)) continue
+      if (item.type === 'group') walk(isTable(item.data) ? item.data.value : null)
+      else items.push(item)
     }
   }
   if (Array.isArray(boxes)) for (const box of boxes) if (isTable(box)) walk(box.data)
+  return items
+}
+
+/** The value of each `source` of an infobox. */
+function infoboxFields(raw: unknown): Map<string, string> {
+  const fields = new Map<string, string>()
+  for (const item of infoboxItems(raw)) {
+    if (item.type !== 'data' || !isTable(item.data)) continue
+    const { source, value } = item.data
+    if (typeof source === 'string' && typeof value === 'string' && !fields.has(source)) {
+      fields.set(source, value)
+    }
+  }
   return fields
+}
+
+/**
+ * The cover of an infobox: its first picture (a `media` item with `isImage`), the boxart rather than
+ * another one. The 300 px thumbnail when the wiki has one, else the picture itself. A web link made
+ * absolute (the wiki writes `//static.wikitide.net/...`), or null.
+ */
+function infoboxCover(raw: unknown): string | null {
+  const images: Table[] = []
+  for (const item of infoboxItems(raw)) {
+    if (item.type !== 'media' || !Array.isArray(item.data)) continue
+    for (const image of item.data as unknown[])
+      if (isTable(image) && image.isImage === true) images.push(image)
+  }
+  const image = images.find((candidate) => candidate.source === 'boxart') ?? images[0]
+  for (const link of [image?.thumbnail, image?.url]) {
+    // An empty link would resolve to the wiki itself.
+    const href = text(link)
+    const url = href === null ? null : parseUrl(href, WIKI_PAGES)
+    if (isWebUrl(url)) return url.href
+  }
+  return null
 }
 
 /** The pages of one `prop=pageprops&ppprop=infoboxes` answer (formatversion=2), by title. */
@@ -522,7 +556,8 @@ export function parseWikiPages(json: unknown): WikiPage[] {
   const pages: WikiPage[] = []
   for (const page of Array.isArray(query.pages) ? query.pages : []) {
     if (!isTable(page) || typeof page.title !== 'string' || page.title === '') continue
-    const fields = infoboxFields(isTable(page.pageprops) ? page.pageprops.infoboxes : undefined)
+    const infoboxes = isTable(page.pageprops) ? page.pageprops.infoboxes : undefined
+    const fields = infoboxFields(infoboxes)
     const field = (name: string): string => fields.get(name) ?? ''
     const repoLinks = htmlLinks(field('ap-repolink'))
     const downloadLinks = htmlLinks(field('ap-download'))
@@ -537,6 +572,7 @@ export function parseWikiPages(json: unknown): WikiPage[] {
       homepage: repoLinks[0] ?? null,
       download: wikiDownload(downloadLinks[0]),
       repos: [...new Set(repos)],
+      cover: infoboxCover(infoboxes),
     })
   }
   return pages.sort((a, b) => byCodePoint(a.title, b.title))
@@ -719,6 +755,7 @@ export function joinCatalog(
       afterDark,
       requiresRomAtGeneration: page !== null && (opts.romTitles?.has(page.title) ?? false),
       hasPopTracker: page !== null && (opts.popTrackerTitles?.has(page.title) ?? false),
+      cover: page?.cover ?? null,
       wiki: page && wikiInfo(page),
       latest,
       download: null,
@@ -762,6 +799,7 @@ export function joinCatalog(
       afterDark,
       requiresRomAtGeneration: opts.romTitles?.has(page.title) ?? false,
       hasPopTracker: opts.popTrackerTitles?.has(page.title) ?? false,
+      cover: page.cover,
       wiki: wikiInfo(page),
       latest: null,
       download,
@@ -830,6 +868,7 @@ const wikiPageSchema: z.ZodType<WikiPage> = z.object({
     ])
     .nullable(),
   repos: z.array(z.string()),
+  cover: nullableText,
 })
 
 /** `dataRoot/catalog/catalog.json`. */

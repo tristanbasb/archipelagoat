@@ -59,6 +59,7 @@ function catalogEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
     afterDark: false,
     requiresRomAtGeneration: false,
     hasPopTracker: false,
+    cover: null,
     wiki: null,
     latest: { version: '2.4.1', url: 'https://example.invalid/pokemon_emerald.apworld', sha256: null },
     download: null,

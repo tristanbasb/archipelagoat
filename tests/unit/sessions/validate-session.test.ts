@@ -94,6 +94,7 @@ function catalogEntry(
     afterDark: false,
     requiresRomAtGeneration: false,
     hasPopTracker: false,
+    cover: null,
     wiki: null,
     latest: latest ? { version: '1.0.0', url: `https://example.org/${id}.apworld`, sha256: null } : null,
     download,
