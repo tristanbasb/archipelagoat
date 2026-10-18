@@ -680,9 +680,10 @@ describe('parseWikiPages', () => {
     expect(real('Pokemon Crystal')).toBe(
       'https://static.wikitide.net/archipelagowiki/thumb/f/fe/Pokemoncrystal.png/300px-Pokemoncrystal.png',
     )
-    // An absolute link keeps its query string (Wikimedia Commons pictures carry one).
+    // A Wikimedia Commons picture has its thumbnail on thumb.wikimedia.org, a host covers are not
+    // downloaded from: the picture itself is kept, with its query string.
     expect(real('Celeste')).toBe(
-      'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Celeste_box_art_full.png/330px-Celeste_box_art_full.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',
+      'https://upload.wikimedia.org/wikipedia/commons/0/0f/Celeste_box_art_full.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original',
     )
 
     const cover = (...items: unknown[]): string | null | undefined => {
@@ -724,6 +725,28 @@ describe('parseWikiPages', () => {
         data: { value: [media(image({ url: '//static.wikitide.net/grouped.png' }))] },
       }),
     ).toBe('https://static.wikitide.net/grouped.png')
+    // A thumbnail is kept only on a cover host (https): any other gives way to the picture.
+    for (const thumbnail of [
+      'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Box.png/330px-Box.png',
+      'http://static.wikitide.net/t/box.png',
+      'https://static.wikitide.net.evil.example/t/box.png',
+      'https://evil.example/box.png',
+    ]) {
+      expect(
+        cover(media(image({ url: '//upload.wikimedia.org/wikipedia/commons/0/0f/Box.png', thumbnail }))),
+        thumbnail,
+      ).toBe('https://upload.wikimedia.org/wikipedia/commons/0/0f/Box.png')
+    }
+    expect(
+      cover(
+        media(
+          image({
+            url: '//upload.wikimedia.org/wikipedia/commons/0/0f/Box.png',
+            thumbnail: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Box.png/330px-Box.png',
+          }),
+        ),
+      ),
+    ).toBe('https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Box.png/330px-Box.png')
     // Only web links: a thumbnail that is not one gives way to the picture.
     expect(
       cover(media(image({ url: '//static.wikitide.net/box.png', thumbnail: 'javascript:alert(1)' }))),
@@ -1301,6 +1324,40 @@ describe('createCatalog', () => {
     await catalog.snapshot(false)
     expect(catalog.lookupByGame('Schedule I')?.id).toBe('Schedule_I')
     expect(catalog.lookupByGame('Hunie Pop')?.id).toBe('wiki:Hunie Pop')
+  })
+
+  it('lookupCover finds a game whose name differs only in case, accents or punctuation', async () => {
+    const catalog = newCatalog()
+    await catalog.snapshot(false)
+    const thumb = (path: string): string => `https://static.wikitide.net/archipelagowiki/${path}`
+    const crystal = { url: thumb('thumb/f/fe/Pokemoncrystal.png/300px-Pokemoncrystal.png'), afterDark: false }
+    // The game of the index entry, exactly; then without its accents and case; then by its letters.
+    expect(catalog.lookupCover('Pokemon Crystal')).toEqual(crystal)
+    expect(catalog.lookupCover('Pokémon Crystal')).toEqual(crystal)
+    expect(catalog.lookupCover('  POKEMON   crystal ')).toEqual(crystal)
+    expect(catalog.lookupCover('Pokémon Mystery Dungeon: Explorers of Sky')).toEqual({
+      url: thumb('thumb/7/7b/Explorers_of_Sky.jpg/299px-Explorers_of_Sky.jpg'),
+      afterDark: false,
+    })
+    // An entry of the wiki alone.
+    expect(catalog.lookupCover('Frogmonster')).toEqual({
+      url: thumb('thumb/d/da/Frogmonster.jpg/300px-Frogmonster.jpg'),
+      afterDark: false,
+    })
+    // No such game, no picture on its page, nothing to compare.
+    expect(catalog.lookupCover('Pokemon Emerald Rogue')).toBeNull()
+    expect(catalog.lookupCover("Keymaster's Keep")).toBeNull()
+    expect(catalog.lookupCover('')).toBeNull()
+    expect(catalog.lookupCover('!!!')).toBeNull()
+  })
+
+  it('lookupCover says when a cover belongs to an After Dark game, once the settings allow it', async () => {
+    const catalog = newCatalog()
+    await catalog.snapshot(false)
+    expect(catalog.lookupCover('Resident Evil 2 Remake')).toBeNull()
+    core.ctx.config.update({ showAfterDark: true })
+    await catalog.snapshot(false)
+    expect(catalog.lookupCover('Resident Evil 2 Remake')).toMatchObject({ afterDark: true })
   })
 
   it('lookupByGame prefers the entry with a release to install', async () => {

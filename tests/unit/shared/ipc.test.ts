@@ -50,6 +50,7 @@ const CHANNEL_TABLE = [
   'worlds:setEnabled',
   'worlds:remove',
   'catalog:list',
+  'covers:get',
   'studio:games',
   'studio:schema',
   'studio:parse',

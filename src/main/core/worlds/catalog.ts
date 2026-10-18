@@ -13,6 +13,7 @@ import { parse as parseToml } from 'smol-toml'
 import { z } from 'zod'
 import { isInstallable } from '@shared/catalog'
 import type { ErrorCode } from '@shared/codes'
+import { isCoverUrl } from '@shared/covers'
 import { IONIUM_REPO, WIKI_API } from '@shared/data/ap-constants'
 import { coreWorldsFor } from '@shared/data/core-worlds'
 import { AppError, toAppErrorData } from '@shared/errors'
@@ -530,7 +531,8 @@ function infoboxFields(raw: unknown): Map<string, string> {
 
 /**
  * The cover of an infobox: its first picture (a `media` item with `isImage`), the boxart rather than
- * another one. The 300 px thumbnail when the wiki has one, else the picture itself. A web link made
+ * another one. The 300 px thumbnail when the wiki has one on a host covers are downloaded from (the
+ * thumbnails of Wikimedia Commons pictures are not), else the picture itself. A web link made
  * absolute (the wiki writes `//static.wikitide.net/...`), or null.
  */
 function infoboxCover(raw: unknown): string | null {
@@ -541,13 +543,14 @@ function infoboxCover(raw: unknown): string | null {
       if (isTable(image) && image.isImage === true) images.push(image)
   }
   const image = images.find((candidate) => candidate.source === 'boxart') ?? images[0]
-  for (const link of [image?.thumbnail, image?.url]) {
+  const webLink = (link: unknown): string | null => {
     // An empty link would resolve to the wiki itself.
     const href = text(link)
     const url = href === null ? null : parseUrl(href, WIKI_PAGES)
-    if (isWebUrl(url)) return url.href
+    return isWebUrl(url) ? url.href : null
   }
-  return null
+  const thumbnail = webLink(image?.thumbnail)
+  return thumbnail !== null && isCoverUrl(thumbnail) ? thumbnail : webLink(image?.url)
 }
 
 /** The pages of one `prop=pageprops&ppprop=infoboxes` answer (formatversion=2), by title. */
@@ -915,6 +918,12 @@ export interface Catalog {
   lookup(id: string): CatalogEntry | null
   /** The entry whose game is exactly `game` (the `game` of a manifest or a YAML); no network. */
   lookupByGame(game: string): CatalogEntry | null
+  /**
+   * The remote cover of a game, and whether it is an After Dark one: the entry whose game is `game`,
+   * else the same name without accents and case, else with letters and digits only ("Pokémon
+   * Crystal" finds "Pokemon Crystal"); entries with no cover are passed over. No network.
+   */
+  lookupCover(game: string): { url: string; afterDark: boolean } | null
 }
 
 export interface CatalogDeps {
@@ -1237,5 +1246,18 @@ export function createCatalog(ctx: CoreContext, deps: CatalogDeps): Catalog {
     lookup: (id) => find((entry) => entry.id === id),
 
     lookupByGame: (game) => find((entry) => entry.game === game),
+
+    lookupCover(game) {
+      const compact = compactKey(game)
+      if (compact === '') return null
+      const key = nameKey(game)
+      const covered = (same: (name: string) => boolean): CatalogEntry | null =>
+        find((entry) => entry.cover !== null && same(entry.game))
+      const entry =
+        covered((name) => name === game) ??
+        covered((name) => nameKey(name) === key) ??
+        covered((name) => compactKey(name) === compact)
+      return entry === null || entry.cover === null ? null : { url: entry.cover, afterDark: entry.afterDark }
+    },
   }
 }

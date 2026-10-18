@@ -1,17 +1,19 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import { createConfigStore } from '@main/core/config'
 import type { CoreContext } from '@main/core/context'
 import { createEventBus } from '@main/core/events'
 import { withoutApProcesses } from '@main/core/ap/processes'
+import { handleCoverRequest } from '@main/core/covers/covers'
 import { exec as systemExec } from '@main/core/exec'
 import { consoleSink, createFileSink, createLogger } from '@main/core/logger'
 import { createSecretStore } from '@main/core/secrets'
 import { apUserAgent, createHttp } from '@main/core/system/http'
 import { createAllowedPaths } from '@main/core/system/user-path'
 import { createTaskManager } from '@main/core/tasks'
+import { COVER_SCHEME } from '@shared/covers'
 import { isAllowedExternalUrl } from '@shared/external-url'
 import { EVENT_NAMES } from '@shared/ipc/event-names'
 import { registerHandlers } from './ipc'
@@ -22,6 +24,9 @@ import { createServices } from './services'
 
 // 1. The name also names the default userData folder.
 app.setName('ArchipelaGOAT')
+
+// The scheme the cached game covers are shown under (see core/covers): declared before the app is ready.
+protocol.registerSchemesAsPrivileged([{ scheme: COVER_SCHEME, privileges: { standard: true, secure: true } }])
 
 // 2. Test-only overrides, honoured for an unpackaged app or with GOAT_E2E=1 only.
 const testEnv = !app.isPackaged || process.env.GOAT_E2E === '1'
@@ -176,6 +181,8 @@ async function main(): Promise<void> {
   })
   const services = createServices(ctx)
   services.startEager()
+  // Only the files of covers/ named by its index are served (see handleCoverRequest).
+  protocol.handle(COVER_SCHEME, (request) => handleCoverRequest(services.get('covers'), request.url))
   registerHandlers(services)
   installIpc(ipcMain, { log })
 

@@ -3,6 +3,7 @@ import { apChannels } from './ap'
 import { appChannels } from './app'
 import { bizhawkChannels } from './bizhawk'
 import { catalogChannels } from './catalog'
+import { coversChannels } from './covers'
 import { doctorChannels } from './doctor'
 import { joinChannels } from './join'
 import { serverChannels } from './server'
@@ -20,6 +21,7 @@ export const domainChannels = {
   ap: apChannels,
   worlds: worldsChannels,
   catalog: catalogChannels,
+  covers: coversChannels,
   studio: studioChannels,
   session: sessionChannels,
   server: serverChannels,
@@ -37,6 +39,7 @@ export const channels = {
   ...apChannels,
   ...worldsChannels,
   ...catalogChannels,
+  ...coversChannels,
   ...studioChannels,
   ...sessionChannels,
   ...serverChannels,
