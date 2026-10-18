@@ -39,6 +39,8 @@ export const ERROR_CODES = [
   'WEBHOST_UPLOAD_FAILED',
   'WEBHOST_ROOM_FAILED',
   'WEBHOST_UNAVAILABLE',
+  // Checks and measures
+  'MULTIDATA_UNREADABLE',
   // Joining and ROMs
   'JOIN_BAD_INPUT',
   'PATCH_INVALID',

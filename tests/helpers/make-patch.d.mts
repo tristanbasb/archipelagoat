@@ -5,6 +5,8 @@ export declare const EMERALD_MD5: string
 export interface SeedSlot {
   name: string
   game: string
+  /** How many locations the slot has, in its multidata and its spoiler. Default: 100. */
+  checks?: number
   /** Extension of the slot's patch file, e.g. `.apemerald`; none for a game without one. */
   patch?: string
   /** `archipelago.json` fields over the defaults. */

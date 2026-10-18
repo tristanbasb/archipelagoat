@@ -5,8 +5,8 @@ import { createWriteStream, mkdirSync } from 'node:fs'
 import { EOL } from 'node:os'
 import { dirname } from 'node:path'
 import { pipeline } from 'node:stream/promises'
-import { deflateSync } from 'node:zlib'
 import { ZipFile } from 'yazl'
+import { pickleMultidata } from './make-pickle.mjs'
 
 /** MD5 of the Pokemon Emerald ROM (worlds/pokemon_emerald/rom.py:100). */
 export const EMERALD_MD5 = '605b89b67018abcea91e693a4dd25be3'
@@ -73,6 +73,10 @@ const BOM = String.fromCodePoint(0xfeff)
 /** `Utils.get_file_safe_name`, then spaces to `_` (BaseClasses.py:404-409). */
 const fileSafe = (name) => name.replace(/[<>:"/\\|?*]/g, '').replaceAll(' ', '_')
 
+/** How many locations a slot has when the test does not say. */
+const DEFAULT_CHECKS = 100
+const checksOf = (slot) => slot.checks ?? DEFAULT_CHECKS
+
 /**
  * The spoiler header (BaseClasses.py:1869-1892): UTF-8 with a BOM, the platform's line ends, and a
  * `Player <n>: <name>` line only when there are several players.
@@ -85,24 +89,33 @@ function spoiler(seed, slots) {
     field('Filling Algorithm', 'balanced'),
     field('Players', slots.length),
   ]
-  if (slots.length > 1) lines.push(field('Total Location Count', slots.length * 100))
+  if (slots.length > 1) {
+    lines.push(
+      field(
+        'Total Location Count',
+        slots.reduce((sum, slot) => sum + checksOf(slot), 0),
+      ),
+    )
+  }
   lines.push(field('Plando Options', 'connections, texts, bosses'))
   slots.forEach((slot, i) => {
     if (slots.length > 1) lines.push('', `Player ${i + 1}: ${slot.name}`)
-    lines.push(field('Game', slot.game), field('Location Count', 100))
+    lines.push(field('Game', slot.game), field('Location Count', checksOf(slot)))
   })
   return `${BOM}${lines.join(EOL)}${EOL}`
 }
 
 /**
- * Writes the AP_<seed>.zip of a generation at `dest` and returns `dest`: the multidata (format byte 3,
- * then a stand-in payload), the spoiler, and `AP_<seed>_P<n>_<name><patch>` for each slot that has a
- * `patch` extension. A slot's manifest is `patchManifest` with its player, name, game and extension,
- * then `slot.manifest`.
+ * Writes the AP_<seed>.zip of a generation at `dest` and returns `dest`: the multidata (a pickle with
+ * `slot.checks` locations for each slot, 100 by default), the spoiler, and `AP_<seed>_P<n>_<name><patch>`
+ * for each slot that has a `patch` extension. A slot's manifest is `patchManifest` with its player, name,
+ * game and extension, then `slot.manifest`.
  */
 export async function makeSeedZip(dest, { seed, slots }) {
   const base = `AP_${seed}`
-  const multidata = Buffer.concat([Buffer.from([3]), deflateSync(JSON.stringify({ seed, slots }))])
+  const multidata = pickleMultidata({
+    slots: slots.map((slot) => ({ name: slot.name, game: slot.game, checks: checksOf(slot) })),
+  })
   const entries = [
     [`${base}.archipelago`, multidata],
     [`${base}_Spoiler.txt`, spoiler(seed, slots)],
