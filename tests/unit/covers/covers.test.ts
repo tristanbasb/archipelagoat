@@ -44,7 +44,7 @@ let clock: number
 
 const coversDir = (): string => join(core.ctx.platform.paths.dataRoot, 'covers')
 const indexFile = (): string => join(coversDir(), 'index.json')
-type Index = Record<string, { url: string; bytes: number; lastViewed: number }>
+type Index = Record<string, { url: string; bytes: number; lastViewed: number; games?: string[] }>
 const readIndex = (): Index => JSON.parse(readFileSync(indexFile(), 'utf8')) as Index
 const filesOfCache = (): string[] =>
   existsSync(coversDir()) ? readdirSync(coversDir()).filter((name) => name !== 'index.json') : []
@@ -136,9 +136,14 @@ describe('urlFor', () => {
     expect(fetchRaw.mock.calls[0]?.[0]).toBe(WIKI)
     expect(filesOfCache()).toEqual([keyName(WIKI)])
     expect(readFileSync(join(coversDir(), keyName(WIKI)))).toEqual(png())
-    // The index: the remote link, the size, the last view.
+    // The index: the remote link, the size, the last view, the game that shows it.
     expect(readIndex()).toEqual({
-      [keyName(WIKI)]: { url: WIKI, bytes: 64, lastViewed: expect.any(Number) as number },
+      [keyName(WIKI)]: {
+        url: WIKI,
+        bytes: 64,
+        lastViewed: expect.any(Number) as number,
+        games: ['frogmonster'],
+      },
     })
   })
 
@@ -392,6 +397,135 @@ describe('the cache limit', () => {
     clock += 2 * 60 * 60 * 1000
     await covers.urlFor('A')
     await vi.waitFor(() => expect(readIndex()[key]?.lastViewed).toBe(clock))
+  })
+})
+
+describe('a game whose wiki link changes', () => {
+  const OLD = 'https://static.wikitide.net/archipelagowiki/Old.png'
+  const NEWER = 'https://static.wikitide.net/archipelagowiki/Newer.png'
+  const NEWEST = 'https://upload.wikimedia.org/wikipedia/commons/Newest.png'
+
+  it('gets the new cover in place of the old one', async () => {
+    covered.set('Frogmonster', { url: OLD, afterDark: false })
+    expect(await covers.urlFor('Frogmonster')).toBe(keyOfUrl(OLD))
+
+    covered.set('Frogmonster', { url: NEWER, afterDark: false })
+    expect(await covers.urlFor('Frogmonster')).toBe(keyOfUrl(NEWER))
+    expect(filesOfCache()).toEqual([keyName(NEWER)])
+    expect(Object.keys(readIndex())).toEqual([keyName(NEWER)])
+    expect(await covers.serve(keyName(OLD))).toBeNull()
+
+    // The game is remembered by the next run too.
+    covered.set('Frogmonster', { url: NEWEST, afterDark: false })
+    expect(await makeCovers().urlFor('Frogmonster')).toBe(keyOfUrl(NEWEST))
+    expect(filesOfCache()).toEqual([keyName(NEWEST)])
+    expect(Object.keys(readIndex())).toEqual([keyName(NEWEST)])
+  })
+
+  it('leaves the old cover to the games that still show it', async () => {
+    covered.set('Frogmonster', { url: OLD, afterDark: false })
+    covered.set('Twin', { url: OLD, afterDark: false })
+    await covers.urlFor('Frogmonster')
+    await covers.urlFor('Twin')
+    expect(fetchRaw).toHaveBeenCalledTimes(1)
+
+    covered.set('Frogmonster', { url: NEWER, afterDark: false })
+    await covers.urlFor('Frogmonster')
+    expect(filesOfCache().sort()).toEqual([keyName(OLD), keyName(NEWER)].sort())
+
+    covered.set('Twin', { url: NEWER, afterDark: false })
+    await covers.urlFor('Twin')
+    expect(filesOfCache()).toEqual([keyName(NEWER)])
+  })
+
+  it('is told apart from another game only by its name, not by accents or punctuation', async () => {
+    covered.set('Pokémon Crystal', { url: OLD, afterDark: false })
+    covered.set('Pokemon Crystal', { url: OLD, afterDark: false })
+    await covers.urlFor('Pokémon Crystal')
+    await covers.urlFor('Pokemon Crystal')
+    expect(readIndex()[keyName(OLD)]?.games).toEqual(['pokemoncrystal'])
+  })
+
+  it('keeps a cover that only another game showed, when a game has no previous one', async () => {
+    covered.set('Frogmonster', { url: OLD, afterDark: false })
+    await covers.urlFor('Frogmonster')
+    covered.set('Other', { url: NEWER, afterDark: false })
+    await covers.urlFor('Other')
+    expect(filesOfCache().sort()).toEqual([keyName(OLD), keyName(NEWER)].sort())
+  })
+
+  it('keeps the old cover while the new one cannot be had', async () => {
+    covered.set('Frogmonster', { url: OLD, afterDark: false })
+    await covers.urlFor('Frogmonster')
+    covered.set('Frogmonster', { url: NEWER, afterDark: false })
+    respond = () => new Response('Not found', { status: 404 })
+    expect(await covers.urlFor('Frogmonster')).toBeNull()
+    expect(filesOfCache()).toEqual([keyName(OLD)])
+  })
+
+  it('reads an index written without the games', async () => {
+    mkdirSync(coversDir(), { recursive: true })
+    writeFileSync(join(coversDir(), keyName(OLD)), png())
+    writeFileSync(indexFile(), JSON.stringify({ [keyName(OLD)]: { url: OLD, bytes: 64, lastViewed: 1 } }))
+    covered.set('Frogmonster', { url: OLD, afterDark: false })
+    expect(await makeCovers().urlFor('Frogmonster')).toBe(keyOfUrl(OLD))
+    expect(fetchRaw).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(readIndex()[keyName(OLD)]?.games).toEqual(['frogmonster']))
+  })
+})
+
+describe('the folder and its index', () => {
+  const ORPHAN = `${sha256('orphan')}.png`
+  const ORPHAN_TEMP = `${sha256('orphan-temp')}.jpeg.0d5f3c1e-77aa-4b6e-9c19-2f1f6c0f1a11.tmp`
+  const INDEX_TEMP = 'index.json.5b0e93f4-1c47-4a0e-8d52-9f63b1f2a0c2.tmp'
+
+  it('removes the files the index does not list, and the temporary ones, at the first call', async () => {
+    await covers.urlFor('Frogmonster')
+    const kept = readFileSync(join(coversDir(), keyName(WIKI)))
+    const indexBefore = readFileSync(indexFile(), 'utf8')
+    // A crash between the write of a cover and the save of the index, and writes cut short.
+    for (const name of [ORPHAN, ORPHAN_TEMP, INDEX_TEMP, 'notes.txt', `${sha256('big')}.PNG`]) {
+      writeFileSync(join(coversDir(), name), png())
+    }
+    // A folder is not a file: left alone.
+    mkdirSync(join(coversDir(), 'folder'))
+    writeFileSync(join(coversDir(), 'folder', 'inside.png'), png())
+
+    const later = makeCovers()
+    expect(existsSync(join(coversDir(), ORPHAN))).toBe(true)
+    expect(await later.urlFor('Frogmonster')).toBe(keyOfUrl(WIKI))
+    expect(readdirSync(coversDir()).sort()).toEqual(['folder', 'index.json', keyName(WIKI)].sort())
+    expect(readdirSync(join(coversDir(), 'folder'))).toEqual(['inside.png'])
+    // What the index lists is untouched, and still served without a request.
+    expect(readFileSync(join(coversDir(), keyName(WIKI)))).toEqual(kept)
+    expect(readFileSync(indexFile(), 'utf8')).toBe(indexBefore)
+    expect(fetchRaw).toHaveBeenCalledTimes(1)
+  })
+
+  it('sweeps before a download, whichever call comes first', async () => {
+    mkdirSync(coversDir(), { recursive: true })
+    writeFileSync(join(coversDir(), ORPHAN), png())
+    expect(await covers.serve(ORPHAN)).toBeNull()
+    expect(existsSync(join(coversDir(), ORPHAN))).toBe(false)
+
+    writeFileSync(join(coversDir(), ORPHAN), png())
+    const other = makeCovers()
+    expect(await other.urlFor('Frogmonster')).toBe(keyOfUrl(WIKI))
+    expect(filesOfCache()).toEqual([keyName(WIKI)])
+  })
+
+  it('removes every file when the index cannot be read, so the cache limit stays true', async () => {
+    await covers.urlFor('Frogmonster')
+    writeFileSync(indexFile(), '{ nope')
+    const later = makeCovers()
+    expect(await later.serve(keyName(WIKI))).toBeNull()
+    expect(filesOfCache()).toEqual([])
+  })
+
+  it('does nothing, and does not fail, without a covers folder', async () => {
+    expect(existsSync(coversDir())).toBe(false)
+    expect(await covers.serve(ORPHAN)).toBeNull()
+    expect(existsSync(coversDir())).toBe(false)
   })
 })
 

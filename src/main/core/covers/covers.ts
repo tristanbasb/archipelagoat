@@ -3,7 +3,7 @@
 // the renderer never loads a remote image. `index.json` lists what the folder holds; a file name is
 // the sha256 of the remote link plus the extension of the type found in the bytes.
 import { createHash } from 'node:crypto'
-import { readFile, rm } from 'node:fs/promises'
+import { readdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import pLimit from 'p-limit'
 import { z } from 'zod'
@@ -11,7 +11,7 @@ import { COVER_SCHEME, isCoverUrl } from '@shared/covers'
 import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
 import { pathExists, writeFileAtomic } from '../system/fsx'
-import type { Catalog } from '../worlds/catalog'
+import { compactKey, type Catalog } from '../worlds/catalog'
 
 export type ImageType = 'png' | 'jpeg' | 'webp' | 'gif'
 
@@ -55,7 +55,13 @@ const FILE_NAME = /^[0-9a-f]{64}\.(png|jpeg|webp|gif)$/
 
 const indexSchema = z.record(
   z.string(),
-  z.object({ url: z.string(), bytes: z.number().int().nonnegative(), lastViewed: z.number() }),
+  z.object({
+    url: z.string(),
+    bytes: z.number().int().nonnegative(),
+    lastViewed: z.number(),
+    /** The games (see `compactKey`) showing this file: a game whose link changes drops its old file. */
+    games: z.array(z.string()).default([]),
+  }),
 )
 type Entry = z.infer<typeof indexSchema>[string]
 
@@ -92,7 +98,30 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
     saved.success ? Object.entries(saved.data).filter(([key]) => FILE_NAME.test(key)) : [],
   )
 
-  // --- the index on disk ---
+  // --- the folder and its index on disk ---
+
+  /**
+   * Deletes what the folder holds besides the index and the files it lists: the cache limit counts
+   * what the index lists, so a file left by a crash between its write and the save of the index,
+   * by an index that could not be read, or a temporary file of an interrupted write would stay
+   * forever. Nothing outside covers/ is looked at.
+   */
+  async function sweep(): Promise<void> {
+    try {
+      for (const item of await readdir(dir, { withFileTypes: true })) {
+        const listed = FILE_NAME.test(item.name) && index.has(item.name)
+        if (!item.isFile() || item.name === 'index.json' || listed) continue
+        await rm(path.join(dir, item.name), { force: true })
+      }
+    } catch (error) {
+      // No folder yet: nothing to sweep.
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+        ctx.log.warn('covers: cannot sweep covers/', error)
+    }
+  }
+  let swept: Promise<void> | null = null
+  /** The sweep, once, before the first answer: it must end before a download writes a file. */
+  const ready = (): Promise<void> => (swept ??= sweep())
 
   let writing: Promise<void> = Promise.resolve()
   let queued = false
@@ -110,6 +139,13 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
     return writing
   }
 
+  async function remove(key: string): Promise<void> {
+    index.delete(key)
+    await rm(path.join(dir, key), { force: true }).catch((error: unknown) =>
+      ctx.log.warn(`covers: cannot remove ${key}`, error),
+    )
+  }
+
   /** Removes the least recently viewed files until the cache fits; `keep` is never one of them. */
   async function evict(keep: string): Promise<void> {
     let total = 0
@@ -120,11 +156,21 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
     for (const [key, entry] of oldestFirst) {
       if (total <= maxCacheBytes) break
       total -= entry.bytes
-      index.delete(key)
-      await rm(path.join(dir, key), { force: true }).catch((error: unknown) =>
-        ctx.log.warn(`covers: cannot remove ${key}`, error),
-      )
+      await remove(key)
     }
+  }
+
+  /** `game` shows the file `key` from now on: the one it showed before goes unless another game shows it. */
+  async function assign(game: string, key: string): Promise<void> {
+    const entry = index.get(key)
+    if (!entry || entry.games.includes(game)) return
+    entry.games.push(game)
+    for (const [other, previous] of [...index]) {
+      if (other === key || !previous.games.includes(game)) continue
+      previous.games = previous.games.filter((name) => name !== game)
+      if (previous.games.length === 0) await remove(other)
+    }
+    await save()
   }
 
   // --- the download ---
@@ -194,7 +240,7 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
       if (type === null) throw new Error('not an image')
       const key = `${createHash('sha256').update(url).digest('hex')}.${type}`
       await writeFileAtomic(path.join(dir, key), bytes)
-      index.set(key, { url, bytes: bytes.length, lastViewed: now() })
+      index.set(key, { url, bytes: bytes.length, lastViewed: now(), games: [] })
       await evict(key)
       await save()
       return key
@@ -224,6 +270,7 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
 
   return {
     async urlFor(game) {
+      await ready()
       const cover = deps.lookupCover(game)
       if (cover === null || !isCoverUrl(cover.url)) return null
       if (cover.afterDark && !ctx.config.get().showAfterDark) return null
@@ -236,10 +283,13 @@ export function createCovers(ctx: CoreContext, deps: CoversDeps): Covers {
         inFlight.set(url, pending)
       }
       const key = await pending
-      return key === null ? null : `${COVER_SCHEME}://${key}`
+      if (key === null) return null
+      await assign(compactKey(game), key)
+      return `${COVER_SCHEME}://${key}`
     },
 
     async serve(key) {
+      await ready()
       const type = FILE_NAME.exec(key)?.[1] as ImageType | undefined
       if (type === undefined || !index.has(key)) return null
       try {
