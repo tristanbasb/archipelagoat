@@ -114,6 +114,20 @@ function detailNumber(detail: Record<string, string | number> | undefined, name:
   return typeof value === 'number' ? value : null
 }
 
+/**
+ * The measure and search tasks each session's panel started. A task carries no session, and the step
+ * can be left while one runs: this outlives the panel (like wizard-runs), so that a panel mounted again
+ * follows the runs of its own session, and no other.
+ */
+const startedRuns = new Map<string, Set<string>>()
+
+function rememberRun(sessionId: string, taskId: string): void {
+  const { tasks } = useTasksStore.getState()
+  // The runs that are over are forgotten.
+  const running = [...(startedRuns.get(sessionId) ?? [])].filter((id) => tasks[id]?.status === 'running')
+  startedRuns.set(sessionId, new Set([...running, taskId]))
+}
+
 export function ChecksPanel({ session }: { session: Session }): React.JSX.Element {
   const { t, p } = usePanelText()
   const toast = useToast()
@@ -139,7 +153,10 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
 
   // --- The measure of the whole session ---
   const startMeasure = useIpcMutation('checks:measureSession', {
-    onSuccess: ({ taskId }) => setMeasureId(taskId),
+    onSuccess: ({ taskId }) => {
+      rememberRun(sessionId, taskId)
+      setMeasureId(taskId)
+    },
   })
   const measureTask = useTask(measureId)
   const failed: AppErrorData | null =
@@ -158,7 +175,10 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
 
   // --- The proposals for one player ---
   const startSuggest = useIpcMutation('checks:suggest', {
-    onSuccess: ({ taskId }) => setSuggestion((current) => current && { ...current, taskId }),
+    onSuccess: ({ taskId }) => {
+      rememberRun(sessionId, taskId)
+      setSuggestion((current) => current && { ...current, taskId })
+    },
   })
   const apply = useIpcMutation('checks:apply', { invalidates: ['session:validate', 'session:list'] })
   const suggestTask = useTask(suggestion?.taskId ?? null)
@@ -171,8 +191,8 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
   // A suggestion that was cancelled elsewhere says nothing.
   const dialogOpen = suggestDone || (suggestFailure !== null && suggestFailure.code !== 'TASK_CANCELLED')
 
-  // A run of the panel is followed by its id. One it did not start, or lost track of when the step was
-  // left and come back to, is found among the running `measure` tasks the app knows (a task's kind is
+  // A run of the panel is followed by its id. One of this session that it lost track of when the step was
+  // left and come back to is found among the running `measure` tasks the app knows (a task's kind is
   // known from its first event): it keeps the panel busy and shows its progress, as the first run did.
   const otherRun = useTasksStore((state) =>
     searching === null
@@ -180,6 +200,7 @@ export function ChecksPanel({ session }: { session: Session }): React.JSX.Elemen
           (task) =>
             task.kind === 'measure' &&
             task.status === 'running' &&
+            startedRuns.get(sessionId)?.has(task.taskId) === true &&
             task.taskId !== measureId &&
             task.taskId !== suggestion?.taskId,
         ) ?? null)

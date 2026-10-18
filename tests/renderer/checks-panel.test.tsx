@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { AppError } from '@shared/errors'
 import { defaultRules } from '@shared/rules'
 import type {
@@ -228,6 +228,25 @@ describe('ChecksPanel', () => {
     expect(await within(rowOf('Knight')).findByText('200')).toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.getByRole('button', { name: 'Mesurer les checks' })).toBeEnabled()
+  })
+
+  it('does not follow a measure of another session: it stays idle and enabled', async () => {
+    const { goat } = await renderPanel()
+    await screen.findByRole('button', { name: 'Proposer des réglages pour Knight' })
+
+    // A task of the app that this session's panel did not start: it belongs to some other session.
+    goat.emit('task:progress', {
+      taskId: 'elsewhere',
+      kind: 'measure',
+      stage: 'generate',
+      percent: 50,
+      detail: { done: 2, total: 4 },
+    })
+    await act(async () => {})
+
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Mesurer les checks' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Proposer des réglages pour Knight' })).toBeEnabled()
   })
 
   it('says why a measure failed and lets it start again', async () => {
