@@ -99,18 +99,34 @@ function weightOf(value: unknown): number | null {
   return null
 }
 
-/** True when `value` leaves the choice to the dice: weights on several choices, or a random one. */
-function rolls(value: unknown): boolean {
-  if (typeof value === 'string') return RANDOM_VALUE.test(value.trim())
-  if (!isRecord(value)) return false
-  const live: string[] = []
+/** The choices of a mapping of weights that weigh more than 0; null for what is not weights. */
+function liveChoices(value: unknown): { choice: string; weight: number }[] | null {
+  if (!isRecord(value)) return null
+  const live: { choice: string; weight: number }[] = []
   for (const [choice, weight] of Object.entries(value)) {
     const n = weightOf(weight)
     // A mapping that is not weights is the option's own value.
-    if (n === null) return false
-    if (n > 0) live.push(choice)
+    if (n === null) return null
+    if (n > 0) live.push({ choice, weight: n })
   }
-  return live.length > 1 || live.some((choice) => RANDOM_VALUE.test(choice.trim()))
+  return live
+}
+
+/** True when `value` leaves the choice to the dice: weights on several choices, or a random one. */
+function rolls(value: unknown): boolean {
+  if (typeof value === 'string') return RANDOM_VALUE.test(value.trim())
+  const live = liveChoices(value)
+  return live !== null && (live.length > 1 || live.some(({ choice }) => RANDOM_VALUE.test(choice.trim())))
+}
+
+/**
+ * The one choice a mapping of weights always gives, with its weight: a single weight above 0, on a
+ * choice that is not random (Archipelago's templates write every option so, `goal: { nap: 50,
+ * photo: 0 }`). Null when the mapping rolls dice, gives nothing, or is not weights.
+ */
+export function soleChoice(value: unknown): { choice: string; weight: number } | null {
+  const [only, ...more] = liveChoices(value) ?? []
+  return only === undefined || more.length > 0 || RANDOM_VALUE.test(only.choice.trim()) ? null : only
 }
 
 /**

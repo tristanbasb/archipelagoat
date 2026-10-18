@@ -340,6 +340,35 @@ describe('proposeBalance', () => {
     expect(await proposeBalance({ schema: ash, doc, current: 131, target: 100, measure })).toEqual([])
   })
 
+  it('leaves the real dice of a player alone', async () => {
+    const ash = schemaOf(ASH)
+    const dice: EditorDoc['options'] = {
+      goal: { mode: 'weighted', weights: { races: 50, help_everyone: 50 } },
+      golden_feathers: { mode: 'raw', yaml: '10: 50\n20: 50' },
+      silver_feathers: { mode: 'raw', yaml: '2: 0\nrandom-low: 50' },
+    }
+    const doc: EditorDoc = { ...docFromSchema(ash, 'Claire'), options: dice }
+    const model = countModel(ash, 131, { buckets: [0, -10] })
+    const measured: EditorDoc[] = []
+
+    const proposals = await proposeBalance({
+      schema: ash,
+      doc,
+      current: 131,
+      target: 100,
+      measure: (variant) => {
+        measured.push(variant)
+        return Promise.resolve(model(variant))
+      },
+    })
+
+    expect(measured.length).toBeGreaterThan(0)
+    for (const variant of measured) {
+      for (const [key, value] of Object.entries(dice)) expect(variant.options[key], key).toEqual(value)
+    }
+    expect(proposals.map((p) => p.changes)).toEqual([[{ key: 'buckets', from: 2, to: 0 }]])
+  })
+
   it('stops with the error of a measure that rejects (a cancelled task)', async () => {
     const ash = schemaOf(ASH)
     const measure = (): Promise<number | null> => Promise.reject(new AppError('TASK_CANCELLED'))
@@ -389,7 +418,11 @@ describe('checks:suggest and checks:apply', () => {
   let measureFails: boolean
   let last: SessionChecks | null
   const hk = schemaOf(HK)
-  const model = countModel(hk, 200, { RandomizeSkills: [false, -40], RandomizeKeys: [false, -20] })
+  const ash = schemaOf(ASH)
+  const models: Record<string, (doc: EditorDoc) => number> = {
+    [HK]: countModel(hk, 200, { RandomizeSkills: [false, -40], RandomizeKeys: [false, -20] }),
+    [ASH]: countModel(ash, 131, { goal: ['races', -31], golden_feathers: [0, -5] }),
+  }
 
   const task = (): { handle: TaskHandle; stages: string[] } => {
     const stages: string[] = []
@@ -408,7 +441,9 @@ describe('checks:suggest and checks:apply', () => {
     return {
       templates: {
         getSchema: (game) =>
-          game === HK ? Promise.resolve(hk) : Promise.reject(new AppError('NOT_FOUND', { game })),
+          game === HK || game === ASH
+            ? Promise.resolve(game === HK ? hk : ash)
+            : Promise.reject(new AppError('NOT_FOUND', { game })),
       },
       measurer: {
         measureDoc: (input) => {
@@ -416,7 +451,9 @@ describe('checks:suggest and checks:apply', () => {
           if (measureFails)
             return Promise.resolve({ checks: null, range: null, error: { code: 'AP_ROM_MISSING' } })
           const { docs } = parsePlayerYaml(input.yamlText)
-          if (docs.length !== 1 || !docs[0]) throw new Error('one document expected')
+          const model = models[input.game]
+          if (docs.length !== 1 || !docs[0] || !model)
+            throw new Error('one document of a known game expected')
           return Promise.resolve({ checks: model(docs[0]), range: null, error: null })
         },
         lastSession: () => Promise.resolve(last),
@@ -478,6 +515,14 @@ describe('checks:suggest and checks:apply', () => {
         { key: 'RandomizeKeys', from: true, to: false },
       ],
     })
+    // The file's own lines, as apply writes them.
+    expect(proposals[0]?.diff).toBe(
+      [
+        '-  RandomizeSkills: true # the skills',
+        '+  RandomizeSkills: false # the skills',
+        '+  RandomizeKeys: false',
+      ].join('\n'),
+    )
     expect(stages[0]).toBe('prepare')
     expect(stages).toContain('generate')
     expect(stages.at(-1)).toBe('done')
@@ -499,6 +544,77 @@ describe('checks:suggest and checks:apply', () => {
     )
     // Validated again by the store.
     expect(session.players[0]?.docs.map((doc) => doc.name)).toEqual(['Claire', 'Knight'])
+  })
+
+  it('balances a document written the template way, moving the weights and keeping the comments', async () => {
+    const template = readFileSync(join(TEMPLATES, `${ASH}.yaml`), 'utf8')
+    const { id, fileId } = await sessionWithFile(template)
+
+    const proposals = await balancer.suggest(
+      { sessionId: id, fileId, docIndex: 0, target: { kind: 'count', value: 95 } },
+      task().handle,
+    )
+
+    expect(proposals.map((p) => p.checks)).toEqual([95, 100, 126])
+    expect(proposals[0]?.changes).toEqual([
+      { key: 'goal', from: 'help_everyone', to: 'races' },
+      { key: 'golden_feathers', from: 20, to: 0 },
+    ])
+    expect(proposals[0]?.diff).toBe(
+      [
+        '-    races: 0',
+        '-    help_everyone: 50',
+        '+    races: 50',
+        '+    help_everyone: 0',
+        '-    20: 50',
+        '+    20: 0',
+        '+    0: 50',
+      ].join('\n'),
+    )
+
+    await balancer.apply({ sessionId: id, fileId, proposalId: proposals[0]?.id ?? '' })
+
+    // The weight goes from the old choice to the new one (0 is added after the last choice of
+    // golden_feathers); every comment of the template stays.
+    const golden = template.indexOf('  golden_feathers:')
+    const expected =
+      template
+        .slice(0, golden)
+        .replace('    races: 0\n    help_everyone: 50\n', '    races: 50\n    help_everyone: 0\n') +
+      template
+        .slice(golden)
+        .replace('    20: 50\n', '    20: 0\n')
+        .replace(
+          '    random-range-0-20: 0 # random value between 0 and 20\n',
+          '    random-range-0-20: 0 # random value between 0 and 20\n    0: 50\n',
+        )
+    const { text } = await store.readFile(id, fileId)
+    expect(text).toBe(expected.replace(/^\uFEFF/, ''))
+  })
+
+  it('shows in the diff the comments a document written anew loses', async () => {
+    const knight = `name: Knight\n# chosen later\ngame: ${HK}\n${HK}: {}\n`
+    const { id, fileId } = await sessionWithFile(`${CLAIRE}---\n${knight}`)
+
+    const [proposal] = await balancer.suggest(
+      { sessionId: id, fileId, docIndex: 1, target: { kind: 'count', value: 140 } },
+      task().handle,
+    )
+
+    expect(proposal?.diff).toBe(
+      [
+        '-# chosen later',
+        `-${HK}: {}`,
+        `+${HK}:`,
+        '+  RandomizeSkills: false',
+        '+  RandomizeKeys: false',
+      ].join('\n'),
+    )
+    await balancer.apply({ sessionId: id, fileId, proposalId: proposal?.id ?? '' })
+    const { text } = await store.readFile(id, fileId)
+    expect(text).toBe(
+      `${CLAIRE}---\nname: Knight\ngame: ${HK}\n${HK}:\n  RandomizeSkills: false\n  RandomizeKeys: false\n`,
+    )
   })
 
   it('an unknown or expired proposal id is NOT_FOUND', async () => {

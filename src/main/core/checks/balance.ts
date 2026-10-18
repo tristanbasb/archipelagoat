@@ -2,13 +2,16 @@
 // three proposals, each measured. The options whose name or kind tells the size of the game
 // (`sizeCandidates`) are turned one at a time toward fewer or more checks (`variantsToward`), twelve
 // of them measured at most; those that move the count the right way are combined greedily, three
-// changes at most, and the combination is measured as well. Nothing is written before a proposal is
-// applied, and then only its options, in that one document of the file: comments, order and the other
-// players stay as they were. A proposal is kept in memory for an hour.
+// changes at most, and the combination is measured as well. An option written the template way
+// (weights on a single choice) counts as that choice; real dice are never touched. Nothing is written
+// before a proposal is applied, and then only its options, in that one document of the file:
+// comments, order and the other players stay as they were. A proposal shows the diff apply writes,
+// and is kept in memory for an hour.
 import { createHash, randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
-import { isMap, isScalar, type Document, type Node } from 'yaml'
+import { isMap, isScalar, type Document, type Node, type Pair, type YAMLMap } from 'yaml'
 import { measuredCounts, targetOf } from '@shared/checks'
+import { TOGGLE_OFF, TOGGLE_ON } from '@shared/data/ap-constants'
 import { AppError, type AppErrorData } from '@shared/errors'
 import { setOptionValue } from '@shared/studio-model'
 import type {
@@ -18,15 +21,16 @@ import type {
   GameSchema,
   OptionChange,
   OptionSchema,
+  OptionValue,
   Session,
 } from '@shared/types'
 import type { Templates } from '../ap/templates'
 import type { CoreContext } from '../context'
 import type { SessionStore } from '../sessions/store'
 import type { TaskHandle } from '../tasks'
-import { parseYamlDocuments } from '../yaml/load'
+import { loadYaml11, parseYamlDocuments } from '../yaml/load'
 import { parsePlayerYaml, quoteIfAmbiguous, renderPlayerYaml } from '../yaml/writer'
-import type { Measurer } from './measure'
+import { soleChoice, type Measurer } from './measure'
 
 /** Single-option variants measured per player. */
 const MAX_SINGLES = 12
@@ -111,10 +115,6 @@ export function sizeCandidates(schema: GameSchema): OptionSchema[] {
 
 // --- one option toward fewer or more checks --------------------------------------------------------
 
-/** Toggle.from_any (Options.py): the strings that read as off and as on. */
-const TOGGLE_OFF: ReadonlySet<string> = new Set(['off', '0', 'false', 'none', 'null', 'no', 'disabled'])
-const TOGGLE_ON: ReadonlySet<string> = new Set(['on', '1', 'true', 'yes', 'enabled'])
-
 /** On or off; null for `random` or anything else Archipelago would not read as one of them. */
 function toggleState(value: unknown): boolean | null {
   if (typeof value === 'boolean') return value
@@ -188,13 +188,33 @@ interface Measured {
 const withChanges = (doc: EditorDoc, changes: readonly OptionChange[]): EditorDoc =>
   changes.reduce((next, change) => setOptionValue(next, change.key, { mode: 'value', value: change.to }), doc)
 
+/** A choice of weights as the value it names: `'true'` is on for a toggle, `'20'` is 20 for a range. */
+function valueOfChoice(option: OptionSchema, choice: string): unknown {
+  if (option.kind === 'toggle') return toggleState(choice) ?? choice
+  return isRangeKind(option) && /^[-+]?\d+$/.test(choice.trim()) ? Number(choice) : choice
+}
+
+/**
+ * The value the doc always gives `option`: its own, the default when it leaves the option out, or
+ * the one choice its weights give (raw YAML too, where the choices are numbers). Null when the dice
+ * pick it, which are the player's own: never changed.
+ */
+function fixedValue(option: OptionSchema, set: OptionValue | undefined): { value: unknown } | null {
+  if (set === undefined) return { value: option.default }
+  if (set.mode === 'value') return { value: set.value }
+  const sole = soleChoice(set.mode === 'weighted' ? set.weights : loadYaml11(set.yaml).docs[0])
+  return sole === null ? null : { value: valueOfChoice(option, sole.choice) }
+}
+
 /** Each size option of the doc turned toward `direction`, in the order of sizeCandidates. */
 function singleChanges(schema: GameSchema, doc: EditorDoc, direction: Direction): OptionChange[] {
   return sizeCandidates(schema).flatMap((option) => {
-    const set = Object.hasOwn(doc.options, option.key) ? doc.options[option.key] : undefined
-    // Weights and raw YAML are the player's own dice or text: they stay.
-    if (set !== undefined && set.mode !== 'value') return []
-    const from = set === undefined ? option.default : set.value
+    const fixed = fixedValue(
+      option,
+      Object.hasOwn(doc.options, option.key) ? doc.options[option.key] : undefined,
+    )
+    if (fixed === null) return []
+    const from = fixed.value
     return variantsToward(option, from, direction).map((to) => ({ key: option.key, from, to }))
   })
 }
@@ -340,6 +360,16 @@ export async function proposeBalance(input: ProposeInput): Promise<BalancePropos
 
 // --- writing a proposal in its file --------------------------------------------------------------------
 
+/** Text put in place of `start`…`end` (an insertion when they are equal). */
+interface Edit {
+  start: number
+  end: number
+  text: string
+}
+
+/** The text as the YAML parser counts its offsets: no BOM, `\n` line ends. */
+const plainText = (text: string): string => text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
+
 /** The YAML of a value a proposal sets, as PyYAML reads it back; null for any other value. */
 function scalarText(value: unknown): string | null {
   if (typeof value === 'boolean') return value ? 'true' : 'false'
@@ -351,53 +381,127 @@ function scalarText(value: unknown): string | null {
 const isEmptyDoc = (doc: Document.Parsed): boolean =>
   doc.contents === null || (isScalar(doc.contents) && doc.contents.value === null)
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** `record` with `key` set to `value`, as a field of its own (whatever the key). */
+const withField = (
+  record: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): Record<string, unknown> => ({
+  ...record,
+  [key]: value,
+})
+
+/** A scalar key as the loaded data spells it (`20` → `'20'`); null for any other key. */
+const keyOf = (pair: Pair<unknown, unknown>): string | null =>
+  isScalar(pair.key) ? String(pair.key.value) : null
+
 /**
- * `source` with the values of `changes` written over the old ones in the block section of `game`,
- * and the options it lacks added after its last one; every other character stays. Null when the
- * section is not a block mapping or a value is more than a scalar.
+ * The edit that adds `lines` after the last entry of the block mapping `map`, at the indentation of
+ * its first key; null when that cannot be told.
+ */
+function appendTo(source: string, map: YAMLMap<unknown, unknown>, lines: readonly string[]): Edit | null {
+  const first = map.items[0]?.key
+  const last = map.items.at(-1)
+  const tail = (last?.value ?? last?.key) as Node | null | undefined
+  if (!isScalar(first) || !first.range || !tail?.range) return null
+  const indent = source.slice(source.lastIndexOf('\n', first.range[0] - 1) + 1, first.range[0])
+  if (!/^ *$/.test(indent)) return null
+  // After the line the last entry ends on (a block value ends with its own line break).
+  const end = tail.range[1]
+  const lineBreak = source[end - 1] === '\n' ? end - 1 : source.indexOf('\n', end)
+  const at = lineBreak === -1 ? source.length : lineBreak + 1
+  const text = lines.map((line) => `${indent}${line}\n`).join('')
+  return { start: at, end: at, text: lineBreak === -1 ? `\n${text}` : text }
+}
+
+/**
+ * The edits that move the weight of the one choice a block mapping of weights gives onto `to` (the
+ * way Archipelago's templates write every option): the old choice gets 0, `to` gets the weight, added
+ * after the last choice when it is not there. With the mapping as it then reads. Null for anything
+ * else, real dice first: they are the player's own.
+ */
+function moveWeight(
+  source: string,
+  node: unknown,
+  weights: unknown,
+  to: unknown,
+): { edits: Edit[]; value: Record<string, unknown> } | null {
+  const sole = soleChoice(weights)
+  const key = scalarText(to)
+  if (sole === null || key === null || !isRecord(weights) || !isMap(node) || node.flow) return null
+  const from = node.items.find((pair) => keyOf(pair) === sole.choice)
+  if (from === undefined || !isScalar(from.value) || !from.value.range) return null
+  const wanted = String(to).toLowerCase()
+  const onto = node.items.find((pair) => keyOf(pair)?.toLowerCase() === wanted)
+  if (onto === from) return null
+  const edits: Edit[] = [{ start: from.value.range[0], end: from.value.range[1], text: '0' }]
+  let choice = String(to)
+  if (onto === undefined) {
+    const added = appendTo(source, node, [`${key}: ${sole.weight}`])
+    if (added === null) return null
+    edits.push(added)
+  } else {
+    if (!isScalar(onto.value) || !onto.value.range) return null
+    edits.push({ start: onto.value.range[0], end: onto.value.range[1], text: String(sole.weight) })
+    choice = keyOf(onto) ?? choice
+  }
+  return { edits, value: withField(withField(weights, sole.choice, 0), choice, sole.weight) }
+}
+
+/**
+ * `source` with `changes` written in the block section of `game`, every other character kept: a
+ * plain value replaced, the weight of a one-choice mapping moved (`moveWeight`), a missing option
+ * added after the last one. With the section as it then reads (`section`: as it reads now). Null when
+ * the section is not a block mapping, or a value is none of those.
  */
 function editInPlace(
   source: string,
   doc: Document.Parsed,
+  section: Record<string, unknown>,
   game: string,
   changes: readonly OptionChange[],
-): string | null {
+): { text: string; section: Record<string, unknown> } | null {
   const root = doc.contents
-  const section = isMap(root) ? root.get(game, true) : undefined
-  if (!isMap(section) || section.flow || section.items.length === 0) return null
-  const first = section.items[0]?.key
-  if (!isScalar(first) || !first.range) return null
-  const indent = source.slice(source.lastIndexOf('\n', first.range[0] - 1) + 1, first.range[0])
-  if (!/^ *$/.test(indent)) return null
+  const node = isMap(root) ? root.get(game, true) : undefined
+  if (!isMap(node) || node.flow || node.items.length === 0) return null
 
-  const edits: { start: number; end: number; text: string }[] = []
+  const edits: Edit[] = []
   const added: string[] = []
+  let after = section
   for (const change of changes) {
     const value = scalarText(change.to)
     if (value === null) return null
-    const pair = section.items.find((item) => isScalar(item.key) && item.key.value === change.key)
+    const pair = node.items.find((item) => keyOf(item) === change.key)
     if (pair === undefined) {
-      added.push(`${indent}${quoteIfAmbiguous(change.key)}: ${value}\n`)
-      continue
+      added.push(`${quoteIfAmbiguous(change.key)}: ${value}`)
+      after = withField(after, change.key, change.to)
+    } else if (isScalar(pair.value) && pair.value.range) {
+      const [start, end] = pair.value.range
+      // `key:` with nothing after it: the value goes after the colon.
+      edits.push({ start, end, text: start === end ? ` ${value}` : value })
+      after = withField(after, change.key, change.to)
+    } else {
+      const moved = moveWeight(source, pair.value, section[change.key], change.to)
+      if (moved === null) return null
+      edits.push(...moved.edits)
+      after = withField(after, change.key, moved.value)
     }
-    if (!isScalar(pair.value) || !pair.value.range) return null
-    const [start, end] = pair.value.range
-    // `key:` with nothing after it: the value goes after the colon.
-    edits.push({ start, end, text: start === end ? ` ${value}` : value })
   }
   if (added.length > 0) {
-    const last = section.items.at(-1)
-    const tail = (last?.value ?? last?.key) as Node | null | undefined
-    if (!tail?.range) return null
-    // After the line the last option ends on (a block value ends with its own line break).
-    const end = tail.range[1]
-    const lineBreak = source[end - 1] === '\n' ? end - 1 : source.indexOf('\n', end)
-    const at = lineBreak === -1 ? source.length : lineBreak + 1
-    edits.push({ start: at, end: at, text: `${lineBreak === -1 ? '\n' : ''}${added.join('')}` })
+    const edit = appendTo(source, node, added)
+    if (edit === null) return null
+    edits.push(edit)
   }
-  return edits
+  // From the end of the text; at the same place, the later edit first: an option added after the
+  // section's last mapping then comes after the choice added at the end of that mapping.
+  const text = [...edits]
+    .reverse()
     .sort((x, y) => y.start - x.start)
-    .reduce((text, edit) => text.slice(0, edit.start) + edit.text + text.slice(edit.end), source)
+    .reduce((out, edit) => out.slice(0, edit.start) + edit.text + out.slice(edit.end), source)
+  return { text, section: after }
 }
 
 /** `source` with the document `doc` written anew by the writer (its own comments are lost). */
@@ -411,12 +515,18 @@ function rewriteDoc(source: string, doc: Document.Parsed, expected: EditorDoc, s
   )
 }
 
+/** The documents of `text` as Archipelago reads them, the empty ones left out (as PlayerDoc.index). */
+const loadedDocs = (text: string): unknown[] =>
+  loadYaml11(text).docs.filter((data) => data !== null && data !== undefined)
+
 /**
  * `text` with the options of `changes` set in its player document `docIndex` (as PlayerDoc.index
  * counts them). Only those values change, the rest of the file stays as it was, comments included;
- * a document whose section cannot be edited that way (none, `{}`, a flow mapping) is written anew by
- * the writer, as the Studio does, the other documents still untouched. Windows line ends are kept.
- * AP_YAML_INVALID for a file Archipelago cannot read, NOT_FOUND for a document it does not have.
+ * an option the template way (weights on one choice) keeps its weights, moved onto the new value. A
+ * document whose section cannot be edited that way (none, `{}`, a flow mapping, an anchor…) is
+ * written anew by the writer, as the Studio does, the other documents still untouched. Windows line
+ * ends are kept. AP_YAML_INVALID for a file Archipelago cannot read, NOT_FOUND for a document it does
+ * not have.
  */
 export function rewriteOptions(
   text: string,
@@ -424,7 +534,7 @@ export function rewriteOptions(
   changes: readonly OptionChange[],
   schema?: GameSchema,
 ): string {
-  const source = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
+  const source = plainText(text)
   const { docs: editors, issues } = parsePlayerYaml(source)
   if (issues.length > 0) throw new AppError('AP_YAML_INVALID', undefined, { detail: issues[0]?.code })
   const editor = editors[docIndex]
@@ -432,18 +542,20 @@ export function rewriteOptions(
   if (editor === undefined || doc === undefined) {
     throw new AppError('NOT_FOUND', undefined, { detail: `player document ${docIndex}` })
   }
-  const expected = withChanges(editor, changes)
-  // An edit in place is kept only when the file reads back as expected (an anchor, an odd layout…).
-  const readsBack = (out: string): boolean => {
-    const again = parsePlayerYaml(out)
-    return (
-      again.issues.length === 0 &&
-      again.docs.length === editors.length &&
-      isDeepStrictEqual(again.docs[docIndex], expected)
-    )
-  }
-  const edited = editInPlace(source, doc, editor.game, changes)
-  const out = edited !== null && readsBack(edited) ? edited : rewriteDoc(source, doc, expected, schema)
+  const game = editor.game
+  const loaded = loadedDocs(source)
+  const data = loaded[docIndex]
+  const section = isRecord(data) && Object.hasOwn(data, game) ? data[game] : undefined
+  const edited = isRecord(section) ? editInPlace(source, doc, section, game, changes) : null
+  // An edit in place is kept only when the file then reads as expected (not so with an anchor).
+  const expected =
+    edited === null || !isRecord(data)
+      ? null
+      : loaded.map((other, i) => (i === docIndex ? withField(data, game, edited.section) : other))
+  const out =
+    edited !== null && expected !== null && isDeepStrictEqual(loadedDocs(edited.text), expected)
+      ? edited.text
+      : rewriteDoc(source, doc, withChanges(editor, changes), schema)
   return text.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out
 }
 
@@ -541,20 +653,26 @@ export function createBalancer(ctx: CoreContext, deps: BalancerDeps): Balancer {
       const measuredNow = await measureOf(doc)
       if (measuredNow.error !== null) throw errorOf(measuredNow.error)
       if (measuredNow.checks === null) throw new AppError('AP_UNKNOWN', undefined, { detail: 'no count' })
-      const proposals = await proposeBalance({
+      const measured = await proposeBalance({
         schema,
         doc,
         current: measuredNow.checks,
         target: targetOf(counts, target),
         measure: async (variant) => {
-          const measured = await measureOf(variant)
+          const result = await measureOf(variant)
           task.progress('generate', null, { done: ++done })
-          if (measured.error !== null) {
-            ctx.log.debug('balance: a variant could not be measured', { code: measured.error.code })
+          if (result.error !== null) {
+            ctx.log.debug('balance: a variant could not be measured', { code: result.error.code })
           }
-          return measured.error === null ? measured.checks : null
+          return result.error === null ? result.checks : null
         },
       })
+      // The diff shown is the file's, as apply will write it (apply only writes into this same text).
+      const before = plainText(text)
+      const proposals = measured.map((proposal) => ({
+        ...proposal,
+        diff: lineDiff(before, plainText(rewriteOptions(text, docIndex, proposal.changes, schema))),
+      }))
 
       dropExpired()
       const fileHash = sha256(text)

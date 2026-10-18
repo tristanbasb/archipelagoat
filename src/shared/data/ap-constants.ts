@@ -80,6 +80,19 @@ export function apExeFileName(name: string, os: OS): string {
   return os === 'win32' ? `${name}.exe` : name
 }
 
+// Option values (Options.py)
+/** Toggle.from_any: the strings, in lower case, that read as off and as on. */
+export const TOGGLE_OFF: ReadonlySet<string> = new Set([
+  'off',
+  '0',
+  'false',
+  'none',
+  'null',
+  'no',
+  'disabled',
+])
+export const TOGGLE_ON: ReadonlySet<string> = new Set(['on', '1', 'true', 'yes', 'enabled'])
+
 // BizHawk, the emulator the app can install (brief 1.11)
 export const BIZHAWK_REPO = 'TASEmulators/BizHawk'
 export const BIZHAWK_TAG = '2.11.1'

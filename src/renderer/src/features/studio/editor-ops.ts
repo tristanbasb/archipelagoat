@@ -1,6 +1,7 @@
 // The Studio's editing operations, on top of the shared model (src/shared/studio-model.ts): simple ⇄
 // weighted mode, random, reset, presets, and how an option value reads for its control. Pure
 // functions without React: every one returns a new EditorDoc and leaves its input alone.
+import { TOGGLE_OFF, TOGGLE_ON } from '@shared/data/ap-constants'
 import { applyPreset, docFromSchema, setOptionValue } from '@shared/studio-model'
 import type { EditorDoc, GameSchema, Issue, OptionSchema, OptionValue } from '@shared/types'
 
@@ -15,10 +16,6 @@ export const DEFAULT_WEIGHT = 50
 
 /** Kinds Archipelago never weights: their value is edited as YAML text. */
 const RAW_KINDS: ReadonlySet<OptionSchema['kind']> = new Set(['list', 'set', 'dict', 'free'])
-
-/** Toggle.from_any (Options.py): the strings that read as off and as on. */
-const TOGGLE_OFF: ReadonlySet<string> = new Set(['off', '0', 'false', 'none', 'null', 'no', 'disabled'])
-const TOGGLE_ON: ReadonlySet<string> = new Set(['on', '1', 'true', 'yes', 'enabled'])
 
 export type EditorMode = 'simple' | 'weighted' | 'raw'
 

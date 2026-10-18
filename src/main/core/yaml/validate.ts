@@ -5,6 +5,7 @@
 // Archipelago fails on (or silently changes, like a name cut to 16 characters); a warning is something
 // it ignores, or that the schema is not sure about (a Choice may have aliases the template does not
 // list, so an unknown name is a warning).
+import { TOGGLE_OFF, TOGGLE_ON } from '@shared/data/ap-constants'
 import type { GameSchema, Issue, OptionSchema, PlayerDoc, PlayerFile } from '@shared/types'
 import { YamlFloat } from './load'
 
@@ -44,8 +45,6 @@ const PLANDO_MODULES = new Set(['items', 'connections', 'texts', 'bosses'])
 const SECTION_KEYS = new Set(['triggers'])
 const ALTTP = 'A Link to the Past'
 const ALTTP_KEYS = new Set(['sprite_pool', 'sprite', 'random_sprite_on_event'])
-const TOGGLE_OFF = new Set(['off', '0', 'false', 'none', 'null', 'no', 'disabled'])
-const TOGGLE_ON = new Set(['on', '1', 'true', 'yes', 'enabled'])
 const RANGE_RANDOM = new Set(['random', 'random-low', 'random-middle', 'random-high'])
 
 type Push = (issue: Issue) => void
