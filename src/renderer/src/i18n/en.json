@@ -136,7 +136,8 @@
       "join-prepare": "Everything is ready to join",
       "rom-scan": "The ROM scan is over",
       "bizhawk-install": "BizHawk is installed",
-      "measure": "The checks are measured"
+      "measure": "The checks are measured",
+      "profiles": "The profiles are computed"
     },
     "kinds": {
       "ap-install": "Installing Archipelago",
@@ -148,7 +149,8 @@
       "join-prepare": "Getting ready to join",
       "rom-scan": "Looking for ROMs",
       "bizhawk-install": "Installing BizHawk",
-      "measure": "Measuring the checks"
+      "measure": "Measuring the checks",
+      "profiles": "Computing the profiles"
     }
   },
   "trust": {
@@ -256,6 +258,7 @@
     "WEBHOST_UNAVAILABLE": "archipelago.gg is unavailable",
     "MULTIDATA_UNREADABLE": "This game file cannot be read",
     "MEASURE_TIMEOUT": "The test generation took too long",
+    "CHECKS_NO_SCHEMA": "No options template for {{game}}",
     "JOIN_BAD_INPUT": "Link or address not recognized",
     "PATCH_INVALID": "This patch file is invalid",
     "ROM_MISSING": "ROM missing",
@@ -332,6 +335,7 @@
       "MULTIDATA_UNREADABLE_truncated": "This game file is cut short or damaged. Generate the game again.",
       "MULTIDATA_UNREADABLE_depth": "This game file is nested far deeper than an Archipelago game ever is, so it was not read. Use the file that the generation produced.",
       "MEASURE_TIMEOUT": "Archipelago did not finish this player’s test generation within 2 minutes, so it was stopped. Measure again, or check the player’s options in the studio.",
+      "CHECKS_NO_SCHEMA": "Neither Archipelago nor archipelago.gg has an options template for this game, so ArchipelaGOAT can neither build its profiles nor suggest settings. Generate the templates in the studio, then try again.",
       "JOIN_BAD_INPUT": "Paste an archipelago.gg room link, an archipelago:// or host:port address, or drop a patch file.",
       "PATCH_INVALID": "It may be incomplete, or made for another version. Ask the organizer for it again.",
       "ROM_MISSING": "This game needs your ROM. Add it to the vault (Emulators and ROMs). ArchipelaGOAT never provides ROMs.",
@@ -549,6 +553,10 @@
     "prepare": "Reading the player files",
     "read": "Reading the counts",
     "measure": {
+      "generate": "Test generations"
+    },
+    "profiles": {
+      "prepare": "Reading the options template",
       "generate": "Test generations"
     }
   }

@@ -84,13 +84,13 @@ describe('query invalidation on main-process events', () => {
     expect(invalidated.sort()).toEqual(['catalog:list', 'doctor:run', 'studio:games', 'worlds:list'].sort())
   })
 
-  it('checks:changed refreshes the estimates of the cards', async () => {
+  it('checks:changed refreshes the estimates of the cards and the profiles of the games', async () => {
     const { goat, queryClient } = await renderApp({ route: '/settings', handlers: { 'ap:detect': () => AP } })
     await screen.findByRole('heading', { level: 1, name: 'Réglages' })
     const invalidated = recordInvalidations(queryClient)
 
     goat.emit('checks:changed', null)
-    expect(invalidated).toEqual(['checks:estimate'])
+    expect(invalidated).toEqual(['checks:estimate', 'profiles:get'])
   })
 
   it('a finished generation or measure refreshes the last checks of the sessions, whatever the screen', async () => {

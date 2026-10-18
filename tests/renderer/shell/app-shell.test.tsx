@@ -303,6 +303,22 @@ describe('app shell', () => {
     expect(screen.getAllByText(/^Échec\s: Mesure des checks$/)).toHaveLength(1)
   })
 
+  it('a refinement of profiles, run in the background, never toasts', async () => {
+    const { goat } = await renderApp({ handlers: { 'ap:detect': () => null } })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Accueil' })).toBeInTheDocument()
+    goat.emit('task:done', { taskId: 'p1', kind: 'profiles', result: null })
+    goat.emit('task:failed', {
+      taskId: 'p2',
+      kind: 'profiles',
+      error: { code: 'AP_ROM_MISSING', params: { game: 'Pokemon Emerald' } },
+    })
+    // A task of another screen still toasts: the silence above is the refinement's.
+    goat.emit('task:done', { taskId: 'a1', kind: 'ap-install', result: null })
+    expect(await screen.findByText('Archipelago est installé')).toBeInTheDocument()
+    expect(screen.queryByText(/^Échec/)).toBeNull()
+    expect(screen.queryByText(/profils|tasks\.done/)).toBeNull()
+  })
+
   it('names the stage of the running task in the status bar, never its raw code', async () => {
     const { goat, user } = await renderApp()
     const bar = screen.getByRole('contentinfo', { name: 'Barre d’état' })

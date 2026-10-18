@@ -42,6 +42,7 @@ export const ERROR_CODES = [
   // Checks and measures
   'MULTIDATA_UNREADABLE',
   'MEASURE_TIMEOUT',
+  'CHECKS_NO_SCHEMA',
   // Joining and ROMs
   'JOIN_BAD_INPUT',
   'PATCH_INVALID',

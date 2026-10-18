@@ -34,7 +34,7 @@ export const TASK_STAGES = [
   'room',
   'wake',
   'port',
-  // measure (0.2), besides generate and done
+  // measure (0.2), besides generate and done; profiles (0.2) passes prepare, generate and done
   'prepare',
   'read',
 ] as const

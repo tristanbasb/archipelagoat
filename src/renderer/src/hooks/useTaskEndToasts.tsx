@@ -19,8 +19,12 @@ interface Owner {
   shows: (pathname: string) => boolean
 }
 
-/** A task asked along the way by its own dialog (useWorldInstall), which tells how it ends. */
-const SILENT: ReadonlySet<TaskKind> = new Set(['world-prepare'])
+/**
+ * Tasks whose end is never toasted: one asked along the way by its own dialog (useWorldInstall),
+ * which tells how it ends, and the refinement of a game's profiles, which runs in the background
+ * unasked (the main process logs its failure; the profiles stay heuristic).
+ */
+const SILENT: ReadonlySet<TaskKind> = new Set(['world-prepare', 'profiles'])
 
 const screen = (path: string): Owner => ({
   to: path,

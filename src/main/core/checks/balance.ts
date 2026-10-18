@@ -89,7 +89,7 @@ const isRangeKind = (option: OptionSchema): boolean =>
   option.kind === 'range' || option.kind === 'named-range'
 
 /** `RandomizeMaskShards` → `randomize_mask_shards`: worlds name their options either way. */
-function snakeKey(key: string): string {
+export function snakeKey(key: string): string {
   return key
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
@@ -97,8 +97,31 @@ function snakeKey(key: string): string {
     .toLowerCase()
 }
 
-const isCommon = (key: string): boolean =>
+/** True for an option every game has (its snake_case key), which says nothing of its size. */
+export const isCommon = (key: string): boolean =>
   COMMON_OPTIONS.has(key) || key.startsWith('plando_') || key.startsWith('start_inventory')
+
+/**
+ * The option schema of `game`: CHECKS_NO_SCHEMA when neither the local templates nor the site have
+ * one (Templates.getSchema's NOT_FOUND), so that nothing can be built from its options.
+ */
+export async function checkedSchema(
+  templates: Pick<Templates, 'getSchema'>,
+  game: string,
+): Promise<GameSchema> {
+  try {
+    return await templates.getSchema(game)
+  } catch (error) {
+    if (error instanceof AppError && error.code === 'NOT_FOUND') {
+      throw new AppError(
+        'CHECKS_NO_SCHEMA',
+        { game },
+        { cause: error, ...(error.detail === undefined ? {} : { detail: error.detail }) },
+      )
+    }
+    throw error
+  }
+}
 
 /**
  * The options of `schema` that may change the size of the game: those whose name says so first, in
@@ -575,7 +598,7 @@ export interface Balancer {
    * measures `done`, then `done`), kept an hour for `apply`. The target is taken from the session's
    * last checks (INVALID_INPUT before any, except for a number of checks); the player is measured
    * first, and its error ends the task (AP_ROM_MISSING…). INVALID_INPUT for a document that rolls its
-   * game; NOT_FOUND for an unknown document, or a game without an option schema.
+   * game; NOT_FOUND for an unknown document; CHECKS_NO_SCHEMA for a game without an option schema.
    */
   suggest(input: SuggestInput, task: TaskHandle): Promise<BalanceProposal[]>
   /**
@@ -634,7 +657,7 @@ export function createBalancer(ctx: CoreContext, deps: BalancerDeps): Balancer {
       }
       // A document that rolls its game has no one schema to take options from.
       if (doc.game === '') throw new AppError('INVALID_INPUT', undefined, { detail: 'the game is rolled' })
-      const schema = await deps.templates.getSchema(doc.game)
+      const schema = await checkedSchema(deps.templates, doc.game)
       const counts = measuredCounts((await deps.measurer.lastSession(sessionId))?.players ?? [])
       if (target.kind !== 'count' && counts.length === 0) {
         throw new AppError('INVALID_INPUT', undefined, { detail: 'no measured checks in the session' })

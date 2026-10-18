@@ -40,6 +40,20 @@ describe('task stage labels', () => {
     expect(taskLabel(progress('measure', 'generate'), i18n.t)).toBe('Measuring the checks · Test generations')
   })
 
+  it('labels the stages of a refinement of profiles, in both languages', async () => {
+    expect(taskLabel(progress('profiles', 'prepare'), i18n.t)).toBe(
+      'Calcul des profils · Lecture du template d’options',
+    )
+    expect(stageLabel(progress('profiles', 'generate'), i18n.t)).toBe('Générations de test')
+    expect(stageLabel(progress('profiles', 'done'), i18n.t)).toBe('Terminé')
+
+    await i18n.changeLanguage('en')
+    expect(taskLabel(progress('profiles', 'prepare'), i18n.t)).toBe(
+      'Computing the profiles · Reading the options template',
+    )
+    expect(stageLabel(progress('profiles', 'generate'), i18n.t)).toBe('Test generations')
+  })
+
   it("keeps the generation's own `done` apart from the other tasks' one", () => {
     expect(stageLabel(progress('generate', 'done'), i18n.t)).toBe('Terminé')
     expect(stageLabel(progress('templates', 'done'), i18n.t)).toBe('Terminé')

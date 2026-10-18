@@ -10,6 +10,7 @@ import type {
   AppConfig,
   BalanceTarget,
   EditorDoc,
+  GameProfiles,
   JoinTarget,
   OpenRequest,
   QuitRequest,
@@ -57,6 +58,7 @@ const CHANNEL_TABLE = [
   'checks:suggest',
   'checks:apply',
   'covers:get',
+  'profiles:get',
   'studio:games',
   'studio:schema',
   'studio:parse',
@@ -265,6 +267,7 @@ describe('ipc contract', () => {
     expectTypeOf<ChannelInput<'webhost:host'>['consent']>().toEqualTypeOf<true>()
     expectTypeOf<ChannelInput<'checks:suggest'>['target']>().toEqualTypeOf<BalanceTarget>()
     expectTypeOf<ChannelOutput<'checks:apply'>>().toEqualTypeOf<Session>()
+    expectTypeOf<ChannelOutput<'profiles:get'>>().toEqualTypeOf<GameProfiles>()
   })
 })
 

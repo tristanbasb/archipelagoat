@@ -697,6 +697,14 @@ describe('checks:suggest and checks:apply', () => {
       balancer.suggest({ sessionId: id, fileId, docIndex: 1, target: median }, task().handle),
     ).rejects.toMatchObject({ code: 'AP_ROM_MISSING' })
   })
+
+  it('a game without an option schema is CHECKS_NO_SCHEMA', async () => {
+    const { id, fileId } = await sessionWithFile('name: Nobody\ngame: Unknown Game\nUnknown Game: {}\n')
+    await expect(
+      balancer.suggest({ sessionId: id, fileId, docIndex: 0, target: { kind: 'median' } }, task().handle),
+    ).rejects.toMatchObject({ code: 'CHECKS_NO_SCHEMA', params: { game: 'Unknown Game' } })
+    expect(measured).toEqual([])
+  })
 })
 
 describe('rewriteOptions', () => {

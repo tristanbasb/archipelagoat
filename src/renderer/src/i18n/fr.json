@@ -136,7 +136,8 @@
       "join-prepare": "Tout est prêt pour rejoindre",
       "rom-scan": "La recherche de ROM est terminée",
       "bizhawk-install": "BizHawk est installé",
-      "measure": "Les checks sont mesurés"
+      "measure": "Les checks sont mesurés",
+      "profiles": "Les profils sont calculés"
     },
     "kinds": {
       "ap-install": "Installation d’Archipelago",
@@ -148,7 +149,8 @@
       "join-prepare": "Préparation pour rejoindre",
       "rom-scan": "Recherche de ROMs",
       "bizhawk-install": "Installation de BizHawk",
-      "measure": "Mesure des checks"
+      "measure": "Mesure des checks",
+      "profiles": "Calcul des profils"
     }
   },
   "trust": {
@@ -256,6 +258,7 @@
     "WEBHOST_UNAVAILABLE": "archipelago.gg est indisponible",
     "MULTIDATA_UNREADABLE": "Ce fichier de partie est illisible",
     "MEASURE_TIMEOUT": "La génération de test a pris trop de temps",
+    "CHECKS_NO_SCHEMA": "Pas de template d’options pour {{game}}",
     "JOIN_BAD_INPUT": "Lien ou adresse non reconnu",
     "PATCH_INVALID": "Ce fichier de patch est invalide",
     "ROM_MISSING": "ROM manquante",
@@ -332,6 +335,7 @@
       "MULTIDATA_UNREADABLE_truncated": "Ce fichier de partie est incomplet ou abîmé. Génère la partie à nouveau.",
       "MULTIDATA_UNREADABLE_depth": "Ce fichier de partie est imbriqué bien plus profondément qu’une partie Archipelago ne l’est, alors il n’a pas été lu. Utilise le fichier produit par la génération.",
       "MEASURE_TIMEOUT": "Archipelago n’a pas terminé la génération de test de ce joueur en 2 minutes, elle a donc été arrêtée. Relance la mesure, ou vérifie les options du joueur dans le studio.",
+      "CHECKS_NO_SCHEMA": "Ni Archipelago ni archipelago.gg n’ont de template d’options pour ce jeu, alors ArchipelaGOAT ne peut ni préparer ses profils ni proposer de réglages. Génère les templates dans le studio, puis réessaie.",
       "JOIN_BAD_INPUT": "Colle un lien de room archipelago.gg, une adresse archipelago:// ou hôte:port, ou dépose un fichier de patch.",
       "PATCH_INVALID": "Il est peut-être incomplet, ou fait pour une autre version. Redemande-le à l’organisateur.",
       "ROM_MISSING": "Ce jeu a besoin de ta ROM. Ajoute-la dans le coffre (Émulateurs et ROMs). ArchipelaGOAT ne fournit aucune ROM.",
@@ -549,6 +553,10 @@
     "prepare": "Lecture des fichiers des joueurs",
     "read": "Lecture des comptes",
     "measure": {
+      "generate": "Générations de test"
+    },
+    "profiles": {
+      "prepare": "Lecture du template d’options",
       "generate": "Générations de test"
     }
   }

@@ -7,7 +7,8 @@
 // sessions, generator, servers, webhost, vault, bizhawk, join, doctor, integration, openRequests,
 // updater. Eager services (instantiated at startup, so their lifecycle hooks and app:openPath roots
 // are registered): locator (Task 6), processes (Task 7), servers (Task 16), openRequests and
-// integration (Task 21), updater (Task 35), checks (0.2: removes the measure folders left behind).
+// integration (Task 21), updater (Task 35), checks (0.2: removes the measure folders left behind),
+// profiles (0.2: refines the profiles of the worlds installed).
 import type { CoreContext } from '@main/core/context'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- filled by declaration merging

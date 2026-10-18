@@ -1,8 +1,10 @@
 // checks:* handlers: what is known of the size of a game before anything is generated, the exact
 // checks of a session's players, and the proposals that balance them.
 import type { ServiceContainer } from '@main/services/registry'
-// The `checks` entry of Services (the service file is loaded by import.meta.glob at run time).
+// The `checks` and `profiles` entries of Services (the service files are loaded by import.meta.glob at
+// run time).
 import type {} from '@main/services/checks.service'
+import type {} from '@main/services/profiles.service'
 import type { RegisterHandler } from './registry'
 
 export default function registerCheckHandlers(register: RegisterHandler, services: ServiceContainer): void {
@@ -10,15 +12,16 @@ export default function registerCheckHandlers(register: RegisterHandler, service
   // `checks:changed` tells the renderer when the table changed. Later asks never start one, so that a
   // refresh that failed (offline) is not retried at every card.
   let refreshStarted = false
-  register('checks:estimate', ({ games }) => {
+  register('checks:estimate', async ({ games }) => {
     const { estimates } = services.get('checks')
     if (!refreshStarted) {
       refreshStarted = true
       void estimates.refresh()
     }
-    // Profiles come with the profiles module (Task 10).
-    return Promise.resolve(
-      Object.fromEntries(games.map((game) => [game, { max: estimates.maxFor(game), profiles: null }])),
+    // The counts of the profiles refined so far: nothing is measured here.
+    const profiles = await services.get('profiles').cachedCounts(games)
+    return Object.fromEntries(
+      games.map((game) => [game, { max: estimates.maxFor(game), profiles: profiles.get(game) ?? null }]),
     )
   })
 

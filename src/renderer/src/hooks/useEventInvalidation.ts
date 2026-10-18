@@ -21,8 +21,9 @@ const EVENT_INVALIDATIONS = {
   ],
   // A world installed, removed, switched on or off, by the app or outside it.
   'worlds:changed': ['worlds:list', 'doctor:run', 'studio:games', 'catalog:list'],
-  // The table of the sizes of the games changed (the datapackage was refreshed, a game was generated).
-  'checks:changed': ['checks:estimate'],
+  // The table of the sizes of the games changed (the datapackage was refreshed, a game was generated,
+  // its profiles were measured).
+  'checks:changed': ['checks:estimate', 'profiles:get'],
   // A generation read the exact checks of its players from its multidata before it ended; a measure
   // (which the check step may have been left during) wrote them.
   'task:done': ['checks:lastSession'],

@@ -48,6 +48,7 @@ const TASK_KINDS: TaskKind[] = [
   'rom-scan',
   'bizhawk-install',
   'measure',
+  'profiles',
 ]
 const TRUST_TIERS: TrustTier[] = ['core', 'indexed-verified', 'wiki-release', 'unknown']
 

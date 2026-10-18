@@ -98,6 +98,7 @@ export type TaskKind =
   | 'rom-scan'
   | 'bizhawk-install'
   | 'measure'
+  | 'profiles'
 
 export interface TaskRef {
   taskId: string
@@ -628,6 +629,27 @@ export interface OptionChange {
   key: string
   from: unknown
   to: unknown
+}
+
+/**
+ * One way to play a game (spec §3.6): the options it changes from their defaults, and its checks
+ * once measured (null before; `range` [fewest, most] when its YAML rolls dice and the seeds differ).
+ */
+export interface GameProfile {
+  id: ProfileId
+  changes: OptionChange[]
+  checks: number | null
+  range: [number, number] | null
+}
+
+/**
+ * The profiles of a game, Découverte, Standard and Complet in that order, a profile equal to Standard
+ * left out. `measured`: refined by measures, else built from the names and kinds of the options alone.
+ */
+export interface GameProfiles {
+  game: string
+  profiles: GameProfile[]
+  measured: boolean
 }
 
 /**
