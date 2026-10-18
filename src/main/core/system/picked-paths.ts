@@ -8,6 +8,11 @@ export interface PickedPaths {
   add(p: string): void
   /** True when the user picked `p` in this run (on Windows, whatever its case). */
   has(p: string): boolean
+  /**
+   * True when `dir` is the folder of a path the user picked in this run (Ruling 28): the folder a
+   * file was saved in may be opened, wherever it is. Never true for a picked file itself.
+   */
+  isFolderOf(dir: string): boolean
 }
 
 export function createPickedPaths(os: OS): PickedPaths {
@@ -16,9 +21,15 @@ export function createPickedPaths(os: OS): PickedPaths {
     const normalized = lib.normalize(p)
     return os === 'win32' ? normalized.toLowerCase() : normalized
   }
+  // A folder's key as `dirname` gives it for a file inside: no trailing separator, roots kept whole.
+  const folderKeyOf = (dir: string): string => lib.dirname(lib.join(keyOf(dir), '_'))
   const picked = new Set<string>()
   return {
     add: (p) => void picked.add(keyOf(p)),
     has: (p) => picked.has(keyOf(p)),
+    isFolderOf: (dir) => {
+      const key = folderKeyOf(dir)
+      return [...picked].some((p) => lib.dirname(p) === key)
+    },
   }
 }

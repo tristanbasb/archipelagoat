@@ -36,6 +36,14 @@ export function loadedDraft(previous: Draft, source: StudioSource, docs: EditorD
   return { source, docs, active: 0, saved: JSON.stringify(docs), loadId: previous.loadId + 1 }
 }
 
+/**
+ * A draft holding docs made elsewhere that exist nowhere on disk (a « Jeu prêt » YAML): a new file,
+ * unsaved from the start, so that nothing replaces it without asking (Ruling 29).
+ */
+export function deliveredDraft(previous: Draft, docs: EditorDoc[]): Draft {
+  return { ...loadedDraft(previous, { kind: 'new' }, docs), saved: EMPTY_DRAFT.saved }
+}
+
 export const isDirty = (draft: Draft): boolean => JSON.stringify(draft.docs) !== draft.saved
 
 /** The file name a source is known by, for the toolbar and the confirmations. */

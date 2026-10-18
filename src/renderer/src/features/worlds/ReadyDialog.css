@@ -4,6 +4,19 @@
   gap: var(--sp-5);
 }
 
+/* The step on screen; it and its heading take the focus when the step changes (no ring: the
+   keyboard does not reach them, only the dialog sends the focus there). */
+.ready-dialog__panel {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.ready-dialog__panel:focus,
+.ready-dialog [data-autofocus]:focus {
+  outline: none;
+}
+
 /* ---- Head ----------------------------------------------------------------------------------- */
 
 .ready-head {
@@ -198,6 +211,12 @@
   display: grid;
   gap: var(--sp-4);
   padding: var(--sp-6) var(--sp-5);
+}
+
+.ready-run__title {
+  color: var(--text);
+  font-size: var(--fs-16);
+  text-align: center;
 }
 
 .ready-run__bar .progress__label {

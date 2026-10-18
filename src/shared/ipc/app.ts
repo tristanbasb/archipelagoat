@@ -37,7 +37,10 @@ export const appChannels = {
   'app:getInfo': channel(voidInput)<AppInfo>(),
   'app:getConfig': channel(voidInput)<AppConfig>(),
   'app:setConfig': channel(AppConfigPatch)<AppConfig>(),
-  /** Opens a folder or a text file inside the allowed roots (`ctx.paths`); anything else is refused. */
+  /**
+   * Opens a folder or a text file inside the allowed roots (`ctx.paths`), or the folder of a file the
+   * user picked in a dialog of this run; anything else is refused.
+   */
   'app:openPath': channel(z.strictObject({ path: nonEmpty }))<void>(),
   /** Opens https links to the allow-listed hosts only; anything else is PATH_FORBIDDEN. */
   'app:openExternal': channel(z.strictObject({ url: nonEmpty }))<void>(),

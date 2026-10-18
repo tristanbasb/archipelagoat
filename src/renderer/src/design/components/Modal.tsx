@@ -67,6 +67,52 @@ function ModalWindow({
     return () => opener?.focus()
   }, [])
 
+  // Focus that falls out of the dialog onto the page (its focused control removed, disabled or
+  // replaced, a click outside it) comes back to it: Tab stays trapped, the keyboard never reaches
+  // the page behind. Only the topmost dialog does it, and only when nothing else has the focus.
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    const topmost = (): boolean => {
+      const open = document.querySelectorAll('[role="dialog"][aria-modal="true"]')
+      return open[open.length - 1] === dialog
+    }
+    const fellOut = (): boolean => document.activeElement === null || document.activeElement === document.body
+    const reclaim = (): void => {
+      if (dialog.isConnected && fellOut() && topmost()) dialog.focus()
+    }
+    let timer: number | undefined
+    // A focused element removed or disabled fires no blur everywhere: its removal is seen here.
+    const observer = new MutationObserver(reclaim)
+    observer.observe(dialog, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['disabled'],
+    })
+    const onFocusOut = (event: FocusEvent): void => {
+      if (event.relatedTarget !== null) return
+      window.clearTimeout(timer)
+      timer = window.setTimeout(reclaim)
+    }
+    // Tab pressed while the focus is on the page: into the dialog, as if from its edge.
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== 'Tab' || !fellOut() || !topmost()) return
+      event.preventDefault()
+      const items = focusables(dialog)
+      ;(event.shiftKey ? items.at(-1) : items[0])?.focus()
+      if (fellOut()) dialog.focus()
+    }
+    dialog.addEventListener('focusout', onFocusOut)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      observer.disconnect()
+      window.clearTimeout(timer)
+      dialog.removeEventListener('focusout', onFocusOut)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [])
+
   useEffect(() => {
     if (!dismissible) return
     const onKey = (event: globalThis.KeyboardEvent): void => {

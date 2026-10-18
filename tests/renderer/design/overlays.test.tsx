@@ -65,6 +65,43 @@ describe('Modal', () => {
     expect(dialog).toContainElement(document.activeElement as HTMLElement)
   })
 
+  it('takes focus back when its focused control goes away, and keeps Tab inside', async () => {
+    // Its button gives way to a text while something runs, and it cannot be closed meanwhile.
+    function Running(): React.JSX.Element {
+      const [running, setRunning] = useState(false)
+      return (
+        <>
+          <button type="button">Derrière</button>
+          <Modal
+            open
+            onClose={() => undefined}
+            dismissible={!running}
+            title="Jeu prêt"
+            closeLabel="Fermer"
+            footer={
+              running ? (
+                <span>En cours</span>
+              ) : (
+                <button type="button" onClick={() => setRunning(true)}>
+                  Lancer
+                </button>
+              )
+            }
+          />
+        </>
+      )
+    }
+    const user = userEvent.setup()
+    render(<Running />)
+    const dialog = screen.getByRole('dialog', { name: 'Jeu prêt' })
+    await user.click(screen.getByRole('button', { name: 'Lancer' }))
+
+    await waitFor(() => expect(dialog).toHaveFocus())
+    await user.tab()
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    expect(screen.getByRole('button', { name: 'Derrière' })).not.toHaveFocus()
+  })
+
   it('closes from its close button', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

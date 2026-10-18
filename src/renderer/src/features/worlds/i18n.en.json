@@ -216,6 +216,7 @@
     "installAndPrepare": "Install and prepare",
     "starting": "Starting…",
     "running": {
+      "title": "Getting it ready",
       "waiting": "Starting…",
       "steps": {
         "install": "Install",

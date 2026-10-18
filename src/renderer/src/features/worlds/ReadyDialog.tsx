@@ -64,7 +64,7 @@ import { stageLabel } from '../../lib/task-stages'
 import { useConfig } from '../../stores/config'
 import { PixelConfetti } from '../session/PixelConfetti'
 import { fileNamePart } from '../studio/editor-ops'
-import { isDirty, keepDraft, keptDraft, loadedDraft } from '../studio/studio-draft'
+import { deliveredDraft, isDirty, keepDraft, keptDraft } from '../studio/studio-draft'
 import { GameCover } from './GameCover'
 import { parentDir } from './model'
 import { readyDialogOpened } from './ready-runs'
@@ -335,10 +335,10 @@ export function ReadyDialog({ request, onClose }: ReadyDialogProps): React.JSX.E
       update(requestId, () => ({ phase: { kind: 'done', outcome } }))
       return
     }
-    // The Studio gets the text: it opens on it as a new YAML.
+    // The Studio gets the text: it opens on it as a new YAML, not saved yet (Ruling 29).
     invoke('studio:parse', { text: outcome.text }).then(
       ({ docs }) => {
-        keepDraft(loadedDraft(keptDraft(), { kind: 'new' }, docs))
+        keepDraft(deliveredDraft(keptDraft(), docs))
         toast.push({ tone: 'ok', title: r('done.studio', { game: outcome.game }) })
         onClose()
         void navigate('/studio')
@@ -361,6 +361,29 @@ export function ReadyDialog({ request, onClose }: ReadyDialogProps): React.JSX.E
           choices: { ...previous.choices, consent: false },
           phase: { kind: 'form' },
         }))
+      })
+      return
+    }
+    // The plan expired (it lives an hour) or main no longer knows it: a new one runs the same choices
+    // (Ruling 30), unless it needs a consent the last run was not given, which is then asked.
+    const { lastRun: expired } = current
+    if (error.code === 'NOT_FOUND' && expired !== null && error.detail === expired.planId) {
+      void prepareAgain(requestId, failed.id).then((fresh) => {
+        if (fresh === null) return
+        if (installs(fresh, expired.update) && fresh.needsTrustConsent && !expired.trustAccepted) {
+          update(requestId, (previous) => ({
+            plan: fresh,
+            choices: { ...previous.choices, consent: false },
+            phase: { kind: 'form' },
+          }))
+          return
+        }
+        update(requestId, () => ({ plan: fresh }))
+        void run(requestId, {
+          ...expired,
+          planId: fresh.planId,
+          update: expired.update && fresh.updateAvailable,
+        })
       })
       return
     }
@@ -414,6 +437,26 @@ export function ReadyDialog({ request, onClose }: ReadyDialogProps): React.JSX.E
     update(requestId, () => ({ plan: fresh }))
     await run(requestId, { ...lastRun, planId: fresh.planId, update: false, trustAccepted: false })
   }
+
+  // Each new step takes the focus (its heading, or its panel), so that the keyboard stays in the
+  // dialog when the controls it was on go away, and the step is read out. The first choices keep it
+  // where the dialog put it on opening; the waits (a plan, a run starting) leave it as it is.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const shownStep = useRef<{ requestId: number; kind: Phase['kind']; formSeen: boolean } | null>(null)
+  useEffect(() => {
+    if (!current) return
+    const previous = shownStep.current?.requestId === current.requestId ? shownStep.current : null
+    shownStep.current = {
+      requestId: current.requestId,
+      kind: phase.kind,
+      formSeen: (previous?.formSeen ?? false) || phase.kind === 'form',
+    }
+    if (previous === null || previous.kind === phase.kind) return
+    if (phase.kind === 'loading' || phase.kind === 'starting') return
+    if (phase.kind === 'form' && !previous.formSeen) return
+    const panel = panelRef.current
+    ;(panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel)?.focus()
+  }, [current, phase.kind])
 
   const change = (patch: Partial<Choices>): void => {
     if (current) update(current.requestId, (previous) => ({ choices: { ...previous.choices, ...patch } }))
@@ -474,68 +517,70 @@ export function ReadyDialog({ request, onClose }: ReadyDialogProps): React.JSX.E
         {entry && (
           <div className="ready-dialog">
             <ReadyHead entry={entry} trust={plan?.trust ?? entry.trust} state={worldState} />
-            {phase.kind === 'loading' && (
-              <ProgressBar percent={null} label={r('loading')} segments={16} tone="violet" />
-            )}
-            {phase.kind === 'unprepared' && current && (
-              <Failure
-                error={phase.error}
-                title={r('planFailed')}
-                onRetry={() => {
-                  const { requestId, entry: target } = current
-                  void prepareAgain(requestId, target.id).then((fresh) => {
-                    if (fresh === null) return
-                    update(requestId, (previous) => ({
-                      plan: fresh,
-                      // A first plan that failed left no choices to keep.
-                      choices: previous.plan === null ? firstChoices(fresh) : previous.choices,
-                      phase: { kind: 'form' },
-                    }))
-                  })
-                }}
-              />
-            )}
-            {plan && current && (phase.kind === 'form' || phase.kind === 'starting') && (
-              <>
-                {!plan.apInstalled ? (
-                  <NoArchipelago />
-                ) : (
-                  <ReadyForm
-                    entry={current.entry}
-                    plan={plan}
-                    choices={current.choices}
-                    willInstall={willInstall}
-                    consentShown={consentShown}
-                    trustChanged={current.forceConsent}
-                    disabled={busy}
-                    onChange={change}
-                  />
-                )}
-              </>
-            )}
-            {phase.kind === 'running' && (
-              <RunProgress
-                progress={task.progress}
-                installing={plan !== null && lastRun !== null && installs(plan, lastRun.update)}
-              />
-            )}
-            {phase.kind === 'failed' && current && lastRun && (
-              <Failure
-                error={phase.error}
-                onRetry={() => void run(current.requestId, lastRun)}
-                onPickFile={() => void installFile()}
-                onNavigate={leaveTo}
-              />
-            )}
-            {phase.kind === 'done' && (
-              <ReadyClear
-                outcome={phase.outcome}
-                plan={plan}
-                lastRun={lastRun}
-                onOpenVault={() => leaveTo('/vault')}
-                onOpenGuide={(url) => openExternal.mutate({ url })}
-              />
-            )}
+            <div ref={panelRef} tabIndex={-1} className="ready-dialog__panel">
+              {phase.kind === 'loading' && (
+                <ProgressBar percent={null} label={r('loading')} segments={16} tone="violet" />
+              )}
+              {phase.kind === 'unprepared' && current && (
+                <Failure
+                  error={phase.error}
+                  title={r('planFailed')}
+                  onRetry={() => {
+                    const { requestId, entry: target } = current
+                    void prepareAgain(requestId, target.id).then((fresh) => {
+                      if (fresh === null) return
+                      update(requestId, (previous) => ({
+                        plan: fresh,
+                        // A first plan that failed left no choices to keep.
+                        choices: previous.plan === null ? firstChoices(fresh) : previous.choices,
+                        phase: { kind: 'form' },
+                      }))
+                    })
+                  }}
+                />
+              )}
+              {plan && current && (phase.kind === 'form' || phase.kind === 'starting') && (
+                <>
+                  {!plan.apInstalled ? (
+                    <NoArchipelago />
+                  ) : (
+                    <ReadyForm
+                      entry={current.entry}
+                      plan={plan}
+                      choices={current.choices}
+                      willInstall={willInstall}
+                      consentShown={consentShown}
+                      trustChanged={current.forceConsent}
+                      disabled={busy}
+                      onChange={change}
+                    />
+                  )}
+                </>
+              )}
+              {phase.kind === 'running' && (
+                <RunProgress
+                  progress={task.progress}
+                  installing={plan !== null && lastRun !== null && installs(plan, lastRun.update)}
+                />
+              )}
+              {phase.kind === 'failed' && current && lastRun && (
+                <Failure
+                  error={phase.error}
+                  onRetry={() => void run(current.requestId, lastRun)}
+                  onPickFile={() => void installFile()}
+                  onNavigate={leaveTo}
+                />
+              )}
+              {phase.kind === 'done' && (
+                <ReadyClear
+                  outcome={phase.outcome}
+                  plan={plan}
+                  lastRun={lastRun}
+                  onOpenVault={() => leaveTo('/vault')}
+                  onOpenGuide={(url) => openExternal.mutate({ url })}
+                />
+              )}
+            </div>
           </div>
         )}
       </Modal>
@@ -629,7 +674,7 @@ function ReadyForm({
       {willInstall && consentShown && (
         <div className="ready-trust">
           {trustChanged && (
-            <p className="ready-notice tone-yellow" role="status">
+            <p className="ready-notice tone-yellow" role="status" tabIndex={-1} data-autofocus>
               {r('trust.changed')}
             </p>
           )}
@@ -798,6 +843,9 @@ function RunProgress({
   const at = stepIndex(steps, progress?.stage)
   return (
     <div className="ready-run pixel-border tone-violet">
+      <h3 className="ready-run__title" tabIndex={-1} data-autofocus>
+        {r('running.title')}
+      </h3>
       <ProgressBar
         percent={progress?.percent ?? null}
         label={stageLabel(progress, t) ?? r('running.waiting')}
@@ -956,7 +1004,9 @@ function ReadyClear({
         <span className="ready-clear__eyebrow t-display" aria-hidden="true">
           {r('done.eyebrow')}
         </span>
-        <h3 className="ready-clear__title">{r('done.title')}</h3>
+        <h3 className="ready-clear__title" tabIndex={-1} data-autofocus>
+          {r('done.title')}
+        </h3>
         <p className="ready-clear__summary">
           {r('done.summary', { profile: t(`profiles.names.${outcome.profile}`), checks })}
         </p>

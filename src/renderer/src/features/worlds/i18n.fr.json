@@ -216,6 +216,7 @@
     "installAndPrepare": "Installer et préparer",
     "starting": "Lancement…",
     "running": {
+      "title": "Préparation en cours",
       "waiting": "Démarrage…",
       "steps": {
         "install": "Installation",

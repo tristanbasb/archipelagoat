@@ -75,6 +75,31 @@ describe('app handlers', () => {
     expect(core.openPath.mock.calls).toEqual([[log]])
   })
 
+  it('app:openPath opens the folder of a file picked in a save dialog, never the file nor another folder', async () => {
+    // Documents: outside the app's roots, where the save dialog usually opens.
+    const documents = join(dir, 'Documents')
+    const inside = join(documents, 'Archipelago')
+    const elsewhere = join(dir, 'Elsewhere')
+    const saved = join(documents, 'Tristan - Celeste.yaml')
+    for (const folder of [documents, inside, elsewhere]) mkdirSync(folder, { recursive: true })
+    writeFileSync(saved, 'name: Tristan\n')
+    const refused = { error: { code: 'PATH_FORBIDDEN', params: { reason: 'outside-allowed-roots' } } }
+
+    expect(await call('app:openPath', { path: documents })).toMatchObject(refused)
+    core.showSaveDialog.mockResolvedValueOnce(saved)
+    expect(await call('app:savePath', { defaultName: 'Tristan - Celeste.yaml' })).toEqual({
+      ok: true,
+      value: saved,
+    })
+
+    expect(await call('app:openPath', { path: documents })).toEqual({ ok: true, value: undefined })
+    // The file itself, a folder inside, another folder: still refused.
+    expect(await call('app:openPath', { path: saved })).toMatchObject(refused)
+    expect(await call('app:openPath', { path: inside })).toMatchObject(refused)
+    expect(await call('app:openPath', { path: elsewhere })).toMatchObject(refused)
+    expect(core.openPath.mock.calls).toEqual([[documents]])
+  })
+
   it('app:openExternal opens whitelisted https links only', async () => {
     expect(await call('app:openExternal', { url: 'https://archipelago.gg/tutorial' })).toEqual({
       ok: true,

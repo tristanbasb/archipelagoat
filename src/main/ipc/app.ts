@@ -49,10 +49,13 @@ export default function registerAppHandlers(register: RegisterHandler, services:
 
   register('app:openPath', async (input) => {
     const path = await assertUserPath(input.path, { mustExist: false })
-    if (!(await paths.isAllowed(path))) {
+    const info = await stat(path).catch(() => null)
+    // The folder of a file the user picked (a YAML « Jeu prêt » saved in Documents): opened wherever it
+    // is (Ruling 28). Folders only: a picked file itself still has to sit in an allowed root.
+    const pickedFolder = info?.isDirectory() === true && services.get('pickedPaths').isFolderOf(path)
+    if (!pickedFolder && !(await paths.isAllowed(path))) {
       throw new AppError('PATH_FORBIDDEN', { reason: 'outside-allowed-roots' }, { detail: path })
     }
-    const info = await stat(path).catch(() => null)
     if (!info) throw new AppError('NOT_FOUND', undefined, { detail: path })
     if (!info.isDirectory() && !OPENABLE_FILES.has(extname(path).toLowerCase())) {
       throw new AppError('PATH_FORBIDDEN', { reason: 'file-type' }, { detail: path })

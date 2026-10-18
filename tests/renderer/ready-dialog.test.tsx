@@ -12,7 +12,7 @@ import type {
   WorldInfo,
   WorldInstallPlan,
 } from '@shared/types'
-import { keptDraft } from '@renderer/features/studio/studio-draft'
+import { isDirty, keptDraft } from '@renderer/features/studio/studio-draft'
 import { WorldsScreen } from '@renderer/features/worlds/WorldsScreen'
 import { installGoatMock, type GoatHandlers } from './goat-mock'
 import { renderWithProviders } from './render-app'
@@ -550,6 +550,8 @@ describe('« Jeu prêt » dialog', () => {
     expect(goat.inputsOf('studio:parse')).toEqual([{ text: YAML_TEXT }])
     expect(keptDraft().docs).toEqual([DOC])
     expect(keptDraft().source).toEqual({ kind: 'new' })
+    // Saved nowhere yet (Ruling 29): the Studio asks before anything replaces it.
+    expect(isDirty(keptDraft())).toBe(true)
   })
 
   it('a failure shows the translated error and Réessayer runs the same plan again', async () => {
@@ -570,6 +572,76 @@ describe('« Jeu prêt » dialog', () => {
     expect(second).toEqual(first)
     expect(goat.inputsOf('ready:prepare')).toHaveLength(1)
     expect(await within(dialog).findByRole('button', { name: 'Arrêter' })).toBeInTheDocument()
+  })
+
+  it('keyboard focus stays in the dialog from step to step, and lands on « Prêt ! »', async () => {
+    let runs = 0
+    const { goat, dialog, user } = await openReady({ 'ready:run': () => ({ taskId: `r${++runs}` }) })
+    await user.click(within(dialog).getByRole('button', { name: 'Installer et préparer' }))
+    await within(dialog).findByRole('button', { name: 'Arrêter' })
+    // The main button gave way to the run: focus is on its heading, not on the page behind.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(dialog).getByRole('heading', { name: 'Préparation en cours' }),
+      ),
+    )
+    await user.tab()
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+
+    // A failure: focus on it (an alert), Réessayer reachable from there.
+    goat.emit('task:failed', { taskId: 'r1', kind: 'ready', error: { code: 'AP_YAML_INVALID' } })
+    const alert = await within(dialog).findByRole('alert')
+    await waitFor(() => expect(document.activeElement).toContainElement(alert))
+    expect(dialog).toContainElement(document.activeElement as HTMLElement)
+    await user.click(within(dialog).getByRole('button', { name: 'Réessayer' }))
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(2))
+
+    goat.emit('task:done', { taskId: 'r2', kind: 'ready', result: outcome() })
+    const ready = await within(dialog).findByRole('heading', { name: `Prêt${NB}!` })
+    await waitFor(() => expect(ready).toHaveFocus())
+  })
+
+  it('an expired plan is made again and run with the same choices', async () => {
+    let prepared = 0
+    const { goat, dialog, user } = await openReady({
+      'ready:prepare': () => plan({ planId: `plan-${++prepared}` }),
+      'ready:run': ({ planId }) => ({ taskId: planId === 'plan-1' ? 'r1' : 'r2' }),
+    })
+    await user.click(within(dialog).getByRole('radio', { name: /Complet/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Installer et préparer' }))
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(1))
+
+    // Left open past the hour a plan lives: main no longer knows it.
+    goat.emit('task:failed', { taskId: 'r1', kind: 'ready', error: { code: 'NOT_FOUND', detail: 'plan-1' } })
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(2))
+    expect(goat.inputsOf('ready:prepare')).toHaveLength(2)
+    const [first, second] = goat.inputsOf('ready:run')
+    expect(second).toEqual({ ...first, planId: 'plan-2' })
+    expect(await within(dialog).findByRole('button', { name: 'Arrêter' })).toBeInTheDocument()
+  })
+
+  it('an expired plan whose new one needs a consent not given asks for it', async () => {
+    let prepared = 0
+    const { goat, dialog, user } = await openReady({
+      // The catalog tells another tier by the time the plan is made again.
+      'ready:prepare': () =>
+        ++prepared === 1
+          ? plan({ planId: 'plan-1' })
+          : plan({ planId: 'plan-2', trust: 'wiki-release', needsTrustConsent: true }),
+    })
+    await user.click(within(dialog).getByRole('button', { name: 'Installer et préparer' }))
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(1))
+    goat.emit('task:failed', { taskId: 'r1', kind: 'ready', error: { code: 'NOT_FOUND', detail: 'plan-1' } })
+
+    await waitFor(() => expect(goat.inputsOf('ready:prepare')).toHaveLength(2))
+    const box = await within(dialog).findByRole('checkbox', { name: 'J’ai compris' })
+    const confirm = within(dialog).getByRole('button', { name: 'Installer et préparer' })
+    expect(confirm).toBeDisabled()
+    expect(goat.inputsOf('ready:run')).toHaveLength(1)
+    await user.click(box)
+    await user.click(confirm)
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(2))
+    expect(goat.inputsOf('ready:run')[1]).toMatchObject({ planId: 'plan-2', trustAccepted: true })
   })
 
   it('a release the catalog cannot fetch keeps « Ouvrir la page » and « Choisir le fichier »', async () => {
