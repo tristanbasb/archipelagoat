@@ -33,21 +33,35 @@ Linux, en français et en anglais, sans terminal ni édition de `host.yaml` à l
   d’Archipelago) avec un écran de confiance et une empreinte sha256 vérifiée avant chaque installation.
   Le catalogue propose aussi les jeux non officiels que seul le wiki d’Archipelago liste, signalés comme
   tels et toujours derrière l’écran de confiance.
+- **Jaquettes** : le catalogue, les mondes installés, le Studio et les sessions montrent l’image de chaque
+  jeu, prise sur le wiki d’Archipelago (le sprite pixel quand le wiki n’en a pas, ou hors ligne).
+- **Jeu prêt** : un seul dialogue installe le monde si besoin, construit un YAML avec le profil choisi et
+  le livre dans une session, un fichier ou le Studio. Un monde non officiel passe toujours par l’écran de
+  confiance.
 - **Studio YAML** : le YAML d’un joueur option par option, en mode simple ou pondéré, avec l’aperçu et la
   validation en direct.
+- **Profils** : Découverte, Standard et Complet, construits automatiquement à partir des options de
+  chaque jeu, dans le Studio comme dans le catalogue.
 - **Organiser une partie** : joueurs, vérification, règles, génération, hébergement. Ensuite, l’adresse
   et le message à partager, les joueurs connectés, le flux d’objets et la console du serveur.
+- **Nombre de checks** : la fiche d’un jeu officiel annonce « jusqu’à N checks » tout de suite. Dans une
+  session, une génération de test donne le compte exact de chaque joueur, signale les écarts à la durée
+  visée (court, moyen, long ou un nombre) et propose des réglages chiffrés, appliqués d’un clic.
 - **Rejoindre une partie** : un lien de room ou un patch suffit. L’app vérifie ce qu’il faut, puis
   lance le bon client (BizHawk en un clic pour les jeux qui le prennent en charge).
 - **Coffre ROM** : tes dumps sont reconnus par leur MD5 et indiqués à Archipelago.
 
 ### Captures
 
-| Accueil                                               | Organiser : génération                                      |
-| ----------------------------------------------------- | ----------------------------------------------------------- |
-| ![Accueil](docs/screenshots/fr-home.png)              | ![Partie générée](docs/screenshots/fr-session-generate.png) |
-| **Studio YAML**                                       | **Rejoindre**                                               |
-| ![Studio YAML](docs/screenshots/fr-studio-editor.png) | ![Rejoindre](docs/screenshots/fr-join-plan.png)             |
+| Accueil                                                                      | Organiser : génération                                           |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| ![Accueil](tests/e2e/screenshots/fr/home.png)                                | ![Partie générée](tests/e2e/screenshots/fr/session-generate.png) |
+| **Studio YAML**                                                              | **Rejoindre**                                                    |
+| ![Studio YAML](tests/e2e/screenshots/fr/studio-editor.png)                   | ![Rejoindre](tests/e2e/screenshots/fr/join-plan.png)             |
+| **Catalogue : jaquettes**                                                    | **Jeu prêt**                                                     |
+| ![Catalogue avec les jaquettes](tests/e2e/screenshots/fr/catalog-covers.png) | ![Dialogue Jeu prêt](tests/e2e/screenshots/fr/ready-dialog.png)  |
+| **Jeu prêt : livré**                                                         | **Organiser : checks**                                           |
+| ![Jeu prêt, livré](tests/e2e/screenshots/fr/ready-done.png)                  | ![Checks par joueur](tests/e2e/screenshots/fr/checks-panel.png)  |
 
 ### Installation
 
@@ -105,8 +119,9 @@ indique leur emplacement à Archipelago ; elle ne les copie nulle part ailleurs 
 - [Archipelago](https://github.com/ArchipelagoMW/Archipelago) (licence MIT), par l’équipe ArchipelagoMW :
   le randomizer multiworld que l’app installe et pilote.
 - [Wiki d’Archipelago](https://archipelago.miraheze.org/) (contenu sous licence
-  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)) : statuts, mainteneurs et
-  liens des mondes du catalogue, et les jeux que seul le wiki liste, lus à l’exécution.
+  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)) : statuts, mainteneurs, liens et
+  images des jeux du catalogue, et les jeux que seul le wiki liste, lus à l’exécution ; les images sont
+  téléchargées à l’exécution et gardées en cache sur ton disque, jamais redistribuées.
 - [Index ionium](https://github.com/ionium-ap/Archipelago-index) : la liste communautaire des APWorlds et
   de leurs empreintes, lue à l’exécution, jamais redistribuée.
 
@@ -164,21 +179,35 @@ terminal and no hand-editing of `host.yaml`.
 - **Worlds**: your installed APWorlds, and the community catalog (the ionium index and the Archipelago
   wiki) with a trust screen and a verified sha256 before every install. The catalog also offers the
   unofficial games only the Archipelago wiki lists, flagged as such and always behind the trust screen.
+- **Game covers**: the catalog, the installed worlds, the studio and the sessions show each game’s image,
+  taken from the Archipelago wiki (the pixel sprite when the wiki has none, or when you are offline).
+- **Ready to play**: one dialog installs the world if needed, builds a YAML with the profile you pick and
+  delivers it to a session, a file or the studio. An unofficial world always goes through the trust
+  screen.
 - **YAML studio**: a player’s YAML option by option, in simple or weighted mode, with a live preview and
   live validation.
+- **Profiles**: Discovery, Standard and Complete, built automatically from each game’s options, in the
+  studio as in the catalog.
 - **Organize a game**: players, check, rules, generation, hosting. Then the address and a message to
   share, who is connected, the item feed and the server console.
+- **Check counts**: an official game’s page says “up to N checks” right away. In a session, a test
+  generation gives each player’s exact count, flags the gaps from the length you aim for (short, medium,
+  long or a number) and proposes figured settings, applied in one click.
 - **Join a game**: a room link or a patch is enough. The app checks what is needed, then starts the right
   client (BizHawk in one click for the games that use it).
 - **ROM vault**: your dumps are recognized by their MD5 and pointed out to Archipelago.
 
 ### Screenshots
 
-| Home                                                  | Organize: generation                                        |
-| ----------------------------------------------------- | ----------------------------------------------------------- |
-| ![Home](docs/screenshots/en-home.png)                 | ![Generated game](docs/screenshots/en-session-generate.png) |
-| **YAML studio**                                       | **Join**                                                    |
-| ![YAML studio](docs/screenshots/en-studio-editor.png) | ![Join](docs/screenshots/en-join-plan.png)                  |
+| Home                                                                    | Organize: generation                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ![Home](tests/e2e/screenshots/en/home.png)                              | ![Generated game](tests/e2e/screenshots/en/session-generate.png)   |
+| **YAML studio**                                                         | **Join**                                                           |
+| ![YAML studio](tests/e2e/screenshots/en/studio-editor.png)              | ![Join](tests/e2e/screenshots/en/join-plan.png)                    |
+| **Catalog: covers**                                                     | **Ready to play**                                                  |
+| ![Catalog with the covers](tests/e2e/screenshots/en/catalog-covers.png) | ![Ready to play dialog](tests/e2e/screenshots/en/ready-dialog.png) |
+| **Ready to play: done**                                                 | **Organize: checks**                                               |
+| ![Ready to play, done](tests/e2e/screenshots/en/ready-done.png)         | ![Checks per player](tests/e2e/screenshots/en/checks-panel.png)    |
 
 ### Install
 
@@ -236,8 +265,9 @@ never copies them anywhere else and never sends them.
 - [Archipelago](https://github.com/ArchipelagoMW/Archipelago) (MIT license), by the ArchipelagoMW team:
   the multiworld randomizer the app installs and drives.
 - [Archipelago wiki](https://archipelago.miraheze.org/) (content under
-  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)): status, maintainers and links
-  of the catalog’s worlds, and the games only the wiki lists, read at runtime.
+  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)): status, maintainers, links and
+  game images of the catalog’s worlds, and the games only the wiki lists, read at runtime; the images are
+  downloaded at runtime and cached on your disk, never redistributed.
 - [ionium index](https://github.com/ionium-ap/Archipelago-index): the community list of APWorlds and
   their hashes, read at runtime, never redistributed.
 

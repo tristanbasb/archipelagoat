@@ -49,6 +49,8 @@
 - Génération web via `/api/generate`.
 - Versions d'AP côte à côte.
 
+La version 0.2 (jaquettes, estimation des checks, profils, « Jeu prêt ») est spécifiée dans [`2026-10-18-archipelagoat-0.2-design.md`](2026-10-18-archipelagoat-0.2-design.md).
+
 ---
 
 ## 2. Architecture

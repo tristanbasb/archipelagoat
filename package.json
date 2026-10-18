@@ -1,10 +1,10 @@
 {
   "name": "archipelagoat",
   "productName": "ArchipelaGOAT",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Unofficial Archipelago companion: installs Archipelago and sets up multiworld games end to end",
-  "homepage": "https://archipelagoat.invalid",
+  "homepage": "https://github.com/tristanbasb/archipelagoat",
   "main": "./out/main/index.js",
   "engines": {
     "node": ">=22.12.0"

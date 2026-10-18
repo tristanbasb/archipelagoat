@@ -168,9 +168,7 @@ describe('package.json', () => {
   })
 
   it('gives the deb the homepage and the maintainer electron-builder requires', () => {
-    // A placeholder on a reserved domain (RFC 2606) until the repository is public: it can never
-    // lead anywhere, unlike a guessed address.
-    expect(pkg.homepage).toBe('https://archipelagoat.invalid')
+    expect(pkg.homepage).toBe('https://github.com/tristanbasb/archipelagoat')
     expect(section('linux').maintainer).toBe('ArchipelaGOAT contributors')
   })
 
