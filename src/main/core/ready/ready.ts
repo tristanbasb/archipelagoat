@@ -3,9 +3,10 @@
 // catalog, its trust, its profiles, the sessions being prepared, what to know). `run` then goes
 // through the steps: the world installed as the worlds screen does it (prepare then confirm), unless it
 // is a core world or installed already and not updated; the templates regenerated when the game has
-// none of its own; the profile's YAML, measured once; its validation; its delivery. Each step done is
-// kept with the plan: a run that fails or is cancelled is run again from the first step not done (a
-// world installed stays installed), and a plan delivered answers its outcome again.
+// none of its own; the profile's YAML (Découverte and Complet once the game is refined), measured once;
+// its validation; its delivery. Each step done is kept with the plan: a run that fails or is cancelled
+// is run again from the first step not done (a world installed stays installed), and a plan delivered
+// answers its outcome again.
 import { randomUUID } from 'node:crypto'
 import { isNewerVersion } from '@shared/catalog'
 import { AppError } from '@shared/errors'
@@ -85,7 +86,9 @@ export interface Ready {
    * install whose trust needs `trustAccepted` (as the plan tells it, or as the catalog tells it when
    * the world is downloaded), AP_YAML_INVALID for a YAML the validation refuses, PATH_FORBIDDEN for a
    * file the user did not pick; the errors of each step otherwise (a download, an install, the
-   * templates, a destination). A profile left out for being Standard's twin builds Standard.
+   * templates, a destination). A profile left out for being Standard's twin builds Standard. Découverte
+   * and Complet wait for the game's refinement when none is kept (`profile` reports its measures);
+   * one that fails leaves the heuristic profile (`refinementFailed`).
    */
   run(input: ReadyRun, task: TaskHandle): Promise<ReadyOutcome>
 }
@@ -98,7 +101,14 @@ export interface ReadyDeps {
     installedGames(): Promise<ValidationContext['installedGames']>
   }
   templates: Pick<Templates, 'getSchema' | 'regenerate'>
-  profiles: Pick<Profiles, 'get' | 'yamlFor'>
+  profiles: Pick<Profiles, 'get' | 'yamlFor'> & {
+    /**
+     * The game's profiles refined for a run that waits for them, the refinement's stages reported to
+     * `task`: its refinement running joined, else one started, its measures in the foreground. Rejects
+     * as the refinement does, or with TASK_CANCELLED once `task` is cancelled.
+     */
+    refineNow(game: string, task: TaskHandle): Promise<GameProfiles>
+  }
   measurer: Pick<Measurer, 'measureDoc'>
   sessions: Pick<SessionStore, 'list' | 'create' | 'addText' | 'get'>
   /** The paths the user picked (app:savePath): the only ones a file destination may name. */
@@ -127,7 +137,7 @@ interface Pending {
   templatesDone: boolean
   /**
    * The YAML of the profile built (`profile`: Standard for one left out as equal to it) and its checks,
-   * for the profile and the player name asked.
+   * for the profile and the player name asked; whether the refinement it waited for failed.
    */
   yaml: {
     asked: ProfileId
@@ -135,6 +145,7 @@ interface Pending {
     playerName: string
     text: string
     checks: number | null
+    refinementFailed: boolean
   } | null
   validated: boolean
   /** The session a run created for a `new-session` destination: a retry adds to it. */
@@ -157,7 +168,7 @@ function loadedName(games: ReadonlyMap<string, unknown>, game: string): string |
 const within = (task: TaskHandle, stage: string): TaskHandle => ({
   id: task.id,
   signal: task.signal,
-  progress: (_stage, percent = null) => task.progress(stage, percent),
+  progress: (_stage, percent = null, detail) => task.progress(stage, percent, detail),
   log: (stream, line) => task.log(stream, line),
 })
 
@@ -313,14 +324,28 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
       throwIfCancelled(task.signal)
     }
 
-    // 3. profile: the profile's YAML (refined when kept, else heuristic) and one measure of it.
+    // 3. profile: the profile's YAML (refined, else heuristic) and one measure of it.
     const { playerName } = input
     let { yaml } = pending
     if (yaml?.asked !== input.profile || yaml.playerName !== playerName) {
       task.progress('profile', null)
+      let found = await deps.profiles.get(game)
+      let refinementFailed = false
+      // Découverte and Complet wait for the game's refinement (Ruling 34): from the option names alone,
+      // Hollow Knight's Découverte had 8 checks of Standard's 203. Standard is the defaults.
+      if (input.profile !== 'standard' && !found.measured) {
+        try {
+          found = await deps.profiles.refineNow(game, within(task, 'profile'))
+        } catch (error) {
+          throwIfCancelled(task.signal)
+          // The heuristic profile then, said on the end screen.
+          ctx.log.debug('ready: the profiles could not be refined', { game, error: String(error) })
+          refinementFailed = true
+        }
+        task.progress('profile', null)
+      }
       // A profile left out of the game's is Standard's twin (Ruling 26): Standard is what is built.
-      const { profiles } = await deps.profiles.get(game)
-      const profile = profiles.some((one) => one.id === input.profile) ? input.profile : 'standard'
+      const profile = found.profiles.some((one) => one.id === input.profile) ? input.profile : 'standard'
       const text = await deps.profiles.yamlFor(game, profile, playerName)
       throwIfCancelled(task.signal)
       // Rejects only when cancelled: a measure that cannot run leaves the count unknown.
@@ -328,7 +353,14 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
       if (measured.error !== null) {
         ctx.log.debug('ready: the YAML could not be measured', { game, code: measured.error.code })
       }
-      yaml = { asked: input.profile, profile, playerName, text, checks: measured.checks }
+      yaml = {
+        asked: input.profile,
+        profile,
+        playerName,
+        text,
+        checks: measured.checks,
+        refinementFailed: refinementFailed && profile !== 'standard',
+      }
       pending.yaml = yaml
       pending.validated = false
     }
@@ -350,6 +382,7 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
       checks: yaml.checks,
       ...delivery,
       restartNeeded: pending.installedWorld && (await isApRunning()),
+      refinementFailed: yaml.refinementFailed,
     }
     pending.outcome = outcome
     task.progress('done', 100)

@@ -225,6 +225,7 @@
         "validate": "Check",
         "deliver": "Delivery"
       },
+      "refining": "Refining the profile: {{done}}/{{total}} measures",
       "stop": "Stop"
     },
     "done": {
@@ -253,7 +254,9 @@
       "guideAction": "Open the guide",
       "restart": "Restart Archipelago",
       "restartBody": "Its open programs will only see {{game}} after a restart.",
-      "runningBody": "Archipelago programs are open: restart them if they do not find {{game}}."
+      "runningBody": "Archipelago programs are open: restart them if they do not find {{game}}.",
+      "unrefined": "Unrefined estimate",
+      "unrefinedBody": "{{game}} could not be measured: this {{profile}} profile is picked from its option names alone, with no guarantee on its check count."
     }
   }
 }

@@ -40,6 +40,7 @@ defineService(
       // The service's own `get`: asking for an installed game's profiles refines them in the background.
       profiles: {
         get: (game) => get('profiles').get(game),
+        refineNow: (game, task) => get('profiles').refineNow(game, task),
         yamlFor: (game, profile, playerName) => get('profiles').yamlFor(game, profile, playerName),
       },
       // With the measurer's cache, in the foreground.

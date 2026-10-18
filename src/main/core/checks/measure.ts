@@ -6,9 +6,10 @@
 // and 2026 for a YAML that rolls dice. The count is the size of the slot's locations in the
 // `.archipelago`; the folder goes right after. At most two test generations run at once, two minutes
 // each at most; a measure asked in the background (the refinement of profiles) takes one of the two
-// at most, and only when no measure asked in the foreground waits. A count once measured is kept in `dataRoot/checks/measures.json` (by world versions,
-// YAML and seed) and never measured again; the last counts of a session, measured or read from its
-// real generation, in `dataRoot/checks/sessions/<id>.json`.
+// at most, and only when no measure asked in the foreground waits (unless its lane is raised to the
+// foreground meanwhile). A count once measured is kept in `dataRoot/checks/measures.json` (by world
+// versions, YAML and seed) and never measured again; the last counts of a session, measured or read
+// from its real generation, in `dataRoot/checks/sessions/<id>.json`.
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -232,36 +233,76 @@ const sessionChecksSchema = z.object({
 export type MeasurePriority = 'foreground' | 'background'
 
 /**
- * Runs the jobs given to it, MAX_RUNNING at once and MAX_BACKGROUND of them background at most; a
- * waiting foreground job always starts before a waiting background one, each kind in its order.
+ * A priority its owner changes while its measures wait: the background refinement of a game goes to
+ * the foreground while a « Jeu prêt » waits for it, and back once nobody does (Ruling 34).
  */
-function createQueue(): <T>(priority: MeasurePriority, job: () => Promise<T>) => Promise<T> {
-  const waiting: Record<MeasurePriority, (() => void)[]> = { foreground: [], background: [] }
+export interface MeasureLane {
+  /** The priority its measures wait with now. */
+  priority(): MeasurePriority
+  /** Calls `listener` each time the priority changes. */
+  watch(listener: () => void): void
+}
+
+/** A lane at `priority`, which `set` changes. */
+export function createLane(priority: MeasurePriority): MeasureLane & { set(next: MeasurePriority): void } {
+  let current = priority
+  const listeners: (() => void)[] = []
+  return {
+    priority: () => current,
+    watch: (listener) => void listeners.push(listener),
+    set(next) {
+      if (next === current) return
+      current = next
+      for (const listener of listeners) listener()
+    },
+  }
+}
+
+/**
+ * Runs the jobs given to it, MAX_RUNNING at once and MAX_BACKGROUND of them background at most; a
+ * waiting foreground job always starts before a waiting background one, each kind in its order. A
+ * lane's jobs wait with its priority of the moment, and start with it.
+ */
+function createQueue(): <T>(priority: MeasurePriority | MeasureLane, job: () => Promise<T>) => Promise<T> {
+  const waiting: { priority: () => MeasurePriority; start: () => void }[] = []
+  const watched = new WeakSet<MeasureLane>()
   let running = 0
   let background = 0
   const startNext = (): void => {
     while (running < MAX_RUNNING) {
-      const start =
-        waiting.foreground.shift() ?? (background < MAX_BACKGROUND ? waiting.background.shift() : undefined)
-      if (start === undefined) return
-      start()
+      const foreground = waiting.findIndex((job) => job.priority() === 'foreground')
+      // Without a foreground job, the first one waiting is the first background one.
+      const next = foreground !== -1 ? foreground : background < MAX_BACKGROUND && waiting.length > 0 ? 0 : -1
+      if (next === -1) return
+      waiting.splice(next, 1)[0]?.start()
     }
   }
-  return (priority, job) =>
-    new Promise((resolve, reject) => {
-      waiting[priority].push(() => {
-        running++
-        if (priority === 'background') background++
-        void job()
-          .then(resolve, reject)
-          .finally(() => {
-            running--
-            if (priority === 'background') background--
-            startNext()
-          })
+  return (priority, job) => {
+    const priorityNow = typeof priority === 'string' ? () => priority : () => priority.priority()
+    // A lane raised lets its jobs take a free slot at once.
+    if (typeof priority !== 'string' && !watched.has(priority)) {
+      watched.add(priority)
+      priority.watch(startNext)
+    }
+    return new Promise((resolve, reject) => {
+      waiting.push({
+        priority: priorityNow,
+        start: () => {
+          const isBackground = priorityNow() === 'background'
+          running++
+          if (isBackground) background++
+          void job()
+            .then(resolve, reject)
+            .finally(() => {
+              running--
+              if (isBackground) background--
+              startNext()
+            })
+        },
       })
       startNext()
     })
+  }
 }
 
 // --- the measurer -------------------------------------------------------------------------------------
@@ -277,9 +318,10 @@ export interface MeasureInput {
   task: TaskHandle
   /**
    * `background` for a measure nobody waits for (the refinement of profiles): it starts only when no
-   * foreground measure waits, one at a time. Default: `foreground`.
+   * foreground measure waits, one at a time. A lane's priority may change while it waits. Default:
+   * `foreground`.
    */
-  priority?: MeasurePriority
+  priority?: MeasurePriority | MeasureLane
 }
 
 export interface Measurer {

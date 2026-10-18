@@ -225,6 +225,7 @@
         "validate": "Vérification",
         "deliver": "Livraison"
       },
+      "refining": "Affinage du profil\u00a0: {{done}}/{{total}} mesures",
       "stop": "Arrêter"
     },
     "done": {
@@ -253,7 +254,9 @@
       "guideAction": "Ouvrir le guide",
       "restart": "Redémarre Archipelago",
       "restartBody": "Ses programmes ouverts ne verront {{game}} qu’après un redémarrage.",
-      "runningBody": "Des programmes Archipelago sont ouverts\u00a0: redémarre-les s’ils ne trouvent pas {{game}}."
+      "runningBody": "Des programmes Archipelago sont ouverts\u00a0: redémarre-les s’ils ne trouvent pas {{game}}.",
+      "unrefined": "Estimation non affinée",
+      "unrefinedBody": "{{game}} n’a pas pu être mesuré\u00a0: ce profil {{profile}} est choisi d’après le seul nom de ses options, sans garantie sur son nombre de checks."
     }
   }
 }

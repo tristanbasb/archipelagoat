@@ -4,6 +4,7 @@
 // and its main button runs it (ready:run, a `ready` task): the progress, then « Prêt ! » with what to
 // do next and what to know. A run that fails keeps its plan: Réessayer goes on from the failed step.
 import {
+  IconAlertTriangle,
   IconBook2,
   IconDeviceFloppy,
   IconDisc,
@@ -834,6 +835,15 @@ function ReadyForm({
   )
 }
 
+/** The measures done and to do of the refinement the profile step waits for; null at any other time. */
+function refinementOf(progress: TaskProgress | null): { done: number; total: number } | null {
+  const done = progress?.detail?.done
+  const total = progress?.detail?.total
+  return progress?.stage === 'profile' && typeof done === 'number' && typeof total === 'number'
+    ? { done, total }
+    : null
+}
+
 /** The life bar of the task, with the step it is at on the track below. */
 function RunProgress({
   progress,
@@ -846,6 +856,7 @@ function RunProgress({
   const r = useReadyText()
   const steps = installing ? STEPS : STEPS.filter((step) => step !== 'install')
   const at = stepIndex(steps, progress?.stage)
+  const measures = refinementOf(progress)
   return (
     <div className="ready-run pixel-border tone-violet">
       <h3 className="ready-run__title" tabIndex={-1} data-autofocus>
@@ -853,7 +864,11 @@ function RunProgress({
       </h3>
       <ProgressBar
         percent={progress?.percent ?? null}
-        label={stageLabel(progress, t) ?? r('running.waiting')}
+        label={
+          measures === null
+            ? (stageLabel(progress, t) ?? r('running.waiting'))
+            : r('running.refining', measures)
+        }
         segments={24}
         tone="violet"
         className="ready-run__bar"
@@ -965,6 +980,17 @@ function ReadyClear({
   const notes = plan?.notes
   const setupUrl = notes?.setupUrl ?? null
   const items: { key: string; icon: ReactNode; title: string; body: string; action?: ReactNode }[] = []
+  // The game could not be measured: the profile comes from its option names alone (Ruling 34).
+  if (outcome.refinementFailed)
+    items.push({
+      key: 'unrefined',
+      icon: <IconAlertTriangle />,
+      title: r('notes.unrefined'),
+      body: r('notes.unrefinedBody', {
+        game: outcome.game,
+        profile: t(`profiles.names.${outcome.profile}`),
+      }),
+    })
   if (notes?.romRequired)
     items.push({
       key: 'rom',

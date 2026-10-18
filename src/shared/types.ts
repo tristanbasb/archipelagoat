@@ -711,4 +711,9 @@ export interface ReadyOutcome {
   playerName: string
   /** The run installed a world while Archipelago programs run: they see it once restarted. */
   restartNeeded: boolean
+  /**
+   * The profile waited for its game's refinement, which failed (a ROM missing, a generation error): it
+   * is the one made from the option names alone (Ruling 34).
+   */
+  refinementFailed: boolean
 }

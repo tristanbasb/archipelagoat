@@ -2,7 +2,11 @@
 // game's profiles are refined in the background, as a `profiles` task that nobody waits for, one game
 // at a time: once a world is installed (a custom world that `worlds:changed` finds new, or at another
 // version, since the window opened), the first time in a run that an installed game's profiles are
-// asked for, and once the templates are generated for a game that had none.
+// asked for, and once the templates are generated for a game that had none. A « Jeu prêt » that
+// waits for a game's refinement (Ruling 34) joins the one running, or starts it at once: its measures
+// go to the foreground while the run waits, and back to the background if that run is cancelled.
+import { throwIfCancelled } from '@main/core/ap/install-steps'
+import { createLane, type MeasureLane } from '@main/core/checks/measure'
 import type { CoreContext } from '@main/core/context'
 import { createProfiles, type Profiles } from '@main/core/profiles/profiles'
 import { startTracked, type TaskHandle } from '@main/core/tasks'
@@ -18,8 +22,19 @@ import { installedGamesOf, type Worlds } from './worlds.service'
 
 declare module '@main/services/registry' {
   interface Services {
-    profiles: Profiles
+    profiles: ProfilesService
   }
+}
+
+export interface ProfilesService extends Profiles {
+  /**
+   * Refines `game` for a « Jeu prêt » that waits for it, with the refinement's stages reported to
+   * `task`: the game's refinement running is joined, else one starts at once (whatever game the
+   * background refines), its measures in the foreground while a task waits for it. Rejects as the
+   * refinement does, or with TASK_CANCELLED once `task` is cancelled: the refinement then goes on in
+   * the background, at background priority, and keeps its profiles as any other.
+   */
+  refineNow(game: string, task: TaskHandle): Promise<GameProfiles>
 }
 
 export interface ProfilesServiceDeps {
@@ -29,8 +44,25 @@ export interface ProfilesServiceDeps {
   worldVersion: (game: string) => Promise<string | null>
 }
 
-/** `deps.profiles`, whose `get` also starts refining an installed game that is not measured yet. */
-export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDeps): Profiles {
+/** A game's refinement running, as a `profiles` task. */
+interface Run {
+  /** Refine the game again once done: its world changed meanwhile. */
+  again: boolean
+  /** The priority of its measures: foreground while a « Jeu prêt » waits for it. */
+  lane: ReturnType<typeof createLane>
+  /** The tasks of the « Jeu prêt » runs waiting for it: they get its progress. */
+  waiters: Set<TaskHandle>
+  /** Its last progress, which a task that joins it gets at once. */
+  last: Parameters<TaskHandle['progress']> | null
+  /** Settles as it does; TASK_CANCELLED when its task is cancelled before it starts. */
+  done: Promise<GameProfiles>
+}
+
+/**
+ * `deps.profiles`, whose `get` also starts refining an installed game that is not measured yet, and
+ * whose `refineNow` refines a game for a « Jeu prêt ».
+ */
+export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDeps): ProfilesService {
   const { profiles } = deps
   /** The games refined, waiting or being refined in this run: asking for them again refines nothing. */
   const asked = new Set<string>()
@@ -38,12 +70,15 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
   const noSchema = new Set<string>()
   /** The games waiting to be refined, in order. */
   const waiting: string[] = []
-  /** The game being refined, and whether to refine it again once done (its world changed meanwhile). */
-  let current: { game: string; again: boolean } | null = null
+  /**
+   * The refinements running, by game: one at a time in the background, besides those a « Jeu prêt »
+   * started meanwhile.
+   */
+  const runs = new Map<string, Run>()
 
-  async function refineLogged(game: string, task: TaskHandle): Promise<GameProfiles> {
+  async function refineLogged(game: string, task: TaskHandle, lane: MeasureLane): Promise<GameProfiles> {
     try {
-      const refined = await profiles.refine(game, task)
+      const refined = await profiles.refine(game, task, lane)
       noSchema.delete(game)
       return refined
     } catch (error) {
@@ -52,8 +87,8 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
         asked.delete(game)
         noSchema.add(game)
       }
-      // Ruling 23: nobody waits for it, so a failure is logged and never shown; the profiles stay
-      // heuristic (« non mesuré »).
+      // Ruling 23: a failure is logged and never toasted; the profiles stay heuristic (« non mesuré »),
+      // which a « Jeu prêt » waiting for them says on its end screen.
       if (!(error instanceof AppError && error.code === 'TASK_CANCELLED')) {
         ctx.log.warn('profiles: refinement failed', { game, error: String(error) })
       }
@@ -61,30 +96,77 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
     }
   }
 
-  /** Starts refining the next game waiting, unless one is being refined. */
-  function startNext(): void {
-    const game = current === null ? waiting.shift() : undefined
-    if (game === undefined) return
-    const run = { game, again: false }
-    current = run
+  /** Starts refining `game` as a `profiles` task, at background priority. */
+  function start(game: string): Run {
+    const done = Promise.withResolvers<GameProfiles>()
+    // Nobody may wait for it: its waiters handle its failure.
+    done.promise.catch(() => undefined)
+    const run: Run = {
+      again: false,
+      lane: createLane('background'),
+      waiters: new Set(),
+      last: null,
+      done: done.promise,
+    }
+    runs.set(game, run)
     startTracked(
       ctx.tasks,
       ctx.bus,
       'profiles',
-      (task) => refineLogged(game, task),
+      (task) => {
+        const relay: TaskHandle = {
+          id: task.id,
+          signal: task.signal,
+          progress: (...report) => {
+            task.progress(...report)
+            run.last = report
+            for (const waiter of run.waiters) waiter.progress(...report)
+          },
+          log: (stream, line) => task.log(stream, line),
+        }
+        const refined = refineLogged(game, relay, run.lane)
+        refined.then(done.resolve, done.reject)
+        return refined
+      },
       () => {
-        current = null
+        // Settled already, unless the task was cancelled before its run started.
+        done.reject(new AppError('TASK_CANCELLED'))
+        runs.delete(game)
         if (run.again && !waiting.includes(game)) waiting.push(game)
         startNext()
       },
     )
+    return run
+  }
+
+  /** Starts refining the next game waiting, unless a game is being refined. */
+  function startNext(): void {
+    const game = runs.size === 0 ? waiting.shift() : undefined
+    if (game !== undefined) start(game)
   }
 
   function refineInBackground(game: string): void {
     asked.add(game)
-    if (current?.game === game) current.again = true
+    const run = runs.get(game)
+    if (run) run.again = true
     else if (!waiting.includes(game)) waiting.push(game)
     startNext()
+  }
+
+  /** `run`'s profiles, for `task` that waits for them: its measures go to the foreground meanwhile. */
+  function join(run: Run, task: TaskHandle): Promise<GameProfiles> {
+    run.waiters.add(task)
+    run.lane.set('foreground')
+    if (run.last) task.progress(...run.last)
+    const cancelled = Promise.withResolvers<never>()
+    const cancel = (): void => cancelled.reject(new AppError('TASK_CANCELLED'))
+    task.signal.addEventListener('abort', cancel, { once: true })
+    return Promise.race([run.done, cancelled.promise]).finally(() => {
+      task.signal.removeEventListener('abort', cancel)
+      run.waiters.delete(task)
+      // Nobody waits for it any more: it goes on in the background.
+      if (run.waiters.size === 0) run.lane.set('background')
+    })
   }
 
   // --- the worlds installed ---
@@ -149,6 +231,15 @@ export function createProfilesService(ctx: CoreContext, deps: ProfilesServiceDep
         )
       }
       return found
+    },
+
+    async refineNow(game, task) {
+      throwIfCancelled(task.signal)
+      asked.add(game)
+      // Refined now rather than in its turn.
+      const queued = waiting.indexOf(game)
+      if (queued !== -1) waiting.splice(queued, 1)
+      return join(runs.get(game) ?? start(game), task)
     },
   }
 }

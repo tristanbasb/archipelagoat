@@ -36,7 +36,7 @@ import {
   snakeKey,
   variantsToward,
 } from '../checks/balance'
-import type { Measurer } from '../checks/measure'
+import type { MeasureLane, MeasurePriority, Measurer } from '../checks/measure'
 import type { CoreContext } from '../context'
 import { readJsonSync } from '../json-file'
 import { writeFileAtomic } from '../system/fsx'
@@ -324,9 +324,10 @@ export interface Profiles {
    * Measures the game's profiles (task stages `prepare`, `generate` with the measures `done` /
    * `total`, `done`) and keeps them; the kept ones when they still hold. Rejects with the error of
    * Standard's measure (AP_ROM_MISSING, AP_NOT_INSTALLED…): nothing is kept then. A size option whose
-   * measure fails is left out. `checks:changed` tells the renderer the counts changed.
+   * measure fails is left out. `checks:changed` tells the renderer the counts changed. Its measures
+   * wait with `priority`: background by default, since nobody waits for it.
    */
-  refine(game: string, task: TaskHandle): Promise<GameProfiles>
+  refine(game: string, task: TaskHandle, priority?: MeasurePriority | MeasureLane): Promise<GameProfiles>
   /**
    * The player YAML of a profile: `name` (the player's, else `Player{number}`), `description:
    * ArchipelaGOAT · <profile>`, `game`, then every option of the game at its default with the
@@ -424,7 +425,7 @@ export function createProfiles(ctx: CoreContext, deps: ProfilesDeps): Profiles {
       return (await current(game)).profiles
     },
 
-    async refine(game, task) {
+    async refine(game, task, priority = 'background') {
       task.progress('prepare', 0)
       const key = await keyOf(game)
       const already = keptFor(game, key)
@@ -451,14 +452,7 @@ export function createProfiles(ctx: CoreContext, deps: ProfilesDeps): Profiles {
       let done = 0
       const measure = async (over: readonly OptionChange[], id: ProfileId): Promise<PlayerMeasure> => {
         const yamlText = yamlOf(schema, over, id, '')
-        // Nobody waits for it: any measure asked in the foreground goes first.
-        const measured = await deps.measurer.measureDoc({
-          sessionId: null,
-          game,
-          yamlText,
-          task,
-          priority: 'background',
-        })
+        const measured = await deps.measurer.measureDoc({ sessionId: null, game, yamlText, task, priority })
         done++
         task.progress('generate', Math.round((MEASURED_PERCENT * done) / total), { done, total })
         return measured

@@ -15,7 +15,13 @@ import type { Locator } from '@main/core/ap/locator'
 import { listChildren, type ApExit, type SpawnApOptions, type spawnAp } from '@main/core/ap/process'
 import { createApSettings, type SettingsEntry } from '@main/core/ap/settings'
 import { createCheckEstimates, type CheckEstimates } from '@main/core/checks/datapackage'
-import { createMeasurer, isWeighted, type Measurer, type MeasurerDeps } from '@main/core/checks/measure'
+import {
+  createLane,
+  createMeasurer,
+  isWeighted,
+  type Measurer,
+  type MeasurerDeps,
+} from '@main/core/checks/measure'
 import { createSessionStore, type SessionStore } from '@main/core/sessions/store'
 import { buildValidationContext, type ValidationContextDeps } from '@main/core/sessions/validate-session'
 import type { ExecFn } from '@main/core/exec'
@@ -679,6 +685,42 @@ ${knight}`,
     expect(runs.map((run) => run.docs[0]?.name)).toEqual(['Bg1', 'Ana', 'Bea', 'Bg2', 'Bg3', 'Bg4'])
     expect(most).toBe(2)
     expect(mostBackground).toBe(1)
+  })
+
+  it('a lane raised to the foreground starts its waiting measures as foreground ones, lowered they wait again', async () => {
+    const gates: (() => void)[] = []
+    outcome = (run) => new Promise<Outcome>((resolve) => gates.push(() => resolve(defaultOutcome(run))))
+    const lane = createLane('background')
+    const measures = ['Bg1', 'Bg2', 'Bg3', 'Bg4'].map((name) =>
+      measurer.measureDoc({
+        sessionId: null,
+        game: ASH,
+        yamlText: claire.replace('Claire', name),
+        task: taskSpy().handle,
+        priority: lane,
+      }),
+    )
+    await until(() => runs.length === 1)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(runs).toHaveLength(1)
+
+    // A « Jeu prêt » waits for them: the free slot is taken at once.
+    lane.set('foreground')
+    await until(() => runs.length === 2)
+    expect(runs.map((run) => run.docs[0]?.name)).toEqual(['Bg1', 'Bg2'])
+
+    // Nobody waits any more: one background measure at a time again (Bg2 started in the foreground).
+    lane.set('background')
+    gates.shift()?.()
+    await until(() => runs.length === 3)
+    gates.shift()?.()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(runs).toHaveLength(3)
+    while (runs.length < 4 || gates.length > 0) {
+      gates.shift()?.()
+      await new Promise((resolve) => setImmediate(resolve))
+    }
+    expect((await Promise.all(measures)).map((result) => result.checks)).toEqual([131, 131, 131, 131])
   })
 
   it('a missing world only fails its own row', async () => {

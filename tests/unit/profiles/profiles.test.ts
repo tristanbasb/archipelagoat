@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { hasSizeName, sizeCandidates, variantsToward } from '@main/core/checks/balance'
 import { createCheckEstimates } from '@main/core/checks/datapackage'
-import type { MeasureInput } from '@main/core/checks/measure'
+import type { MeasureInput, MeasureLane, MeasurePriority } from '@main/core/checks/measure'
 import type { Logger } from '@main/core/logger'
 import {
   createProfiles,
@@ -30,6 +30,7 @@ import type {
   OptionSchema,
   PlayerMeasure,
   ProfileId,
+  TaskDone,
   WorldInfo,
 } from '@shared/types'
 import { createTestContext, type TestCore } from '../../helpers/core'
@@ -120,6 +121,10 @@ function fakeMeasurer(base: number, effects: Effect[] = []) {
     },
   }
 }
+
+/** The priority a measure waits with now (the measurer's default: foreground). */
+const priorityOf = (priority: MeasurePriority | MeasureLane | undefined): MeasurePriority =>
+  priority === undefined ? 'foreground' : typeof priority === 'string' ? priority : priority.priority()
 
 function taskHandle(): { handle: TaskHandle; stages: string[] } {
   const stages: string[] = []
@@ -694,9 +699,9 @@ describe('the profiles service', () => {
   })
 
   function serviceWith(opts: { worlds: () => WorldInfo[]; installed: string[]; measured?: string[] }) {
-    const refine = vi.fn((game: string, task: TaskHandle) => {
+    const refine = vi.fn<Profiles['refine']>((game, task) => {
       task.progress('done', 100)
-      return Promise.resolve<GameProfiles>({ game, profiles: [], measured: true })
+      return Promise.resolve({ game, profiles: [], measured: true })
     })
     const get = vi.fn((game: string) =>
       Promise.resolve<GameProfiles>({ game, profiles: [], measured: opts.measured?.includes(game) ?? false }),
@@ -880,6 +885,142 @@ describe('the profiles service', () => {
     await service.get(ASH)
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(refine).toHaveBeenCalledTimes(1)
+  })
+
+  /** A « Jeu prêt » task: the progress it gets, and its cancel. */
+  function readyTask() {
+    const controller = new AbortController()
+    const progress: Parameters<TaskHandle['progress']>[] = []
+    const handle: TaskHandle = {
+      id: 'ready',
+      signal: controller.signal,
+      progress: (...args) => void progress.push(args),
+      log: () => undefined,
+    }
+    return { handle, progress, controller }
+  }
+
+  /** Each refinement reports its first measure, then waits for its release; what it was given is kept. */
+  function holdRefinements(refine: ReturnType<typeof serviceWith>['refine']) {
+    const held: {
+      game: string
+      task: TaskHandle
+      priority: () => MeasurePriority
+      release: () => void
+    }[] = []
+    refine.mockImplementation(
+      (game, task, priority) =>
+        new Promise<GameProfiles>((resolve) => {
+          task.progress('generate', 50, { done: 1, total: 2 })
+          held.push({
+            game,
+            task,
+            priority: () => priorityOf(priority),
+            release: () => resolve({ game, profiles: [], measured: true }),
+          })
+        }),
+    )
+    return held
+  }
+
+  it('a « Jeu prêt » joins the refinement running in the background, its measures in the foreground while it waits', async () => {
+    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK] })
+    const runs = holdRefinements(refine)
+    await service.get(HK)
+    await vi.waitFor(() => expect(runs).toHaveLength(1))
+    const [run] = runs
+    expect(run?.priority()).toBe('background')
+
+    const ready = readyTask()
+    const refined = service.refineNow(HK, ready.handle)
+    // Joined, not started again: its measures go first now, and the task gets its progress so far.
+    await vi.waitFor(() => expect(run?.priority()).toBe('foreground'))
+    expect(ready.progress).toEqual([['generate', 50, { done: 1, total: 2 }]])
+    run?.task.progress('generate', 95, { done: 2, total: 2 })
+    expect(ready.progress.at(-1)).toEqual(['generate', 95, { done: 2, total: 2 }])
+    run?.release()
+    expect(await refined).toEqual({ game: HK, profiles: [], measured: true })
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refine).toHaveBeenCalledTimes(1)
+  })
+
+  it('a « Jeu prêt » starts the refinement at once in the foreground, whatever game the background refines', async () => {
+    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK, ASH] })
+    const runs = holdRefinements(refine)
+    // A Short Hike is refined in the background; Hollow Knight waits for its turn.
+    await service.get(ASH)
+    await vi.waitFor(() => expect(runs).toHaveLength(1))
+    await service.get(HK)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(runs).toHaveLength(1)
+
+    const refined = service.refineNow(HK, readyTask().handle)
+    await vi.waitFor(() => expect(runs).toHaveLength(2))
+    expect(runs.map(({ game, priority }) => [game, priority()])).toEqual([
+      [ASH, 'background'],
+      [HK, 'foreground'],
+    ])
+    runs[1]?.release()
+    expect(await refined).toMatchObject({ game: HK, measured: true })
+    // It no longer waits for its turn: A Short Hike done, nothing more is refined.
+    runs[0]?.release()
+    await vi.waitFor(() => expect(core.ctx.tasks.list()).toEqual([]))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(refine.mock.calls.map(([game]) => game)).toEqual([ASH, HK])
+  })
+
+  it('a « Jeu prêt » cancelled while it waits leaves the refinement to finish in the background', async () => {
+    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK] })
+    const runs = holdRefinements(refine)
+    const ready = readyTask()
+    const refined = service.refineNow(HK, ready.handle)
+    await vi.waitFor(() => expect(runs).toHaveLength(1))
+    const [run] = runs
+    expect(run?.priority()).toBe('foreground')
+
+    ready.controller.abort()
+    await expect(refined).rejects.toMatchObject({ code: 'TASK_CANCELLED' })
+    // Back to the background, where it goes on: what it measured is not lost.
+    expect(run?.priority()).toBe('background')
+    expect(run?.task.signal.aborted).toBe(false)
+    const seen = ready.progress.length
+    run?.task.progress('generate', 95, { done: 2, total: 2 })
+    expect(ready.progress).toHaveLength(seen)
+    const done = new Promise<TaskDone>((resolve) => core.ctx.bus.on('task:done', resolve))
+    run?.release()
+    expect(await done).toMatchObject({ kind: 'profiles', result: { game: HK, measured: true } })
+    expect(refine).toHaveBeenCalledTimes(1)
+  })
+
+  it('a « Jeu prêt » gets the error of the refinement it waits for', async () => {
+    const { service, refine } = serviceWith({ worlds: () => [], installed: [HK] })
+    refine.mockRejectedValueOnce(new AppError('AP_ROM_MISSING', { game: HK }))
+    await expect(service.refineNow(HK, readyTask().handle)).rejects.toMatchObject({
+      code: 'AP_ROM_MISSING',
+    })
+  })
+
+  it('measures a « Jeu prêt » refinement in the foreground, a background one in the background', async () => {
+    const seen = new Map<string, MeasurePriority[]>()
+    const measurer = fakeMeasurer(203)
+    const service = createProfilesService(core.ctx, {
+      profiles: profilesWith({
+        measureDoc: (input) => {
+          seen.set(input.game, [...(seen.get(input.game) ?? []), priorityOf(input.priority)])
+          return measurer.measureDoc(input)
+        },
+      }),
+      worlds: { list: () => Promise.resolve([]) },
+      worldVersion: () => Promise.resolve('1.0.0'),
+    })
+    expect(await service.refineNow(ASH, readyTask().handle)).toMatchObject({ game: ASH, measured: true })
+    expect(new Set(seen.get(ASH))).toEqual(new Set(['foreground']))
+    await vi.waitFor(() => expect(core.ctx.tasks.list()).toEqual([]))
+
+    const done = new Promise<TaskDone>((resolve) => core.ctx.bus.on('task:done', resolve))
+    await service.get(HK)
+    expect(await done).toMatchObject({ kind: 'profiles', result: { game: HK, measured: true } })
+    expect(new Set(seen.get(HK))).toEqual(new Set(['background']))
   })
 
   it('logs a background refinement that fails, without failing anything else', async () => {

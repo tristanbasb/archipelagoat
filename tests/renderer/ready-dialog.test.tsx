@@ -151,6 +151,7 @@ function outcome(fields: Partial<ReadyOutcome> = {}): ReadyOutcome {
     delivered: { kind: 'session', sessionId: 's1' },
     playerName: '',
     restartNeeded: false,
+    refinementFailed: false,
     ...fields,
   }
 }
@@ -553,6 +554,44 @@ describe('« Jeu prêt » dialog', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Ouvrir la session' }))
     await waitFor(() => expect(location()).toBe('/session/s1?step=1'))
+  })
+
+  it('the profile step shows the measures of the refinement it waits for; one that failed is said on the end screen', async () => {
+    const { goat, dialog, user } = await openReady()
+    await user.click(within(dialog).getByRole('radio', { name: /Découverte/ }))
+    await user.click(within(dialog).getByRole('button', { name: 'Installer et préparer' }))
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toMatchObject([{ profile: 'discovery' }]))
+
+    goat.emit('task:progress', {
+      taskId: 'r1',
+      kind: 'ready',
+      stage: 'profile',
+      percent: 40,
+      detail: { done: 8, total: 20 },
+    })
+    const bar = await within(dialog).findByRole('progressbar', {
+      name: `Affinage du profil${NB}: 8/20 mesures`,
+    })
+    expect(bar).toHaveAttribute('aria-valuenow', '40')
+    // Then the YAML is written and measured.
+    goat.emit('task:progress', { taskId: 'r1', kind: 'ready', stage: 'profile', percent: null })
+    expect(
+      await within(dialog).findByRole('progressbar', { name: 'Écriture du YAML et mesure des checks' }),
+    ).toBeInTheDocument()
+
+    goat.emit('task:done', {
+      taskId: 'r1',
+      kind: 'ready',
+      result: outcome({ profile: 'discovery', checks: 8, refinementFailed: true }),
+    })
+    expect(await within(dialog).findByRole('heading', { name: `Prêt${NB}!` })).toBeInTheDocument()
+    const notes = within(dialog).getByRole('region', { name: 'À savoir' })
+    expect(within(notes).getByText('Estimation non affinée')).toBeInTheDocument()
+    expect(
+      within(notes).getByText(
+        'Celeste n’a pas pu être mesuré : ce profil Découverte est choisi d’après le seul nom de ses options, sans garantie sur son nombre de checks.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('the end screen says the name the YAML was added as when the session had that player already', async () => {
