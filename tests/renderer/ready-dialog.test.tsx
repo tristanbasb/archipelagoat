@@ -149,6 +149,7 @@ function outcome(fields: Partial<ReadyOutcome> = {}): ReadyOutcome {
     checks: 203,
     text: YAML_TEXT,
     delivered: { kind: 'session', sessionId: 's1' },
+    playerName: '',
     restartNeeded: false,
     ...fields,
   }
@@ -406,12 +407,15 @@ describe('« Jeu prêt » dialog', () => {
 
     // Remembered once the YAML is delivered.
     expect(goat.inputsOf('app:setConfig')).toEqual([])
-    goat.emit('task:done', { taskId: 'r1', kind: 'ready', result: outcome() })
+    goat.emit('task:done', { taskId: 'r1', kind: 'ready', result: outcome({ playerName: 'Madeline' }) })
     await waitFor(() =>
       expect(goat.inputsOf('app:setConfig')).toEqual([
         { playerName: 'Madeline', readyDestination: 'session' },
       ]),
     )
+    // Added under the name asked for: nothing more to say.
+    expect(await within(dialog).findByText('Ajouté à la session « Soirée GOAT ».')).toBeInTheDocument()
+    expect(within(dialog).queryByText(/Ajouté sous le nom/)).toBeNull()
   })
 
   it('the destination defaults to the last one; "Nouvelle session" asks for a name', async () => {
@@ -469,7 +473,7 @@ describe('« Jeu prêt » dialog', () => {
     goat.emit('task:done', {
       taskId: 'r1',
       kind: 'ready',
-      result: outcome({ delivered: { kind: 'file', path: SAVED } }),
+      result: outcome({ delivered: { kind: 'file', path: SAVED }, playerName: 'Tristan' }),
     })
     expect(await within(dialog).findByText(SAVED)).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Ouvrir le dossier' }))
@@ -530,6 +534,21 @@ describe('« Jeu prêt » dialog', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Ouvrir la session' }))
     await waitFor(() => expect(location()).toBe('/session/s1?step=1'))
+  })
+
+  it('the end screen says the name the YAML was added as when the session had that player already', async () => {
+    const { goat, dialog, user } = await openReady({}, { config: { playerName: 'Tristan' } })
+    await user.click(within(dialog).getByRole('button', { name: 'Installer et préparer' }))
+    await waitFor(() => expect(goat.inputsOf('ready:run')).toHaveLength(1))
+
+    goat.emit('task:done', { taskId: 'r1', kind: 'ready', result: outcome({ playerName: 'Tristan2' }) })
+    expect(await within(dialog).findByRole('heading', { name: `Prêt${NB}!` })).toBeInTheDocument()
+    expect(within(dialog).getByText('Ajouté à la session « Soirée GOAT ».')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        'Ajouté sous le nom « Tristan2 » : « Tristan » était déjà pris dans cette session.',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('Studio destination loads the YAML in the Studio draft and navigates to /studio', async () => {

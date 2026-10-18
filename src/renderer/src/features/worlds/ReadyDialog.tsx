@@ -950,6 +950,13 @@ function ReadyClear({
     )
   }
 
+  // A player of the session had that name already: the YAML went under the next free one.
+  const asked = lastRun?.playerName ?? null
+  const renamed =
+    asked !== null && outcome.playerName !== asked
+      ? r('done.renamed', { name: outcome.playerName, asked })
+      : null
+
   const notes = plan?.notes
   const setupUrl = notes?.setupUrl ?? null
   const items: { key: string; icon: ReactNode; title: string; body: string; action?: ReactNode }[] = []
@@ -1011,6 +1018,7 @@ function ReadyClear({
           {r('done.summary', { profile: t(`profiles.names.${outcome.profile}`), checks })}
         </p>
         {where !== null && <p className="ready-clear__where">{where}</p>}
+        {renamed !== null && <p className="ready-clear__where">{renamed}</p>}
       </div>
       {items.length > 0 && (
         <section className="ready-notes" aria-labelledby={notesId}>

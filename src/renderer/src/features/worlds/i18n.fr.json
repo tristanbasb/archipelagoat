@@ -234,6 +234,7 @@
       "unmeasured": "checks non mesurés",
       "session": "Ajouté à la session «\u00a0{{name}}\u00a0».",
       "sessionUnnamed": "Ajouté à la session.",
+      "renamed": "Ajouté sous le nom «\u00a0{{name}}\u00a0»\u00a0: «\u00a0{{asked}}\u00a0» était déjà pris dans cette session.",
       "file": "Enregistré ici\u00a0:",
       "openSession": "Ouvrir la session",
       "openFolder": "Ouvrir le dossier",

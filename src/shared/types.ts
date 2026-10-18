@@ -704,6 +704,11 @@ export interface ReadyOutcome {
   checks: number | null
   text: string
   delivered: { kind: 'session'; sessionId: string } | { kind: 'file'; path: string } | { kind: 'studio' }
+  /**
+   * The player's name in the YAML delivered: the one asked for, else the next free one of the session
+   * (`Name2`…) when one of its players had it; empty for `Player{number}`.
+   */
+  playerName: string
   /** The run installed a world while Archipelago programs run: they see it once restarted. */
   restartNeeded: boolean
 }

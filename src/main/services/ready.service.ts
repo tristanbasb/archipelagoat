@@ -47,6 +47,7 @@ defineService(
       sessions: {
         list: () => get('sessions').list(),
         create: (name) => get('sessions').create(name),
+        get: (id) => get('sessions').get(id),
         addText: (id, fileName, text) => get('sessions').addText(id, fileName, text),
       },
       // The files app:savePath gave.

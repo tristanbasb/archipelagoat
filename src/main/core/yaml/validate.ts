@@ -662,16 +662,23 @@ function duplicates(names: (string | null)[]): Map<string, [string, number]> {
 }
 
 /**
- * `name-duplicate` for each name worn by several players of a session (Generate.main: names unique
- * without case), with the files read in Archipelago's order (sorted without case) and `{number}`
- * resolved by a counter per name. `params.name` is the duplicated slot name.
+ * The slot names of a session's players, with the files read in Archipelago's order (sorted without
+ * case) and `{number}` resolved by a counter per name; null for a name that is not one.
  */
-export function validateSessionNames(files: PlayerFile[]): Issue[] {
+export function sessionSlotNames(files: PlayerFile[]): (string | null)[] {
   const sorted = [...files].sort((a, b) => {
     const [x, y] = [a.storedName.toLowerCase(), b.storedName.toLowerCase()]
     return x < y ? -1 : x > y ? 1 : 0
   })
-  const names = finalNames(sorted.flatMap((file) => file.docs))
+  return finalNames(sorted.flatMap((file) => file.docs))
+}
+
+/**
+ * `name-duplicate` for each name worn by several players of a session (Generate.main: names unique
+ * without case), as `sessionSlotNames` gives them. `params.name` is the duplicated slot name.
+ */
+export function validateSessionNames(files: PlayerFile[]): Issue[] {
+  const names = sessionSlotNames(files)
   return [...duplicates(names).values()].map(([name, count]) => ({
     severity: 'error',
     code: 'name-duplicate',

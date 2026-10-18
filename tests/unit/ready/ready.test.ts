@@ -22,6 +22,7 @@ import type {
   CatalogEntry,
   GameProfiles,
   GameSchema,
+  PlayerFile,
   PlayerMeasure,
   ProfileId,
   Session,
@@ -126,6 +127,15 @@ const yamlOf = (game: string, profile: ProfileId, playerName: string): string =>
     '',
   ].join('\n')
 
+/** A player file of a session, with one player of that name. */
+const playerFile = (storedName: string, name: string | null): PlayerFile => ({
+  id: storedName,
+  originalName: storedName,
+  storedName,
+  docs: [{ index: 0, name, games: [], issues: [] }],
+  addedAt: '2026-10-18T20:00:00.000Z',
+})
+
 const session = (id: string, name: string, status: SessionSummary['status']): SessionSummary => ({
   id,
   name,
@@ -172,6 +182,8 @@ let yaml: (game: string, profile: ProfileId, playerName: string) => string
 let calls: string[]
 let measured: MeasureInput[]
 let added: { id: string; fileName: string; text: string }[]
+/** The player files each session had before the test's deliveries. */
+let players: Map<string, PlayerFile[]>
 let clock: number
 /** Called after a world is installed (a cancellation at that moment). */
 let afterConfirm: () => void
@@ -260,6 +272,14 @@ function makeDeps(): ReadyDeps {
         sessions.unshift(session(id, name, 'draft'))
         return Promise.resolve({ id, name } as Session)
       },
+      get: (id) => {
+        if (!sessions.some((s) => s.id === id)) return Promise.reject(new AppError('NOT_FOUND'))
+        const delivered = added.filter((file) => file.id === id)
+        const files = delivered.map(({ fileName, text }) =>
+          playerFile(fileName, /^name: (.*)$/m.exec(text)?.[1] ?? null),
+        )
+        return Promise.resolve({ id, players: [...(players.get(id) ?? []), ...files] } as Session)
+      },
       addText: (id, fileName, text) => {
         calls.push(`addText ${id} ${fileName}`)
         if (!sessions.some((s) => s.id === id)) return Promise.reject(new AppError('NOT_FOUND'))
@@ -328,6 +348,7 @@ beforeEach(() => {
   calls = []
   measured = []
   added = []
+  players = new Map()
   clock = 1_000_000
   afterConfirm = () => undefined
   picked = createPickedPaths(core.platform.os)
@@ -424,6 +445,7 @@ describe('ready', () => {
       checks: 131,
       text,
       delivered: { kind: 'session', sessionId: 's1' },
+      playerName: 'Tristan',
       restartNeeded: false,
     })
   })
@@ -636,6 +658,40 @@ describe('ready', () => {
     )
     expect(twice).toEqual(saved)
     expect(calls).toEqual([])
+  })
+
+  it('delivers into a session under the next free name when one of its players has that name', async () => {
+    // Two games for one player: the session has a Tristan already, and Archipelago ignores case.
+    players.set('s1', [playerFile('tristan.yaml', 'tristan')])
+    const first = await readyFor('hollow_knight')
+    const renamed = yamlOf(HK, 'standard', 'Tristan2')
+    expect(first.outcome).toMatchObject({
+      playerName: 'Tristan2',
+      text: renamed,
+      delivered: { kind: 'session', sessionId: 's1' },
+    })
+    expect(added).toEqual([{ id: 's1', fileName: `Tristan2 - ${HK}.yaml`, text: renamed }])
+    // Only the name changes: the YAML measured and validated is the one asked for.
+    expect(calls.filter((call) => call.startsWith('yamlFor'))).toEqual([`yamlFor ${HK} standard Tristan`])
+
+    // Tristan2 is taken now too.
+    expect((await readyFor('hollow_knight')).outcome.playerName).toBe('Tristan3')
+
+    // Sixteen characters at most: the name is cut to make room for the number.
+    players.set('s1', [playerFile('chevalier.yaml', 'Chevalier Errant')])
+    const long = await readyFor('hollow_knight', { playerName: 'Chevalier Errant' })
+    expect(long.outcome.playerName).toBe('Chevalier Erran2')
+    expect(added.at(-1)?.text).toBe(yamlOf(HK, 'standard', 'Chevalier Erran2'))
+
+    // A new session, a name nobody has, Player{number}, or no session at all: the name asked for.
+    const fresh = await readyFor('hollow_knight', { destination: { kind: 'new-session', name: 'Samedi' } })
+    expect(fresh.outcome.playerName).toBe('Tristan')
+    expect((await readyFor('hollow_knight', { playerName: 'Lucie' })).outcome.playerName).toBe('Lucie')
+    const numbered = await readyFor('hollow_knight', { playerName: '' })
+    expect(numbered.outcome).toMatchObject({ playerName: '', text: yamlOf(HK, 'standard', '') })
+    players.set('s1', [playerFile('tristan.yaml', 'Tristan')])
+    const studio = await readyFor('hollow_knight', { destination: { kind: 'studio' } })
+    expect(studio.outcome).toMatchObject({ playerName: 'Tristan', text: yamlOf(HK, 'standard', 'Tristan') })
   })
 
   it('cancel after install keeps the world and delivers nothing; retry resumes at the profile step', async () => {

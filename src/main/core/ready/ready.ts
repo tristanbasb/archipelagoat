@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto'
 import { isNewerVersion } from '@shared/catalog'
 import { AppError } from '@shared/errors'
+import { PLAYER_NAME_MAX } from '@shared/ipc/app'
 import type {
   GameProfiles,
   ProfileId,
@@ -32,7 +33,8 @@ import type { TaskHandle } from '../tasks'
 import { compactKey, type Catalog } from '../worlds/catalog'
 import type { WorldInstaller } from '../worlds/install'
 import { loadYaml11 } from '../yaml/load'
-import { gamesIn, validateLoadedYaml, type ValidationContext } from '../yaml/validate'
+import { gamesIn, sessionSlotNames, validateLoadedYaml, type ValidationContext } from '../yaml/validate'
+import { parsePlayerYaml, renderPlayerYaml } from '../yaml/writer'
 
 /** A plan not run for this long is dropped (with what its runs did). */
 export const READY_PLAN_TTL_MS = 60 * 60 * 1000
@@ -43,6 +45,23 @@ const CONSENT_TIERS: ReadonlySet<TrustTier> = new Set(['wiki-release', 'unknown'
 const DEFAULT_PLAYER = 'Player'
 /** What a file destination may be called: what the Studio saves. */
 const YAML_EXTENSIONS = ['.yaml', '.yml']
+
+/** The name of a delivered file: the player's and the game's. */
+const fileNameOf = (playerName: string, game: string): string =>
+  `${playerName === '' ? DEFAULT_PLAYER : playerName} - ${game}.yaml`
+
+/**
+ * `name`, else the first of `name2`, `name3`… (cut to make room for the number within the 16
+ * characters of a name) that `taken`, in lower case, does not have.
+ */
+function freeName(name: string, taken: ReadonlySet<string>): string {
+  const chars = [...name]
+  for (let n = 1; ; n++) {
+    const suffix = n === 1 ? '' : String(n)
+    const candidate = chars.slice(0, PLAYER_NAME_MAX - suffix.length).join('') + suffix
+    if (!taken.has(candidate.toLowerCase())) return candidate
+  }
+}
 
 export interface ReadyRun {
   planId: string
@@ -81,7 +100,7 @@ export interface ReadyDeps {
   templates: Pick<Templates, 'getSchema' | 'regenerate'>
   profiles: Pick<Profiles, 'get' | 'yamlFor'>
   measurer: Pick<Measurer, 'measureDoc'>
-  sessions: Pick<SessionStore, 'list' | 'create' | 'addText'>
+  sessions: Pick<SessionStore, 'list' | 'create' | 'addText' | 'get'>
   /** The paths the user picked (app:savePath): the only ones a file destination may name. */
   pickedPaths: Pick<PickedPaths, 'has'>
   /** The context the Studio validates a YAML rolling these games with. */
@@ -91,6 +110,9 @@ export interface ReadyDeps {
   /** The clock of plan expiry. Default: `Date.now`. */
   now?: () => number
 }
+
+/** What a delivery did: where the YAML went, and the name and text it went with. */
+type Delivery = Pick<ReadyOutcome, 'delivered' | 'playerName' | 'text'>
 
 /** A plan and what its runs did so far. */
 interface Pending {
@@ -190,20 +212,45 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
     }
   }
 
+  /**
+   * Adds the YAML to a session, under the next free name (`Name2`, `Name3`…) when one of its players
+   * already has `playerName`: Archipelago refuses two players of one name, whatever their case. An
+   * empty name is `Player{number}`, which Archipelago numbers itself.
+   */
+  async function addToSession(
+    sessionId: string,
+    game: string,
+    playerName: string,
+    text: string,
+  ): Promise<Delivery> {
+    let delivered = { playerName, text }
+    if (playerName !== '') {
+      const { players } = await deps.sessions.get(sessionId)
+      const taken = new Set(
+        sessionSlotNames(players).flatMap((name) => (name === null ? [] : [name.toLowerCase()])),
+      )
+      const name = freeName(playerName, taken)
+      // Only the name changes: the rest is the YAML measured and validated.
+      const doc = name === playerName ? undefined : parsePlayerYaml(text).docs[0]
+      if (doc) delivered = { playerName: name, text: renderPlayerYaml({ ...doc, name }) }
+    }
+    await deps.sessions.addText(sessionId, fileNameOf(delivered.playerName, game), delivered.text)
+    return { delivered: { kind: 'session', sessionId }, ...delivered }
+  }
+
   async function deliver(
     pending: Pending,
     destination: ReadyDestination,
-    fileName: string,
+    playerName: string,
     text: string,
-  ): Promise<ReadyOutcome['delivered']> {
+  ): Promise<Delivery> {
+    const { game } = pending
     switch (destination.kind) {
       case 'session':
-        await deps.sessions.addText(destination.sessionId, fileName, text)
-        return { kind: 'session', sessionId: destination.sessionId }
+        return addToSession(destination.sessionId, game, playerName, text)
       case 'new-session': {
         pending.createdSession ??= (await deps.sessions.create(destination.name)).id
-        await deps.sessions.addText(pending.createdSession, fileName, text)
-        return { kind: 'session', sessionId: pending.createdSession }
+        return addToSession(pending.createdSession, game, playerName, text)
       }
       case 'file': {
         // The renderer got the path from a save dialog; it is checked again before anything is written.
@@ -218,11 +265,11 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
           throw new AppError('PATH_FORBIDDEN', { reason: 'not-picked' }, { detail: path })
         }
         await writeFileAtomic(path, text)
-        return { kind: 'file', path }
+        return { delivered: { kind: 'file', path }, playerName, text }
       }
       case 'studio':
         // The renderer loads the text in the Studio's draft.
-        return { kind: 'studio' }
+        return { delivered: { kind: 'studio' }, playerName, text }
     }
   }
 
@@ -287,23 +334,21 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
     }
 
     // 4. validate.
-    const fileName = `${playerName === '' ? DEFAULT_PLAYER : playerName} - ${game}.yaml`
     if (!pending.validated) {
       task.progress('validate', null)
-      await validate(yaml.text, fileName)
+      await validate(yaml.text, fileNameOf(playerName, game))
       pending.validated = true
     }
     throwIfCancelled(task.signal)
 
     // 5. deliver.
     task.progress('deliver', null)
-    const delivered = await deliver(pending, input.destination, fileName, yaml.text)
+    const delivery = await deliver(pending, input.destination, playerName, yaml.text)
     const outcome: ReadyOutcome = {
       game,
       profile: yaml.profile,
       checks: yaml.checks,
-      text: yaml.text,
-      delivered,
+      ...delivery,
       restartNeeded: pending.installedWorld && (await isApRunning()),
     }
     pending.outcome = outcome

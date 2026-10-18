@@ -234,6 +234,7 @@
       "unmeasured": "checks not measured",
       "session": "Added to the session “{{name}}”.",
       "sessionUnnamed": "Added to the session.",
+      "renamed": "Added as “{{name}}”: “{{asked}}” was already taken in this session.",
       "file": "Saved here:",
       "openSession": "Open the session",
       "openFolder": "Open the folder",
