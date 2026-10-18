@@ -1,6 +1,14 @@
 import { IconX } from '@tabler/icons-react'
-import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useEffectEvent, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { AnimatePresence, motion, useIsPresent } from 'motion/react'
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { cx, toneClass, type Tone } from '../classes'
 import { usePortalContainer } from '../useEffectsPrefs'
@@ -53,26 +61,40 @@ function ModalWindow({
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const close = useEffectEvent(onClose)
+  // False from the moment it closes, while it fades out (AnimatePresence keeps it mounted meanwhile).
+  const isPresent = useIsPresent()
+  /** What had the focus when it opened: it gets the focus back once it closes. */
+  const opener = useRef<HTMLElement | null>(null)
 
   // Focus the first text field of the body, else the dialog itself (never a button, so that Enter
-  // cannot confirm by accident); give focus back to the opener on close.
-  useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  // cannot confirm by accident). Give focus back to the opener in the layout phase of the commit
+  // that closes it: an unmount's cleanup runs once its DOM is gone, sometimes a task later, leaving
+  // the focus on the page meanwhile; and a focus moved by a layout cleanup is put back on the dialog
+  // by React, which restores the focus of an element still on the page.
+  useLayoutEffect(() => {
+    if (!isPresent) {
+      opener.current?.focus()
+      opener.current = null
+      return
+    }
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const dialog = dialogRef.current
     if (dialog) {
       const body = dialog.querySelector<HTMLElement>('.modal__body')
       const field = body ? focusables(body, FIELDS)[0] : undefined
       ;(field ?? dialog).focus()
     }
-    return () => opener?.focus()
-  }, [])
+  }, [isPresent])
+  // Unmounted while open (the screen behind it went away): the focus goes back all the same.
+  useLayoutEffect(() => () => opener.current?.focus(), [])
 
   // Focus that falls out of the dialog onto the page (its focused control removed, disabled or
   // replaced, a click outside it) comes back to it: Tab stays trapped, the keyboard never reaches
-  // the page behind. Only the topmost dialog does it, and only when nothing else has the focus.
-  useEffect(() => {
+  // the page behind. Only the topmost dialog does it, only when nothing else has the focus, and
+  // never once it is closing: all of it stops in the commit that closes it.
+  useLayoutEffect(() => {
     const dialog = dialogRef.current
-    if (!dialog) return
+    if (!dialog || !isPresent) return
     const topmost = (): boolean => {
       const open = document.querySelectorAll('[role="dialog"][aria-modal="true"]')
       return open[open.length - 1] === dialog
@@ -111,7 +133,7 @@ function ModalWindow({
       dialog.removeEventListener('focusout', onFocusOut)
       document.removeEventListener('keydown', onKey)
     }
-  }, [])
+  }, [isPresent])
 
   useEffect(() => {
     if (!dismissible) return
@@ -152,7 +174,10 @@ function ModalWindow({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
       onMouseDown={(event) => {
-        if (dismissible && event.target === event.currentTarget) onClose()
+        if (!dismissible || event.target !== event.currentTarget) return
+        // The focus given back to the opener stays there: the press does not move it to the page.
+        event.preventDefault()
+        onClose()
       }}
     >
       <motion.div

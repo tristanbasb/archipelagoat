@@ -48,6 +48,27 @@ describe('Modal', () => {
 
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalledOnce()
+    // Given back as soon as it closes, while it fades out: never left on the page meanwhile.
+    expect(opener).toHaveFocus()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(opener).toHaveFocus()
+  })
+
+  it('never takes the focus back once it is closing, closed from its backdrop', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<Harness onClose={onClose} />)
+    const opener = screen.getByRole('button', { name: 'Ouvrir' })
+    await user.click(opener)
+    const backdrop = screen.getByRole('dialog').parentElement
+    if (!backdrop) throw new Error('no backdrop')
+
+    await user.click(backdrop)
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(opener).toHaveFocus()
+    // Nothing pulls it back into the dialog that leaves.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(opener).toHaveFocus()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(opener).toHaveFocus()
   })
