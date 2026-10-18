@@ -35,6 +35,7 @@ import {
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { useWorldInstall, type WorldInstall } from '../../hooks/useWorldInstall'
 import { describeError } from '../../lib/errors'
+import { PlayerGames } from './PlayerGames'
 import { RenameDialog, type RenameTarget } from './RenameDialog'
 import { StepNav } from './StepNav'
 import { studioLink } from './steps'
@@ -536,13 +537,7 @@ function FilePanel({ sessionId, file, onRename }: FilePanelProps): React.JSX.Ele
               <div key={doc.index} className="check-doc">
                 <div className="check-doc__head">
                   <span className="check-doc__name">{name}</span>
-                  <span className="check-doc__games">
-                    {doc.games.map((game) => (
-                      <Badge key={game.game} tone="neutral" outline>
-                        {game.game}
-                      </Badge>
-                    ))}
-                  </span>
+                  <PlayerGames games={doc.games} className="check-doc__games" />
                   {canRename && doc.name !== null && (
                     <NeonButton
                       variant="ghost"

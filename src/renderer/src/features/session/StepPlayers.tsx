@@ -23,6 +23,7 @@ import { NEON_SERIES, cssVars } from '../../design/classes'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { fileName } from '../../hooks/useOpenRequests'
 import { describeError } from '../../lib/errors'
+import { PlayerGames } from './PlayerGames'
 import { StepNav } from './StepNav'
 import './StepPlayers.css'
 
@@ -307,13 +308,7 @@ function PlayerFileCard({ file, firstSlot, removing, onRemove }: PlayerFileCardP
                   {t('screens.session.players.slot', { n: slot })}
                 </span>
                 <span className="roster-player__name">{name}</span>
-                <span className="roster-player__games">
-                  {doc.games.map((game) => (
-                    <Badge key={game.game} tone="neutral" outline>
-                      {game.game}
-                    </Badge>
-                  ))}
-                </span>
+                <PlayerGames games={doc.games} className="roster-player__games" />
               </li>
             )
           })}

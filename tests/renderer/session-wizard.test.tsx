@@ -17,6 +17,7 @@ import { renderApp, type RenderAppOptions } from './render-app'
 const NOW = '2026-10-17T18:00:00.000Z'
 const WORKSPACE = 'C:\\Users\\Joueur\\AppData\\Local\\ArchipelaGOAT\\sessions\\s1'
 const NO_FX = { effects: { crt: false, glow: false, animations: false, sounds: false } }
+const CELESTE_COVER = `goat-cover://${'cd'.repeat(32)}.jpg`
 
 function doc(index: number, name: string, game: string, issues: PlayerDoc['issues'] = []): PlayerDoc {
   return { index, name, games: [{ game, weight: 1 }], issues }
@@ -203,6 +204,49 @@ describe('session wizard', () => {
     expect(within(ignored).getByText('notes.txt')).toBeInTheDocument()
     expect(within(ignored).getByText('cover.png')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Suivant' })).toBeEnabled()
+  })
+
+  it('step 1 shows the cover of each player’s game, the sprite when it has none', async () => {
+    await openWizard('/session/s1?step=1', {
+      handlers: {
+        'session:get': () => session(),
+        'session:validate': () => READY,
+        'covers:get': ({ game }) => ({ url: game === 'Celeste' ? CELESTE_COVER : null }),
+      },
+    })
+    const players = await screen.findByRole('list', { name: 'Fichiers des joueurs' })
+
+    const madeline = within(players).getByText('Madeline').closest('li') as HTMLElement
+    await waitFor(() =>
+      expect(madeline.querySelector('.game-cover img')).toHaveAttribute('src', CELESTE_COVER),
+    )
+    const link = within(players).getByText('Link').closest('li') as HTMLElement
+    expect(link.querySelector('.game-cover .game-sprite')).not.toBeNull()
+    expect(link.querySelector('img')).toBeNull()
+  })
+
+  it('step 2 shows the cover of the game of a player to fix', async () => {
+    const issue: PlayerDoc['issues'] = [
+      { severity: 'warning', code: 'option-unknown', path: 'Celeste.dash_mode' },
+    ]
+    await openWizard('/session/s1?step=2', {
+      handlers: {
+        'session:get': () => session(),
+        'session:validate': () => ({
+          ...READY,
+          files: [
+            { fileId: 'f1', docs: LINK.docs },
+            { fileId: 'f2', docs: [doc(0, 'Madeline', 'Celeste', issue)] },
+          ],
+        }),
+        'covers:get': ({ game }) => ({ url: game === 'Celeste' ? CELESTE_COVER : null }),
+      },
+    })
+
+    const madeline = await screen.findByRole('region', { name: 'Madeline.yaml' })
+    await waitFor(() =>
+      expect(madeline.querySelector('.game-cover img')).toHaveAttribute('src', CELESTE_COVER),
+    )
   })
 
   it('step 2 blocks next while validation is blocking and shows actions', async () => {

@@ -19,6 +19,7 @@ const NOW = '2026-10-17T18:00:00.000Z'
 const GAME = 'Test Game'
 const FILE = 'C:\\Users\\Joueur\\Documents\\Mes YAML\\Goat.yaml'
 const NO_FX = { effects: { crt: false, glow: false, animations: false, sounds: false } }
+const GAME_COVER = `goat-cover://${'ab'.repeat(32)}.png`
 
 const option = (key: string, kind: OptionSchema['kind'], value: unknown, extra: Partial<OptionSchema> = {}) =>
   ({
@@ -426,6 +427,21 @@ describe('YAML studio', () => {
     await waitFor(() =>
       expect(lastRenderedDoc(goat.inputsOf('studio:render'))?.options).toHaveProperty('amount'),
     )
+  })
+
+  it('shows the cover of each game in the picker, the sprite when it has none', async () => {
+    const { user } = await renderApp({
+      route: '/studio',
+      handlers: handlers({ 'covers:get': ({ game }) => ({ url: game === GAME ? GAME_COVER : null }) }),
+      config: NO_FX,
+    })
+    await user.click(await screen.findByRole('combobox', { name: 'Jeu' }))
+
+    const withCover = await screen.findByRole('option', { name: /^Test Game/ })
+    await waitFor(() => expect(withCover.querySelector('.game-cover img')).toHaveAttribute('src', GAME_COVER))
+    const without = screen.getByRole('option', { name: /^Custom World/ })
+    expect(without.querySelector('.game-cover .game-sprite')).not.toBeNull()
+    expect(without.querySelector('img')).toBeNull()
   })
 
   it('applies a preset over the defaults, and can undo it', async () => {

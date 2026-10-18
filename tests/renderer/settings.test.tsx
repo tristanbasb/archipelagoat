@@ -1,10 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
 import { AppError } from '@shared/errors'
 import type { ApInstall, IntegrationState } from '@shared/types'
 import { AboutPanel } from '@renderer/features/settings/AboutPanel'
 import { parseLicenses } from '@renderer/features/settings/licenses'
+import { i18n } from '@renderer/i18n'
 import { installGoatMock, TEST_INFO } from './goat-mock'
 import { renderApp, renderWithProviders, type RenderAppOptions } from './render-app'
 
@@ -438,6 +439,16 @@ describe('about panel', () => {
     )
     // (The text matcher sees the no-break space of the French text as a space.)
     expect(screen.getByText(label)).toBeInTheDocument()
+  })
+
+  it('credits the wiki for the game images too, in both languages', async () => {
+    installGoatMock()
+    await renderWithProviders(<AboutPanel info={TEST_INFO} licenses={null} />)
+    expect(screen.getByText(/images des jeux/)).toBeInTheDocument()
+
+    // The next render switches back to French.
+    await act(() => i18n.changeLanguage('en'))
+    expect(screen.getByText(/game images/)).toBeInTheDocument()
   })
 
   it('says the license list only exists in packaged builds', async () => {

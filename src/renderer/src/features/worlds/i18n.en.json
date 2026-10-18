@@ -162,7 +162,7 @@
     "emptyTitle": "The catalog is empty",
     "emptyBody": "Nothing to show for now. Try again in a moment.",
     "credits": "Catalog sources",
-    "creditsWiki": "Statuses, maintainers and categories: <wiki>Archipelago wiki</wiki>, licensed CC BY-NC-SA 4.0.",
+    "creditsWiki": "Statuses, maintainers, categories and game images: <wiki>Archipelago wiki</wiki>, licensed CC BY-NC-SA 4.0.",
     "creditsIndex": "World list and checksums: <index>ionium-ap/Archipelago-index</index>."
   }
 }

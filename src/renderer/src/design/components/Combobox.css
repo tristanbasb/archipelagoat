@@ -38,7 +38,7 @@
   align-items: center;
   gap: var(--sp-2);
   min-height: 32px;
-  padding: 0 var(--sp-3) 0 var(--sp-2);
+  padding: 2px var(--sp-3) 2px var(--sp-2);
   color: var(--text-dim);
   font-size: var(--fs-13);
   cursor: pointer;
@@ -79,6 +79,11 @@
 
 .combobox__option[data-active] .combobox__cursor {
   opacity: 1;
+}
+
+.combobox__icon {
+  display: inline-flex;
+  flex: none;
 }
 
 .combobox__label {

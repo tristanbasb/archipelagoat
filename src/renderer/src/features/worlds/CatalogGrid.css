@@ -231,11 +231,11 @@
   }
 }
 
-.catalog-card__sprite {
+.catalog-card__cover {
   transition: transform var(--dur-slow) var(--ease-out);
 }
 
-.catalog-card:hover .catalog-card__sprite {
+.catalog-card:hover .catalog-card__cover {
   transform: translateY(-4px);
 }
 

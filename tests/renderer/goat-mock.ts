@@ -124,6 +124,8 @@ export function installGoatMock(handlers: GoatHandlers = {}, options: GoatMockOp
     },
     'app:pendingOpenRequests': () => [],
     'tasks:list': () => [],
+    // No game has a cover unless a test says so: the pixel sprite stays.
+    'covers:get': () => ({ url: null }),
   }
   const table = { ...defaults, ...handlers } as Record<string, ((input: unknown) => unknown) | undefined>
 

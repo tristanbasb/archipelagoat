@@ -42,7 +42,8 @@ import { sfx } from '../../design/sfx'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { describeError } from '../../lib/errors'
 import { useConfig } from '../../stores/config'
-import { GameSprite, spriteTone } from './GameSprite'
+import { GameCover } from './GameCover'
+import { spriteTone } from './GameSprite'
 import { hasUpdate, matchesQuery, statusTone, visibleEntries } from './model'
 import { SearchField } from './SearchField'
 import { useErrorToast } from './useErrorToast'
@@ -519,7 +520,7 @@ function CatalogCard({ entry, onInstall, onOpen }: CatalogCardProps): React.JSX.
             1UP
           </span>
         )}
-        <GameSprite name={entry.game} size="lg" className="catalog-card__sprite" />
+        <GameCover game={entry.game} size="lg" className="catalog-card__cover" />
         <TrustBadge
           tier={entry.trust}
           label={t(`trust.${entry.trust}.label`)}

@@ -1,0 +1,51 @@
+/* A box of one 3:4 ratio per size, whatever it holds: the cover (cropped to fill) or the sprite. */
+.game-cover {
+  --cover-height: 40px;
+  --cover-clip: var(--clip-corner-sm);
+  position: relative;
+  display: block;
+  flex: none;
+  width: calc(var(--cover-height) * 3 / 4);
+  height: var(--cover-height);
+  background: var(--bg-1);
+  clip-path: var(--cover-clip);
+}
+
+/* The small one takes the sprite's height, so a row holds the same height with either. */
+.game-cover[data-size='md'] {
+  --cover-height: 56px;
+  --cover-clip: var(--clip-corner);
+}
+
+/* The height of a catalog card's banner, less its padding. */
+.game-cover[data-size='lg'] {
+  --cover-height: 80px;
+  --cover-clip: var(--clip-corner);
+}
+
+.game-cover__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A thin frame over the image, like the sprite's tile has. */
+.game-cover[data-state='image']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  pointer-events: none;
+}
+
+/* The sprite brings its own tile (or floats free, large): the box only keeps its place. */
+.game-cover[data-state='sprite'] {
+  background: none;
+  clip-path: none;
+}
+
+.game-cover .game-sprite[data-size] {
+  width: 100%;
+  height: 100%;
+}

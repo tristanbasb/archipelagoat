@@ -20,6 +20,8 @@ export interface ComboboxOption {
   label: string
   /** Secondary text at the right of the option. */
   hint?: string
+  /** A decorative visual before the label (a cover, an icon). */
+  icon?: ReactNode
 }
 
 export interface ComboboxProps {
@@ -233,6 +235,11 @@ export function Combobox({
                     onClick={() => pick(option)}
                   >
                     <span className="combobox__cursor" aria-hidden="true" />
+                    {option.icon !== undefined && (
+                      <span className="combobox__icon" aria-hidden="true">
+                        {option.icon}
+                      </span>
+                    )}
                     <span className="combobox__label">{highlight(option.label, query.trim())}</span>
                     {option.hint !== undefined && <span className="combobox__hint">{option.hint}</span>}
                   </li>

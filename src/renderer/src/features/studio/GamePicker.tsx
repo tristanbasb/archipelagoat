@@ -14,6 +14,7 @@ import { useTask } from '../../hooks/useTask'
 import { describeError } from '../../lib/errors'
 import { stageLabel } from '../../lib/task-stages'
 import { useTasksStore } from '../../stores/tasks'
+import { GameCover } from '../worlds/GameCover'
 import './GamePicker.css'
 
 /** The element id around the game field, which an issue about the game focuses. */
@@ -53,7 +54,12 @@ export function GamePicker({
         placeholder={t('screens.studio.game.placeholder')}
         emptyLabel={t('screens.studio.game.empty')}
         value={value}
-        options={games.map((game) => ({ value: game.game, label: game.game, hint: hint(game) }))}
+        options={games.map((game) => ({
+          value: game.game,
+          label: game.game,
+          hint: hint(game),
+          icon: <GameCover game={game.game} />,
+        }))}
         onChange={(name) => {
           const game = games.find((entry) => entry.game === name)
           if (game && game.game !== value) onPick(game)

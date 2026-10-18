@@ -37,7 +37,7 @@ import { cx } from '../../design/classes'
 import { useIpcMutation, useIpcQuery } from '../../hooks/useIpc'
 import { WORLD_QUERIES } from '../../hooks/useWorldInstall'
 import { describeError } from '../../lib/errors'
-import { GameSprite } from './GameSprite'
+import { GameCover } from './GameCover'
 import {
   ACTIONABLE_STATES,
   badgeStates,
@@ -400,7 +400,7 @@ function WorldRow({
       aria-labelledby={nameId}
       data-problem={states.some((state) => STATE_TONE[state] === 'pink') || undefined}
     >
-      <GameSprite name={world.game ?? world.module} />
+      <GameCover game={world.game ?? world.module} />
       <div className="world-row__main">
         <h3 id={nameId} className="world-row__name">
           {game}

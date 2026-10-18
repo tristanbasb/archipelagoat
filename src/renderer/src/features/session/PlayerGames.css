@@ -1,0 +1,13 @@
+.player-games {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--sp-3);
+  min-width: 0;
+}
+
+.player-games__game {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}

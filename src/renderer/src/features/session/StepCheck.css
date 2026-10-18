@@ -174,10 +174,7 @@
 }
 
 .check-doc__games {
-  display: flex;
   flex: 1;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .check-issues {

@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { useLocation } from 'react-router-dom'
 import { AppError } from '@shared/errors'
 import type { CatalogEntry, CatalogSnapshot, WorldInfo, WorldInstallPlan, WorldManifest } from '@shared/types'
 import { WorldsScreen } from '@renderer/features/worlds/WorldsScreen'
+import { i18n } from '@renderer/i18n'
 import { installGoatMock } from './goat-mock'
 import { renderApp, renderWithProviders } from './render-app'
 
@@ -11,6 +12,8 @@ const CORE_DIR = 'C:\\ProgramData\\Archipelago\\lib\\worlds'
 const DISABLED_DIR = 'C:\\Users\\Joueur\\AppData\\Local\\ArchipelaGOAT\\disabled-worlds'
 const DOWNLOADED_A = 'C:\\Users\\Joueur\\Téléchargements\\pokemon_crystal.apworld'
 const DOWNLOADED_B = 'C:\\Users\\Joueur\\Téléchargements\\celeste & co.apworld'
+const CRYSTAL_COVER = `goat-cover://${'ab'.repeat(32)}.png`
+const CELESTE_COVER = `goat-cover://${'cd'.repeat(32)}.jpg`
 
 function manifest(game: string, worldVersion: string | null): WorldManifest {
   return {
@@ -238,6 +241,23 @@ describe('WorldsScreen', () => {
     )
     expect(screen.getByRole('article', { name: 'broken_world' })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Filtrer par état' })).toHaveValue('corrupt')
+  })
+
+  it('puts the cover of a game on its installed row, the sprite when it has none', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'covers:get': ({ game }) => ({ url: game === 'Pokemon Crystal' ? CRYSTAL_COVER : null }),
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds' })
+
+    const crystal = await screen.findByRole('article', { name: 'Pokemon Crystal' })
+    await waitFor(() =>
+      expect(crystal.querySelector('.game-cover img')).toHaveAttribute('src', CRYSTAL_COVER),
+    )
+    const hollowKnight = screen.getByRole('article', { name: 'Hollow Knight' })
+    await waitFor(() => expect(goat.inputsOf('covers:get')).toContainEqual({ game: 'Hollow Knight' }))
+    expect(hollowKnight.querySelector('.game-cover .game-sprite')).not.toBeNull()
+    expect(hollowKnight.querySelector('img')).toBeNull()
   })
 
   it('filters the installed worlds by search, state and origin', async () => {
@@ -518,6 +538,37 @@ describe('WorldsScreen', () => {
 
     // The wiki is credited under its license.
     expect(screen.getByText(/CC BY-NC-SA 4\.0/)).toBeInTheDocument()
+  })
+
+  it('puts the cover of a game on its catalog card, the sprite when it has none', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => SNAPSHOT,
+      'covers:get': ({ game }) => ({ url: game === 'Celeste' ? CELESTE_COVER : null }),
+    })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+
+    const celeste = within(grid).getByRole('article', { name: 'Celeste' })
+    await waitFor(() =>
+      expect(celeste.querySelector('.game-cover img')).toHaveAttribute('src', CELESTE_COVER),
+    )
+    const hollowKnight = within(grid).getByRole('article', { name: 'Hollow Knight' })
+    await waitFor(() => expect(goat.inputsOf('covers:get')).toContainEqual({ game: 'Hollow Knight' }))
+    expect(hollowKnight.querySelector('.game-cover .game-sprite')).not.toBeNull()
+    expect(hollowKnight.querySelector('img')).toBeNull()
+  })
+
+  it('credits the wiki for the game images as well, under its license', async () => {
+    installGoatMock({ 'worlds:list': () => WORLDS, 'catalog:list': () => SNAPSHOT })
+    await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog', lang: 'fr' })
+    await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    // (The text matcher sees the no-break space of the French text as a space.)
+    expect(screen.getByText(/images des jeux :.*, sous licence CC BY-NC-SA 4\.0/)).toBeInTheDocument()
+
+    // The next render switches back to French.
+    await act(() => i18n.changeLanguage('en'))
+    expect(screen.getByText(/game images: .*, licensed CC BY-NC-SA 4\.0/)).toBeInTheDocument()
   })
 
   it('shows after dark worlds and their filter once enabled in the settings', async () => {
