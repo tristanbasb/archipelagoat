@@ -41,6 +41,7 @@ const READY_ENTRY: CatalogEntry = {
   download: null,
   installedVersion: null,
   trust: 'indexed-verified',
+  disabledByIndex: false,
 }
 const READY_PLAN: ReadyPlan = {
   planId: 'plan-1',
@@ -349,7 +350,13 @@ describe('app shell', () => {
       route: '/worlds?tab=catalog',
       handlers: {
         'worlds:list': () => [],
-        'catalog:list': () => ({ entries: [READY_ENTRY], fetchedAt: null, stale: false, errors: [] }),
+        'catalog:list': () => ({
+          entries: [READY_ENTRY],
+          hiddenAfterDark: [],
+          fetchedAt: null,
+          stale: false,
+          errors: [],
+        }),
         'ready:prepare': () => READY_PLAN,
       },
     })

@@ -1,7 +1,8 @@
 // What the catalog tab shows offline, written into a launch's dataRoot before the app starts: a saved
 // catalog (dataRoot/catalog/catalog.json, as src/main/core/worlds/catalog.ts reads it back) of a few
-// core worlds with a wiki cover link each, and the covers cache (dataRoot/covers/ with its index.json,
-// as src/main/core/covers/covers.ts keeps it) already holding the image of each link.
+// core worlds and one the index disables, with a wiki cover link each, and the covers cache
+// (dataRoot/covers/ with its index.json, as src/main/core/covers/covers.ts keeps it) already holding
+// the image of each link.
 //
 // The cover allowlist (static.wikitide.net, upload.wikimedia.org) is never loosened for tests, so the app
 // is not pointed at a fake host: the cache is seeded and the download path is left to the unit tests.
@@ -11,7 +12,7 @@ import { join } from 'node:path'
 import { deflateSync } from 'node:zlib'
 import type { IoniumWorld, WikiPage } from '@main/core/worlds/catalog'
 
-/** A core world of the fake install, as the catalog lists it. */
+/** A world of the catalog: a core world of the fake install, unless `disabled`. */
 export interface SeededGame {
   /** The game, as Archipelago names it (the index's `name`). */
   game: string
@@ -25,9 +26,14 @@ export interface SeededGame {
   popTracker?: boolean
   /** The wiki says the game needs a ROM at generation. */
   rom?: boolean
+  /** Not a core world, and the index disables it: the catalog shows it greyed. */
+  disabled?: boolean
 }
 
-/** The core games of the fake install (see FAKE_GAMES in helpers.ts), each with its own cover. */
+/**
+ * The core games of the fake install (see FAKE_GAMES in helpers.ts), each with its own cover, then a
+ * world the index disables.
+ */
 export const SEEDED_GAMES: readonly SeededGame[] = [
   { game: 'A Link to the Past', module: 'alttp', color: [92, 190, 112], popTracker: true },
   {
@@ -39,6 +45,7 @@ export const SEEDED_GAMES: readonly SeededGame[] = [
   },
   { game: 'The Witness', module: 'witness', color: [70, 132, 216] },
   { game: 'TUNIC', module: 'tunic', color: [226, 150, 54], popTracker: true },
+  { game: 'Celeste', module: 'celeste', color: [196, 92, 176], disabled: true },
 ]
 
 /** The `SAVED_VERSION` of catalog.ts: a catalog saved with another one is ignored. */
@@ -123,15 +130,15 @@ export function seedCatalog(dataRoot: string, games: readonly SeededGame[] = SEE
     defaultVersion: 'latest',
     tags: [],
     // A core world: the catalog tells it by its game, `latest` stays null (nothing to download).
-    supported: true,
-    disabled: false,
+    supported: one.disabled !== true,
+    disabled: one.disabled === true,
     versions: [],
     releases: [],
     bases: [],
   }))
   const pages: WikiPage[] = games.map((one) => ({
     title: one.title ?? one.game,
-    status: 'Core-verified',
+    status: one.disabled === true ? 'Custom' : 'Core-verified',
     maintainer: null,
     setupUrl: `https://archipelago.gg/tutorial/${encodeURIComponent(one.game)}/setup/en`,
     homepage: null,

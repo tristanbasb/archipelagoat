@@ -101,6 +101,7 @@ function entry(fields: Partial<CatalogEntry> & Pick<CatalogEntry, 'id' | 'game'>
     download: null,
     installedVersion: null,
     trust: 'indexed-verified',
+    disabledByIndex: false,
     ...fields,
   }
 }
@@ -142,9 +143,63 @@ const ENTRIES: CatalogEntry[] = [
 
 const SNAPSHOT: CatalogSnapshot = {
   entries: ENTRIES,
+  hiddenAfterDark: [],
   fetchedAt: '2026-10-17T12:00:00.000Z',
   stale: false,
   errors: [],
+}
+
+/** Worlds the index disables: greyed, never installed, their wiki page and its download page only. */
+const BALATRO_PAGE = 'https://github.com/BurndiL/BalatroAP/releases/latest'
+const DISABLED_SNAPSHOT: CatalogSnapshot = {
+  ...SNAPSHOT,
+  entries: [
+    ...ENTRIES,
+    entry({
+      id: 'balatro',
+      game: 'Balatro',
+      homepage: null,
+      supported: false,
+      wiki: wiki('Balatro', 'Custom'),
+      latest: null,
+      download: { kind: 'page', url: BALATRO_PAGE },
+      trust: 'unknown',
+      disabledByIndex: true,
+    }),
+    entry({
+      id: 'paper_mario',
+      game: 'Paper Mario',
+      homepage: null,
+      supported: false,
+      wiki: wiki('Paper Mario', 'Custom'),
+      latest: null,
+      installedVersion: '0.9.0',
+      trust: 'unknown',
+      disabledByIndex: true,
+    }),
+  ],
+}
+
+/** What the catalog search reads of an After Dark world it leaves out while they are hidden. */
+function hiddenEntry(
+  id: string,
+  game: string,
+  tags: string[] = [],
+): CatalogSnapshot['hiddenAfterDark'][number] {
+  return {
+    id,
+    source: 'index',
+    game,
+    displayName: game,
+    tags,
+    wiki: wiki(game, 'After Dark'),
+    requiresRomAtGeneration: false,
+    hasPopTracker: false,
+    afterDark: true,
+    installedVersion: null,
+    latest: null,
+    disabledByIndex: false,
+  }
 }
 
 /** A world only the wiki lists: no release known in advance, what to download comes from its page. */
@@ -985,6 +1040,113 @@ describe('WorldsScreen', () => {
     // An installed world of the index has its update in the catalog already: no such button.
     const hollow = screen.getByRole('article', { name: 'Hollow Knight' })
     expect(within(hollow).queryByRole('button', { name: /Chercher une version plus récente/ })).toBeNull()
+  })
+
+  it('greys a world the index disables, with a badge that says why and its pages only', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () => DISABLED_SNAPSHOT,
+      'app:openExternal': () => undefined,
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    // Listed among the others, in their order.
+    expect(
+      within(grid)
+        .getAllByRole('heading', { level: 3 })
+        .map((title) => title.textContent),
+    ).toEqual(['Balatro', 'Celeste', 'Hollow Knight', 'Paper Mario', 'Pokemon Emerald'])
+
+    const balatro = within(grid).getByRole('article', { name: 'Balatro' })
+    expect(balatro).toHaveAttribute('data-disabled-by-index', 'true')
+    expect(balatro).toHaveClass('catalog-card--disabled')
+    const badge = within(balatro).getByText('Désactivé par l’index')
+    await user.hover(badge)
+    const tooltip = await screen.findByRole('tooltip')
+    expect(tooltip).toHaveTextContent('L’index communautaire marque ce monde comme ne fonctionnant pas')
+    expect(tooltip).toHaveTextContent('ArchipelaGOAT ne l’installe pas')
+    await user.unhover(badge)
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull())
+    // The keyboard reaches it too.
+    const stop = badge.closest('.catalog-card__help') as HTMLElement
+    expect(stop).toHaveAttribute('tabindex', '0')
+    act(() => stop.focus())
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('ArchipelaGOAT ne l’installe pas')
+    expect(stop).toHaveAttribute('aria-describedby', screen.getByRole('tooltip').id)
+    act(() => stop.blur())
+    await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull())
+    // Nothing to install or to play from it.
+    expect(within(balatro).queryByRole('button', { name: /^Installer/ })).toBeNull()
+    expect(within(balatro).queryByRole('button', { name: /Jeu prêt/ })).toBeNull()
+    // Its wiki page, and the download page the wiki gives.
+    await user.click(within(balatro).getByRole('button', { name: 'Fiche de Balatro sur le wiki' }))
+    await user.click(within(balatro).getByRole('button', { name: 'Page de téléchargement de Balatro' }))
+    await waitFor(() =>
+      expect(goat.inputsOf('app:openExternal')).toEqual([
+        { url: 'https://archipelago.miraheze.org/wiki/Balatro' },
+        { url: BALATRO_PAGE },
+      ]),
+    )
+    expect(goat.inputsOf('worlds:prepareInstall')).toEqual([])
+
+    // Installed by hand: it says so, with the same badge, and still offers no « Jeu prêt ».
+    const paper = within(grid).getByRole('article', { name: 'Paper Mario' })
+    expect(within(paper).getByText('Installé · 0.9.0')).toBeInTheDocument()
+    expect(within(paper).getByText('Désactivé par l’index')).toBeInTheDocument()
+    expect(within(paper).queryByRole('button', { name: /Jeu prêt|^Installer/ })).toBeNull()
+
+    // The other cards are not greyed.
+    expect(within(grid).getByRole('article', { name: 'Celeste' })).not.toHaveAttribute(
+      'data-disabled-by-index',
+    )
+  })
+
+  it('says how many hidden 18+ worlds the search would find, and shows them on request', async () => {
+    const goat = installGoatMock({
+      'worlds:list': () => WORLDS,
+      'catalog:list': () =>
+        goat.config().showAfterDark
+          ? {
+              ...SNAPSHOT,
+              entries: [...ENTRIES, entry({ id: 'bl2', game: 'Borderlands 2', afterDark: true })],
+            }
+          : {
+              ...SNAPSHOT,
+              entries: ENTRIES.filter((e) => !e.afterDark),
+              hiddenAfterDark: [
+                hiddenEntry('bl2', 'Borderlands 2'),
+                hiddenEntry('bltps', 'Borderlands The Pre-Sequel'),
+                hiddenEntry('huniepop', 'HuniePop', ['ad']),
+              ],
+            },
+    })
+    const { user } = await renderWithProviders(<WorldsScreen />, { route: '/worlds?tab=catalog' })
+    const grid = await screen.findByRole('list', { name: 'Mondes du catalogue' })
+    // No search, no filter: nothing to say about them.
+    expect(screen.queryByText(/jeux? 18\+ masqués?/)).toBeNull()
+
+    const search = screen.getByRole('searchbox', { name: 'Rechercher dans le catalogue' })
+    await user.type(search, 'borderlands')
+    expect(await screen.findByText('2 jeux 18+ masqués')).toBeInTheDocument()
+    expect(screen.getByText(/Tu pourras les masquer à nouveau dans les Réglages/)).toBeInTheDocument()
+    expect(within(grid).queryAllByRole('article')).toHaveLength(0)
+    // The filters count as well: none of them is installed.
+    await user.click(screen.getByRole('button', { name: 'Installés' }))
+    await waitFor(() => expect(screen.queryByText(/jeux? 18\+ masqués?/)).toBeNull())
+    await user.click(screen.getByRole('button', { name: 'Installés' }))
+    await user.clear(search)
+    await user.type(search, 'hunie')
+    expect(await screen.findByText('1 jeu 18+ masqué')).toBeInTheDocument()
+    await user.clear(search)
+    await user.type(search, 'borderlands 2')
+    expect(await screen.findByText('1 jeu 18+ masqué')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Afficher les jeux 18+' }))
+    await waitFor(() => expect(goat.config().showAfterDark).toBe(true))
+    expect(goat.inputsOf('app:setConfig')).toEqual([{ showAfterDark: true }])
+    // The catalog is asked again: the world appears, the notice goes.
+    expect(await within(grid).findByRole('article', { name: 'Borderlands 2' })).toBeInTheDocument()
+    expect(screen.queryByText(/jeux? 18\+ masqués?/)).toBeNull()
   })
 
   it('shows stale banner when snapshot stale', async () => {

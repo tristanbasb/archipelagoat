@@ -44,6 +44,12 @@
   color: var(--text);
 }
 
+/* The 18+ worlds a search would find while the settings hide them: a line, not a banner. */
+.catalog-notice--compact {
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+}
+
 .catalog-notice__actions {
   display: flex;
   flex-wrap: wrap;
@@ -227,7 +233,7 @@
 
 @keyframes catalog-1up {
   50% {
-    opacity: 0.55;
+    opacity: 0.5;
   }
 }
 
@@ -332,6 +338,8 @@
 .catalog-card__links {
   display: flex;
   gap: 2px;
+  /* On the right, with or without an action before them. */
+  margin-left: auto;
 }
 
 .catalog-card__link.neon-btn {
@@ -352,6 +360,17 @@
   color: var(--neon-cyan);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* A world the index disables: its label in greys and dimmed, its title quieter; the rest stays
+   readable (the badge says why). */
+.catalog-card--disabled .catalog-card__banner {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.catalog-card--disabled .catalog-card__title {
+  color: var(--text-dim);
 }
 
 .catalog-card--skeleton {

@@ -1,16 +1,19 @@
 // The "Catalog" tab: the worlds of the community index for this Archipelago version, joined with
 // the Archipelago wiki (status, maintainer, categories), then the worlds only the wiki lists. Search,
 // filters, « Jeu prêt » (a world and its YAML in one dialog), and an install button that goes through
-// the trust screen.
+// the trust screen. The worlds the index disables are listed greyed, with their pages only; the 18+
+// worlds the settings hide are counted when a search would find them.
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query'
 import {
   IconArrowBigUpLines,
+  IconBan,
   IconBook2,
   IconCircleCheck,
   IconCloudOff,
   IconDisc,
   IconDownload,
   IconExternalLink,
+  IconEye,
   IconFilterOff,
   IconLicense,
   IconMap2,
@@ -27,6 +30,7 @@ import { isInstallable } from '@shared/catalog'
 import { isAllowedExternalUrl } from '@shared/external-url'
 import type {
   CatalogEntry,
+  CatalogSearchEntry,
   CatalogSnapshot,
   CatalogSource,
   GameEstimate,
@@ -102,7 +106,7 @@ function isFiltering(filters: Filters): boolean {
   )
 }
 
-function keep(entry: CatalogEntry, filters: Filters): boolean {
+function keep(entry: CatalogSearchEntry, filters: Filters): boolean {
   return (
     matchesQuery(
       filters.query,
@@ -144,7 +148,7 @@ export function CatalogGrid({ onInstall, onReady }: CatalogGridProps): React.JSX
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const showError = useErrorToast()
-  const { showAfterDark } = useConfig()
+  const { showAfterDark, set: setConfig } = useConfig()
   const catalog = useIpcQuery('catalog:list', {})
   const refresh = useIpcMutation('catalog:list', {
     onSuccess: (snapshot) => queryClient.setQueryData<CatalogSnapshot>(['catalog:list', {}], snapshot),
@@ -226,6 +230,9 @@ export function CatalogGrid({ onInstall, onReady }: CatalogGridProps): React.JSX
     .filter((entry) => keep(entry, active))
     .sort((a, b) => collator.compare(a.displayName, b.displayName))
   const filtering = isFiltering(active)
+  // The 18+ worlds the settings hide that this search would find (none while nothing is searched).
+  const hiddenMatches =
+    showAfterDark || !filtering ? 0 : snapshot.hiddenAfterDark.filter((entry) => keep(entry, active)).length
   const statuses = distinct(
     entries.map((entry) => entry.wiki?.status),
     collator,
@@ -366,6 +373,19 @@ export function CatalogGrid({ onInstall, onReady }: CatalogGridProps): React.JSX
         </div>
       </div>
 
+      {hiddenMatches > 0 && (
+        <HiddenAfterDarkNotice
+          count={hiddenMatches}
+          onShow={() => {
+            // The player's own choice, which the settings undo: no confirmation. The next catalog
+            // main builds lists them.
+            setConfig({ showAfterDark: true })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['catalog:list'] }))
+              .catch(showError)
+          }}
+        />
+      )}
+
       <CatalogCards entries={shown.slice(0, limit)} onInstall={onInstall} onReady={onReady} onOpen={open} />
 
       {shown.length > limit && (
@@ -465,6 +485,31 @@ function StaleNotice({
   )
 }
 
+/** The 18+ worlds a search would find while the settings hide them, and a button that shows them. */
+function HiddenAfterDarkNotice({ count, onShow }: { count: number; onShow: () => void }): React.JSX.Element {
+  const { t } = useTranslation()
+  const titleId = useId()
+  return (
+    <section
+      className="catalog-notice catalog-notice--compact pixel-border tone-pink"
+      aria-labelledby={titleId}
+    >
+      <IconRating18Plus className="catalog-notice__icon" aria-hidden="true" />
+      <div className="catalog-notice__text">
+        <h2 id={titleId} className="catalog-notice__title">
+          {t('screens.worlds.catalog.hiddenAfterDark', { count })}
+        </h2>
+        <p className="catalog-notice__copy">{t('screens.worlds.catalog.hiddenAfterDarkHint')}</p>
+      </div>
+      <div className="catalog-notice__actions">
+        <NeonButton variant="secondary" size="sm" icon={<IconEye />} onClick={onShow}>
+          {t('screens.worlds.catalog.showAfterDark')}
+        </NeonButton>
+      </div>
+    </section>
+  )
+}
+
 function FilterChip({
   pressed,
   onChange,
@@ -556,12 +601,24 @@ function CatalogCard({
   const update = hasUpdate(entry)
   const maxChecks = estimate?.max ?? null
   const ready = offersReady(entry)
+  const disabled = entry.disabledByIndex
+  // A world the index disables: the download page its wiki gives, if the app opens that site.
+  const disabledPage =
+    disabled && entry.download?.kind === 'page' && isAllowedExternalUrl(entry.download.url)
+      ? entry.download.url
+      : null
 
   return (
     <article
-      className={cx('catalog-card pixel-border', toneClass(spriteTone(entry.game)))}
+      className={cx(
+        'catalog-card pixel-border',
+        // Greyed: the neutral tone instead of the game's, the label dimmed (CatalogGrid.css).
+        toneClass(disabled ? 'neutral' : spriteTone(entry.game)),
+        disabled && 'catalog-card--disabled',
+      )}
       aria-labelledby={titleId}
       data-installed={installed || undefined}
+      data-disabled-by-index={disabled || undefined}
     >
       <div className="catalog-card__banner">
         {/* Decorative: the update button says it in words. */}
@@ -571,11 +628,14 @@ function CatalogCard({
           </span>
         )}
         <GameCover game={entry.game} size="lg" className="catalog-card__cover" />
-        <TrustBadge
-          tier={entry.trust}
-          label={t(`trust.${entry.trust}.label`)}
-          description={t(`trust.${entry.trust}.description`)}
-        />
+        {/* Nothing is installed from it: its badge says why, a trust level would say nothing. */}
+        {!disabled && (
+          <TrustBadge
+            tier={entry.trust}
+            label={t(`trust.${entry.trust}.label`)}
+            description={t(`trust.${entry.trust}.description`)}
+          />
+        )}
       </div>
       <div className="catalog-card__body">
         <h3 id={titleId} className="catalog-card__title" title={game}>
@@ -612,6 +672,16 @@ function CatalogCard({
         </p>
         <ProfileChecks counts={estimate?.profiles ?? null} />
         <div className="catalog-card__badges">
+          {disabled && (
+            <HelpBadge
+              tone="neutral"
+              icon={<IconBan />}
+              label={t('screens.worlds.catalog.disabledBadge')}
+              help={t('screens.worlds.catalog.disabledHelp')}
+              // Why nothing installs it: the keyboard reaches that too.
+              focusable
+            />
+          )}
           {entry.source === 'wiki' && (
             <HelpBadge
               tone="violet"
@@ -677,6 +747,14 @@ function CatalogCard({
                 label={t('screens.worlds.catalog.wikiPageOf', { game })}
                 icon={<IconBook2 />}
                 onClick={() => entry.wiki && onOpen(entry.wiki.url)}
+              />
+            )}
+            {disabledPage !== null && (
+              <LinkButton
+                tip={t('screens.worlds.catalog.downloadPage')}
+                label={t('screens.worlds.catalog.downloadPageOf', { game })}
+                icon={<IconDownload />}
+                onClick={() => onOpen(disabledPage)}
               />
             )}
             {entry.wiki?.setupUrl && (
@@ -746,16 +824,24 @@ function ProfileChecks({ counts }: { counts: ProfileCounts | null }): React.JSX.
 
 /**
  * Install (or update) the world alone, without a YAML. `secondary` next to « Jeu prêt », which is then
- * the card's main button.
+ * the card's main button. A world the index disables only says whether it is installed.
  */
 function InstallAction({
   entry,
   secondary,
   onInstall,
   onOpen,
-}: Omit<CatalogCardProps, 'onReady'> & { secondary: boolean }): React.JSX.Element {
+}: Omit<CatalogCardProps, 'onReady'> & { secondary: boolean }): React.JSX.Element | null {
   const { t } = useTranslation()
   const game = entry.displayName
+  if (entry.disabledByIndex) {
+    return entry.installedVersion === null ? null : (
+      <StatusPill
+        status="ok"
+        label={t('screens.worlds.catalog.installedPill', { version: entry.installedVersion })}
+      />
+    )
+  }
   if (hasUpdate(entry)) {
     return (
       <NeonButton
@@ -830,21 +916,26 @@ function InstallAction({
   return <StatusPill status="idle" label={t('screens.worlds.catalog.unavailable')} />
 }
 
-/** A badge whose meaning shows on hover; its label says enough for the keyboard and screen readers. */
+/**
+ * A badge whose meaning shows on hover; its label says enough for the keyboard and screen readers,
+ * unless `focusable`: the badge is then a tab stop that shows its meaning on focus too.
+ */
 function HelpBadge({
   tone,
   icon,
   label,
   help,
+  focusable = false,
 }: {
   tone: Tone
   icon: ReactNode
   label: string
   help: string
+  focusable?: boolean
 }): React.JSX.Element {
   return (
     <Tooltip content={help}>
-      <span className="catalog-card__help">
+      <span className="catalog-card__help" tabIndex={focusable ? 0 : undefined}>
         <Badge tone={tone} icon={icon}>
           {label}
         </Badge>

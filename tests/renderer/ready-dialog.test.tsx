@@ -57,6 +57,7 @@ function entry(fields: Partial<CatalogEntry> & Pick<CatalogEntry, 'id' | 'game'>
     download: null,
     installedVersion: null,
     trust: 'indexed-verified',
+    disabledByIndex: false,
     ...fields,
   }
 }
@@ -91,6 +92,7 @@ const SHAPEZ = entry({
 
 const SNAPSHOT: CatalogSnapshot = {
   entries: [CELESTE, FROGMONSTER, EMERALD, SHAPEZ],
+  hiddenAfterDark: [],
   fetchedAt: '2026-10-18T08:00:00.000Z',
   stale: false,
   errors: [],

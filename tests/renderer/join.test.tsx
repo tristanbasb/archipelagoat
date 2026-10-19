@@ -65,6 +65,7 @@ function catalogEntry(overrides: Partial<CatalogEntry> = {}): CatalogEntry {
     download: null,
     installedVersion: null,
     trust: 'indexed-verified',
+    disabledByIndex: false,
     ...overrides,
   }
 }
@@ -308,7 +309,13 @@ describe('join screen', () => {
       warnings: [],
     } satisfies WorldInstallPlan
     const { goat, user } = await openPlan(missingWorld, {
-      'catalog:list': () => ({ entries: [catalogEntry()], fetchedAt: null, stale: false, errors: [] }),
+      'catalog:list': () => ({
+        entries: [catalogEntry()],
+        hiddenAfterDark: [],
+        fetchedAt: null,
+        stale: false,
+        errors: [],
+      }),
       'worlds:prepareInstall': () => ({ taskId: 'world-1' }),
       'worlds:confirmInstall': () => ({
         world: { game: 'Pokemon Emerald' } as WorldInfo,
@@ -348,7 +355,13 @@ describe('join screen', () => {
     const { goat, user } = await openPlan(
       plan({ checklist: { ...plan().checklist, world: check('missing', 'world-missing') }, ready: false }),
       {
-        'catalog:list': () => ({ entries: [wikiOnly], fetchedAt: null, stale: false, errors: [] }),
+        'catalog:list': () => ({
+          entries: [wikiOnly],
+          hiddenAfterDark: [],
+          fetchedAt: null,
+          stale: false,
+          errors: [],
+        }),
         'worlds:prepareInstall': () => ({ taskId: 'world-1' }),
       },
     )
@@ -370,6 +383,7 @@ describe('join screen', () => {
       {
         'catalog:list': () => ({
           entries: [catalogEntry({ latest: null })],
+          hiddenAfterDark: [],
           fetchedAt: null,
           stale: false,
           errors: [],
@@ -393,6 +407,39 @@ describe('join screen', () => {
     ])
   })
 
+  it('never offers a world the index disables: neither its install nor its download page', async () => {
+    const worldFile = 'D:\\Mondes\\pokemon_emerald.apworld'
+    const { goat, user } = await openPlan(
+      plan({ checklist: { ...plan().checklist, world: check('missing', 'world-missing') }, ready: false }),
+      {
+        'catalog:list': () => ({
+          entries: [
+            catalogEntry({
+              latest: null,
+              download: { kind: 'page', url: 'https://github.com/someone/emerald-apworld/releases/latest' },
+              trust: 'unknown',
+              disabledByIndex: true,
+            }),
+          ],
+          hiddenAfterDark: [],
+          fetchedAt: null,
+          stale: false,
+          errors: [],
+        }),
+        'app:pickPaths': () => [worldFile],
+        'worlds:prepareInstall': () => ({ taskId: 'world-1' }),
+      },
+    )
+
+    const checklist = screen.getByRole('region', { name: 'Prêt à jouer ?' })
+    await user.click(within(checklist).getByRole('button', { name: 'Installer le monde' }))
+    // Only the player's own file: the catalog has nothing to give for it.
+    await waitFor(() =>
+      expect(goat.inputsOf('worlds:prepareInstall')).toEqual([{ source: { kind: 'file', path: worldFile } }]),
+    )
+    expect(screen.queryByRole('button', { name: 'Ouvrir sa page' })).toBeNull()
+  })
+
   it('points to the download page of a world the wiki lists without a release to install', async () => {
     const page = 'https://github.com/someone/Archipelago/releases?q=Emerald'
     const { goat, user } = await openPlan(
@@ -410,6 +457,7 @@ describe('join screen', () => {
               trust: 'unknown',
             }),
           ],
+          hiddenAfterDark: [],
           fetchedAt: null,
           stale: false,
           errors: [],

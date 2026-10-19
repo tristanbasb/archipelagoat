@@ -73,12 +73,15 @@ export function useEventInvalidation(): void {
     [queryClient],
   )
 
-  // After Dark switched on or off changes which covers main serves (not the first value it loads).
+  // After Dark switched on or off changes which entries the catalog lists and which covers main
+  // serves (not the first value it loads).
   const shownAfterDark = useRef<boolean | null>(null)
   useEffect(() => {
     if (!loaded) return
-    if (shownAfterDark.current !== null && shownAfterDark.current !== showAfterDark)
+    if (shownAfterDark.current !== null && shownAfterDark.current !== showAfterDark) {
+      void queryClient.invalidateQueries({ queryKey: ['catalog:list'] })
       refreshCovers(queryClient)
+    }
     shownAfterDark.current = showAfterDark
   }, [loaded, showAfterDark, queryClient])
 }

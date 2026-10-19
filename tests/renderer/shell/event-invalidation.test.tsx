@@ -37,7 +37,13 @@ const CRYSTAL: WorldInfo = {
   states: ['ok'],
   sizeBytes: 1_000,
 }
-const CATALOG: CatalogSnapshot = { entries: [], fetchedAt: null, stale: false, errors: [] }
+const CATALOG: CatalogSnapshot = {
+  entries: [],
+  hiddenAfterDark: [],
+  fetchedAt: null,
+  stale: false,
+  errors: [],
+}
 
 /** The channels invalidated from now on, one entry per invalidateQueries call. */
 function recordInvalidations(queryClient: QueryClient): string[] {
@@ -192,11 +198,13 @@ describe('covers made stale by what main answers them from', () => {
     expect(goat.inputsOf('covers:get')).toHaveLength(1)
   })
 
-  it('After Dark switched on makes the games ask for their cover again', async () => {
-    const { goat, row, ready } = await openWorldsWithoutCover()
+  it('After Dark switched on asks for the catalog and the covers again', async () => {
+    const { goat, queryClient, row, ready } = await openWorldsWithoutCover()
+    const invalidated = recordInvalidations(queryClient)
 
     ready()
     goat.emit('config:changed', { ...goat.config(), showAfterDark: true })
+    await waitFor(() => expect(invalidated).toEqual(expect.arrayContaining(['catalog:list', 'covers:get'])))
     await waitFor(() => expect(row.querySelector('.game-cover img')).toHaveAttribute('src', COVER))
     expect(goat.inputsOf('covers:get')).toHaveLength(2)
   })

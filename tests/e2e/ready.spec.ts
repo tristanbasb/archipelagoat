@@ -62,6 +62,14 @@ for (const lang of ['fr', 'en'] as const) {
         },
       )
       .toEqual(SEEDED_GAMES.map(() => true))
+    // A world the index disables: greyed, with its badge, and no « Jeu prêt » nor install.
+    const disabled = grid.getByRole('article', { name: 'Celeste', exact: true })
+    await expect(disabled).toHaveAttribute('data-disabled-by-index', 'true')
+    await expect(disabled.getByText(t('screens.worlds.catalog.disabledBadge'))).toBeVisible()
+    await expect(disabled.getByRole('button', { name: r('openFor', { game: 'Celeste' }) })).toHaveCount(0)
+    await expect(
+      disabled.getByRole('button', { name: t('screens.worlds.catalog.installGame', { game: 'Celeste' }) }),
+    ).toHaveCount(0)
     // The picture says when the copy was made: that moves with the clock.
     await shoot(app, lang, 'catalog-covers', { mask: [page.locator('.worlds-catalog__fetched')] })
 

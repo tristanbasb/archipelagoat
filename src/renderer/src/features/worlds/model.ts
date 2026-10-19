@@ -74,9 +74,11 @@ export function countStates(worlds: readonly WorldInfo[]): Record<WorldState, nu
 
 /**
  * « Jeu prêt » can start from the entry: a core world or one already installed (nothing to download),
- * or one the catalog can download. A world downloaded by hand from its page keeps that page instead.
+ * or one the catalog can download. A world downloaded by hand from its page keeps that page instead;
+ * a world the index disables offers nothing, even installed.
  */
 export function offersReady(entry: CatalogEntry): boolean {
+  if (entry.disabledByIndex) return false
   return entry.trust === 'core' || entry.installedVersion !== null || isInstallable(entry)
 }
 
@@ -114,7 +116,7 @@ export function readyEntryOf(world: WorldInfo, entries: readonly CatalogEntry[])
 }
 
 /** An installed world for which the catalog has a later version. */
-export function hasUpdate(entry: CatalogEntry): boolean {
+export function hasUpdate(entry: Pick<CatalogEntry, 'installedVersion' | 'latest'>): boolean {
   return (
     entry.installedVersion !== null &&
     entry.latest !== null &&
