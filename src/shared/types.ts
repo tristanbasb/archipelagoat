@@ -217,14 +217,45 @@ export interface CatalogEntry {
     setupUrl: string | null
   } | null
   latest: { version: string; url: string; sha256: string | null } | null
-  /** Null for every index entry (`latest` says what it installs). */
+  /**
+   * Null for every index entry (`latest` says what it installs), but one `disabledByIndex`: the
+   * download page of its wiki page, if any, always as a `page` to open.
+   */
   download: CatalogDownload | null
   installedVersion: string | null
   trust: TrustTier
+  /**
+   * A world of the index, not a core one, that the index disables for the installed Archipelago (it
+   * does not work there, or was withdrawn). Listed so that it can be found, greyed, with what its wiki
+   * page says; never installed nor prepared: `latest` is null, its trust `unknown`.
+   */
+  disabledByIndex: boolean
 }
+
+/** What the catalog search and its filters read of an entry: no cover, nothing to open or install. */
+export type CatalogSearchEntry = Pick<
+  CatalogEntry,
+  | 'id'
+  | 'source'
+  | 'game'
+  | 'displayName'
+  | 'tags'
+  | 'wiki'
+  | 'requiresRomAtGeneration'
+  | 'hasPopTracker'
+  | 'afterDark'
+  | 'installedVersion'
+  | 'latest'
+  | 'disabledByIndex'
+>
 
 export interface CatalogSnapshot {
   entries: CatalogEntry[]
+  /**
+   * The After Dark entries left out of `entries` while the settings hide them, with only what the
+   * search reads: the catalog says how many a search would find. Empty when they are shown.
+   */
+  hiddenAfterDark: CatalogSearchEntry[]
   fetchedAt: string | null
   stale: boolean
   errors: ErrorCode[]

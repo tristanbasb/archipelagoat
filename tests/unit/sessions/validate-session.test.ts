@@ -100,6 +100,7 @@ function catalogEntry(
     download,
     installedVersion: null,
     trust: 'indexed-verified',
+    disabledByIndex: false,
   }
 }
 
@@ -242,6 +243,25 @@ describe('validateSession', () => {
     expect(result.files.map((f) => f.fileId)).toEqual(session.players.map((p) => p.id))
     expect(result.files[1]?.docs[0]?.issues.map((i) => i.code)).toEqual(['game-not-installed'])
     expect(result.romNeeds).toEqual([])
+  })
+
+  it('offers neither an install nor a download page for a world the index disables', async () => {
+    catalog.set('Celeste', {
+      ...catalogEntry('celeste', 'Celeste', false, {
+        kind: 'page',
+        url: 'https://github.com/doshyw/CelesteArchipelago/releases/latest',
+      }),
+      source: 'index',
+      trust: 'unknown',
+      disabledByIndex: true,
+    })
+    const id = await sessionWith(
+      ['Alice.yaml', player('Alice', 'TUNIC')],
+      ['Bob.yaml', player('Bob', 'Celeste')],
+    )
+    const result = await validator().validateSession(id)
+    expect(result.missingWorlds).toEqual([{ game: 'Celeste', catalogId: null, downloadPage: null }])
+    expect(result.blocking).toBe(true)
   })
 
   it('does not block on a game that a world without a readable game may provide', async () => {

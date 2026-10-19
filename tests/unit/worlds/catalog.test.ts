@@ -12,6 +12,7 @@ import {
   parseIoniumToml,
   parseWikiPages,
   resolveIoniumRelease,
+  splitAfterDark,
   type Catalog,
   type IoniumWorld,
   type JoinOptions,
@@ -20,7 +21,7 @@ import {
 import { registerHandlers } from '@main/ipc'
 import { createIpcRegistry } from '@main/ipc/registry'
 import { createServices } from '@main/services'
-import { isInstallable } from '@shared/catalog'
+import { downloadPageOf, isInstallable } from '@shared/catalog'
 import { apExeFileName } from '@shared/data/ap-constants'
 import type {
   ApInstall,
@@ -801,10 +802,12 @@ describe('joinCatalog', () => {
       }),
     ]
     const entries = joinCatalog(allWorlds(), allPages(), installed, joinOptions())
-    // celeste is disabled in the index. Then the pages of the wiki no world of the index is joined to.
+    // celeste is disabled in the index: listed, greyed. Then the pages of the wiki no world of the index
+    // is joined to.
     expect(entries.map((entry) => entry.id)).toEqual([
       'Schedule_I',
       'Twilight Princess',
+      'celeste',
       'gl',
       'hk',
       'minecraft',
@@ -821,7 +824,10 @@ describe('joinCatalog', () => {
       'wiki:Resident Evil 2 Remake',
     ])
     const entry = byId(entries)
-    expect(entries.filter((e) => e.source === 'index').every((e) => e.download === null)).toBe(true)
+    // Nothing to download for a world of the index but the release it resolves (a disabled one may keep
+    // the download page of its wiki page, see below).
+    const usable = entries.filter((e) => e.source === 'index' && !e.disabledByIndex)
+    expect(usable.every((e) => e.download === null)).toBe(true)
 
     expect(entry.pokemon_crystal).toEqual({
       id: 'pokemon_crystal',
@@ -852,6 +858,7 @@ describe('joinCatalog', () => {
       download: null,
       installedVersion: '6.0.0',
       trust: 'indexed-verified',
+      disabledByIndex: false,
     })
 
     // The wiki page is named differently: joined by its GitHub repository.
@@ -1017,6 +1024,7 @@ describe('joinCatalog', () => {
       },
       installedVersion: null,
       trust: 'wiki-release',
+      disabledByIndex: false,
     })
     expect(isInstallable(entries['wiki:Frogmonster'] as CatalogEntry)).toBe(true)
     // A link to open in the browser, or none: nothing the app installs, nothing it vouches for.
@@ -1091,8 +1099,9 @@ describe('joinCatalog', () => {
     const ids = joinCatalog(allWorlds(), pages, [], joinOptions()).map((entry) => entry.id)
     const wikiIds = ids.filter((id) => id.startsWith('wiki:'))
     // Joined to a world of the index (by name or by repository): Pokemon Crystal, Pokémon Mystery
-    // Dungeon, Minecraft... Celeste is disabled by the index for 0.6.8 and does not come back. A Link to
-    // the Past (Core-verified) and Sonic Adventure 2 Battle (no status) ship with Archipelago 0.6.8.
+    // Dungeon, Minecraft... Celeste is disabled by the index for 0.6.8: its own entry is listed (greyed),
+    // its page does not make another one. A Link to the Past (Core-verified) and Sonic Adventure 2 Battle
+    // (no status) ship with Archipelago 0.6.8.
     expect(wikiIds).toEqual([
       'wiki:BK Simulator',
       'wiki:Crystal Fork',
@@ -1104,7 +1113,8 @@ describe('joinCatalog', () => {
       "wiki:Keymaster's Keep",
       'wiki:Resident Evil 2 Remake',
     ])
-    expect(ids).not.toContain('celeste')
+    expect(ids).toContain('celeste')
+    expect(ids).not.toContain('wiki:Celeste')
 
     // A core world found in Archipelago's own folder counts too.
     const core = installedWorld({ module: 'frog', location: 'core', game: 'Frogmonster' })
@@ -1175,7 +1185,8 @@ describe('joinCatalog', () => {
     const ids = joinCatalog([...allWorlds(), ...disabled], pages, [], joinOptions()).map((entry) => entry.id)
     expect(ids).not.toContain(factorio)
     expect(ids).not.toContain('wiki:APSudoku')
-    expect(ids).not.toContain('factorio_saws')
+    // Their own entries are listed instead, greyed, with what their pages say.
+    expect(ids).toEqual(expect.arrayContaining(['factorio_saws', 'apsudoku']))
   })
 
   it('gives a wiki entry the version of the installed custom world of its game', () => {
@@ -1208,6 +1219,117 @@ describe('joinCatalog', () => {
     expect(entries['wiki:Kao the Kangaroo Round 2']?.installedVersion).toBe('1.1.0')
     expect(entries['wiki:Here Comes Niko!']?.installedVersion).toBe('unknown')
     expect(entries['wiki:Resident Evil 2 Remake']?.installedVersion).toBeNull()
+  })
+
+  it('lists a world the index disables, greyed: no release, nothing to install, what its wiki page says', () => {
+    const installed = [
+      installedWorld({ module: 'celeste', game: 'Celeste', manifest: manifest('Celeste', '0.3.0') }),
+    ]
+    const entries = byId(joinCatalog(allWorlds(), allPages(), installed, joinOptions()))
+    const celeste = entries.celeste as CatalogEntry
+    expect(celeste).toMatchObject({
+      source: 'index',
+      game: 'Celeste',
+      disabledByIndex: true,
+      latest: null,
+      trust: 'unknown',
+      cover: expect.stringContaining('Celeste_box_art') as unknown,
+      wiki: {
+        title: 'Celeste',
+        status: 'Custom',
+        maintainer: 'doshyw, arrowbounce',
+        setupUrl: 'https://github.com/doshyw/Archipelago/blob/celeste/worlds/celeste/docs/celeste_en.md',
+      },
+      // The latest release its page points to, as a page to open: the app downloads nothing.
+      download: { kind: 'page', url: 'https://github.com/doshyw/CelesteArchipelago/releases/latest' },
+      // Installed by hand: it says so.
+      installedVersion: '0.3.0',
+    })
+    expect(isInstallable(celeste)).toBe(false)
+    expect(downloadPageOf(celeste)).toBeNull()
+    // The worlds the index does not disable say so too.
+    expect(entries.pokemon_crystal?.disabledByIndex).toBe(false)
+    expect(entries['wiki:Frogmonster']?.disabledByIndex).toBe(false)
+  })
+
+  it('joins a disabled world to its page named with other punctuation, or after its file', () => {
+    const disabled = ['factorio_saws', 'apsudoku'].map((stem) => {
+      const world = parseIoniumToml(fixtureText(`disabled/${stem}.toml`), stem)
+      if (!world) throw new Error(`fixture ${stem} does not parse`)
+      return world
+    })
+    const pages = [...allPages(), ...parseWikiPages(fixtureJson('wiki-disabled.json'))]
+    const entries = byId(joinCatalog([...allWorlds(), ...disabled], pages, [], joinOptions()))
+    expect(entries.factorio_saws).toMatchObject({
+      game: 'Factorio - Space Age Without Space',
+      disabledByIndex: true,
+      latest: null,
+      wiki: { title: 'Factorio: Space Age Without Space' },
+      cover: 'https://static.wikitide.net/archipelagowiki/a/aa/Factorio_Cover.png',
+    })
+    expect(entries.apsudoku).toMatchObject({
+      game: 'Sudoku',
+      disabledByIndex: true,
+      wiki: { title: 'APSudoku', maintainer: 'EmilyV, Jarno (formerly)' },
+      download: { kind: 'page', url: 'https://emilyv99.itch.io/apsudoku' },
+    })
+  })
+
+  it('keeps a core world the index disables a core world, and hides a disabled After Dark one', () => {
+    const worlds = allWorlds().map((world) =>
+      world.id === 'hk' || world.id === 'Schedule_I' ? { ...world, disabled: true } : world,
+    )
+    const shown = byId(joinCatalog(worlds, allPages(), [], joinOptions({ showAfterDark: true })))
+    // Hollow Knight ships with Archipelago 0.6.8: whatever the index says, it is there.
+    expect(shown.hk).toMatchObject({ trust: 'core', disabledByIndex: false, installedVersion: '0.6.8' })
+    expect(shown.Schedule_I).toMatchObject({ afterDark: true, disabledByIndex: true, latest: null })
+    const hidden = byId(joinCatalog(worlds, allPages(), [], joinOptions({ showAfterDark: false })))
+    expect(hidden.Schedule_I).toBeUndefined()
+    // Nor does its page come back as a world of the wiki.
+    expect(Object.keys(hidden).filter((id) => id.includes('Schedule'))).toEqual([])
+  })
+
+  it('leaves out a disabled world of the opt-out list, by its game or its repository', () => {
+    for (const optOut of [
+      { games: ['CELESTE'], repos: [] },
+      { games: [], repos: ['doshyw/CelesteArchipelago'] },
+    ]) {
+      const ids = joinCatalog(allWorlds(), allPages(), [], joinOptions({ optOut })).map((e) => e.id)
+      expect(ids, JSON.stringify(optOut)).not.toContain('celeste')
+      expect(ids, JSON.stringify(optOut)).not.toContain('wiki:Celeste')
+    }
+  })
+})
+
+describe('splitAfterDark', () => {
+  it('keeps out the After Dark entries while hidden, with only what the search reads of them', () => {
+    const all = joinCatalog(allWorlds(), allPages(), [], joinOptions({ showAfterDark: true }))
+    const hidden = splitAfterDark(all, false)
+    expect(hidden.entries).toEqual(all.filter((entry) => !entry.afterDark))
+    expect(hidden.hiddenAfterDark.map((entry) => entry.id)).toEqual([
+      'Schedule_I',
+      'wiki:Hunie Pop',
+      'wiki:Resident Evil 2 Remake',
+    ])
+    // No cover, no link, nothing to install: what the catalog search and its filters read, no more.
+    for (const entry of hidden.hiddenAfterDark) {
+      expect(Object.keys(entry).sort()).toEqual([
+        'afterDark',
+        'disabledByIndex',
+        'displayName',
+        'game',
+        'hasPopTracker',
+        'id',
+        'installedVersion',
+        'latest',
+        'requiresRomAtGeneration',
+        'source',
+        'tags',
+        'wiki',
+      ])
+    }
+    expect(hidden.hiddenAfterDark[0]).toMatchObject({ game: 'Schedule I', tags: ['ad'], afterDark: true })
+    expect(splitAfterDark(all, true)).toEqual({ entries: all, hiddenAfterDark: [] })
   })
 })
 
@@ -1269,6 +1391,7 @@ describe('createCatalog', () => {
     // After Dark worlds stay hidden: Schedule I, Hunie Pop and Resident Evil 2 Remake.
     expect(snapshot.entries.map((entry) => entry.id)).toEqual([
       'Twilight Princess',
+      'celeste',
       'gl',
       'hk',
       'minecraft',
@@ -1306,9 +1429,9 @@ describe('createCatalog', () => {
     expect(catalog.lookupByGame('pokemon crystal')).toBeNull()
     expect(catalog.lookupByGame('Hollow Knight')).toMatchObject({ id: 'hk', trust: 'core' })
     expect(catalog.lookup('pokemon_crystal')?.game).toBe('Pokemon Crystal')
-    expect(catalog.lookup('celeste')).toBeNull()
-    // Nor does its wiki page bring it back.
-    expect(catalog.lookupByGame('Celeste')).toBeNull()
+    // Disabled by the index: listed, with nothing to install; its wiki page makes no other entry.
+    expect(catalog.lookup('celeste')).toMatchObject({ disabledByIndex: true, latest: null })
+    expect(catalog.lookupByGame('Celeste')).toMatchObject({ id: 'celeste', disabledByIndex: true })
     // Worlds only the wiki lists, by their page title.
     expect(catalog.lookupByGame('Frogmonster')).toMatchObject({
       id: 'wiki:Frogmonster',
@@ -1349,6 +1472,30 @@ describe('createCatalog', () => {
     expect(catalog.lookupCover("Keymaster's Keep")).toBeNull()
     expect(catalog.lookupCover('')).toBeNull()
     expect(catalog.lookupCover('!!!')).toBeNull()
+  })
+
+  it('tells what After Dark worlds the snapshot leaves out, never what to show or install of them', async () => {
+    const catalog = newCatalog()
+    const hidden = await catalog.snapshot(false)
+    expect(hidden.entries.some((entry) => entry.afterDark)).toBe(false)
+    expect(hidden.hiddenAfterDark.map((entry) => entry.id)).toEqual([
+      'Schedule_I',
+      'wiki:Hunie Pop',
+      'wiki:Resident Evil 2 Remake',
+    ])
+    expect(hidden.hiddenAfterDark.every((entry) => !('cover' in entry) && !('download' in entry))).toBe(true)
+    // The lookups (install, « Jeu prêt », covers) do not see them either.
+    expect(catalog.lookup('Schedule_I')).toBeNull()
+    expect(catalog.lookupCover('Schedule I')).toBeNull()
+
+    core.ctx.config.update({ showAfterDark: true })
+    const shown = await catalog.snapshot(false)
+    expect(shown.hiddenAfterDark).toEqual([])
+    expect(shown.entries.filter((entry) => entry.afterDark).map((entry) => entry.id)).toEqual([
+      'Schedule_I',
+      'wiki:Hunie Pop',
+      'wiki:Resident Evil 2 Remake',
+    ])
   })
 
   it('lookupCover says when a cover belongs to an After Dark game, once the settings allow it', async () => {
@@ -1394,7 +1541,7 @@ describe('createCatalog', () => {
     })
     const snapshot = await again.snapshot(false)
     expect(snapshot).toMatchObject({ fetchedAt: '2026-10-17T08:00:00.000Z', stale: false, errors: [] })
-    expect(snapshot.entries).toHaveLength(13)
+    expect(snapshot.entries).toHaveLength(14)
     expect(remote.requests).toEqual([])
   })
 
@@ -1441,7 +1588,7 @@ describe('createCatalog', () => {
       stale: true,
       errors: ['NETWORK_OFFLINE'],
     })
-    expect(offline.entries).toHaveLength(13)
+    expect(offline.entries).toHaveLength(14)
     expect(offline.entries.filter((entry) => entry.cover !== null)).toEqual([])
 
     // Online again: the covers come with the next refresh, saved as version 3.
@@ -1461,7 +1608,7 @@ describe('createCatalog', () => {
     expect(again.lookup('pmd_eos')).toBeNull()
     const snapshot = await again.snapshot(false)
     expect(snapshot).toMatchObject({ fetchedAt: '2026-10-17T08:30:00.000Z', stale: false, errors: [] })
-    expect(snapshot.entries).toHaveLength(13)
+    expect(snapshot.entries).toHaveLength(14)
     expect(apiRequests(remote)).toHaveLength(1)
     expect(wikiRequests(remote)).toHaveLength(5)
     // The blobs of the index were kept: none is downloaded again.
@@ -1491,6 +1638,7 @@ describe('createCatalog', () => {
     remote.offline = true
     expect(await newCatalog().snapshot(false)).toEqual({
       entries: [],
+      hiddenAfterDark: [],
       fetchedAt: null,
       stale: true,
       errors: ['NETWORK_OFFLINE'],

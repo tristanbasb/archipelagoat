@@ -5,10 +5,11 @@ import type { CatalogEntry } from './types'
 
 /**
  * The catalog has something to download for the entry: a release of the index, or the latest
- * GitHub release a wiki page points to (resolved when it is installed).
+ * GitHub release a wiki page points to (resolved when it is installed). Never a world the index
+ * disables.
  */
 export const isInstallable = (entry: CatalogEntry): boolean =>
-  entry.latest !== null || entry.download?.kind === 'github-latest'
+  !entry.disabledByIndex && (entry.latest !== null || entry.download?.kind === 'github-latest')
 
 function numericParts(version: string): number[] {
   return (version.match(/\d+/g) ?? []).map(Number)
@@ -29,9 +30,9 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 /**
  * The page the player downloads a world from by hand, for a wiki world the catalog cannot install:
  * its download page, else (a site the app does not open) its wiki page, which links to it. Null
- * for any other entry.
+ * for any other entry, and for a world the index disables (nothing offers it to install).
  */
 export function downloadPageOf(entry: CatalogEntry): string | null {
-  if (isInstallable(entry) || entry.download?.kind !== 'page') return null
+  if (entry.disabledByIndex || isInstallable(entry) || entry.download?.kind !== 'page') return null
   return isAllowedExternalUrl(entry.download.url) ? entry.download.url : (entry.wiki?.url ?? null)
 }

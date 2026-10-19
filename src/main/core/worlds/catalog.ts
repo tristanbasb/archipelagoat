@@ -17,7 +17,14 @@ import { isCoverUrl } from '@shared/covers'
 import { IONIUM_REPO, WIKI_API } from '@shared/data/ap-constants'
 import { coreWorldsFor } from '@shared/data/core-worlds'
 import { AppError, toAppErrorData } from '@shared/errors'
-import type { CatalogDownload, CatalogEntry, CatalogSnapshot, TrustTier, WorldInfo } from '@shared/types'
+import type {
+  CatalogDownload,
+  CatalogEntry,
+  CatalogSearchEntry,
+  CatalogSnapshot,
+  TrustTier,
+  WorldInfo,
+} from '@shared/types'
 import optOutList from '../../../../resources/catalog-optout.json'
 import type { Locator } from '../ap/locator'
 import type { CoreContext } from '../context'
@@ -613,10 +620,44 @@ function pushTo<K, V>(map: Map<K, V[]>, key: K, value: V): void {
   else map.set(key, [value])
 }
 
+/** The names a world goes by, letters and digits only: its game, its display name, its file stem. */
+const compactNamesOf = (world: IoniumWorld): string[] => [
+  ...new Set([world.name, world.displayName, world.id].map(compactKey).filter((key) => key !== '')),
+]
+
+/**
+ * Joins each world of `worlds` to the page one of its keys leads to, where that key leads to a single
+ * page and a single world.
+ */
+function joinByKey(
+  joined: Map<string, WikiPage>,
+  worlds: readonly IoniumWorld[],
+  pages: readonly WikiPage[],
+  keysOf: (world: IoniumWorld) => readonly string[],
+  pageKeysOf: (page: WikiPage) => readonly string[],
+): void {
+  const pagesByKey = new Map<string, WikiPage[]>()
+  for (const page of pages) for (const key of pageKeysOf(page)) pushTo(pagesByKey, key, page)
+  const worldsByKey = new Map<string, IoniumWorld[]>()
+  for (const world of worlds) for (const key of keysOf(world)) pushTo(worldsByKey, key, world)
+  for (const world of worlds) {
+    const found = new Set<WikiPage>()
+    for (const key of keysOf(world)) {
+      const candidates = pagesByKey.get(key) ?? []
+      if (candidates.length === 1 && worldsByKey.get(key)?.length === 1 && candidates[0])
+        found.add(candidates[0])
+    }
+    const [page] = found
+    if (found.size === 1 && page) joined.set(world.id, page)
+  }
+}
+
 /**
  * The wiki page of each world: by game name (the exact title, else with accents and case set aside),
  * then by GitHub repository, where the repository leads to a single page and a single world (a fork
- * of Archipelago can hold many games).
+ * of Archipelago can hold many games), then by its names with their punctuation set aside or by its
+ * file stem ("Factorio: Space Age Without Space", "APSudoku"), on the same terms: the rule that keeps
+ * such a page from being listed as a world of the wiki.
  */
 function wikiPagesOf(ionium: readonly IoniumWorld[], wiki: readonly WikiPage[]): Map<string, WikiPage> {
   const exact = new Map<string, WikiPage>()
@@ -637,20 +678,22 @@ function wikiPagesOf(ionium: readonly IoniumWorld[], wiki: readonly WikiPage[]):
 
   const pending = ionium.filter((world) => !joined.has(world.id))
   const reposOf = new Map(pending.map((world) => [world.id, worldRepos(world)]))
-  const pagesByRepo = new Map<string, WikiPage[]>()
-  for (const page of wiki) if (!used.has(page)) for (const repo of page.repos) pushTo(pagesByRepo, repo, page)
-  const worldsByRepo = new Map<string, IoniumWorld[]>()
-  for (const world of pending)
-    for (const repo of reposOf.get(world.id) ?? []) pushTo(worldsByRepo, repo, world)
-  for (const world of pending) {
-    const found = new Set<WikiPage>()
-    for (const repo of reposOf.get(world.id) ?? []) {
-      const pages = pagesByRepo.get(repo) ?? []
-      if (pages.length === 1 && worldsByRepo.get(repo)?.length === 1 && pages[0]) found.add(pages[0])
-    }
-    const [page] = found
-    if (found.size === 1 && page) joined.set(world.id, page)
-  }
+  joinByKey(
+    joined,
+    pending,
+    wiki.filter((page) => !used.has(page)),
+    (world) => reposOf.get(world.id) ?? [],
+    (page) => page.repos,
+  )
+
+  const taken = new Set(joined.values())
+  joinByKey(
+    joined,
+    ionium.filter((world) => !joined.has(world.id)),
+    wiki.filter((page) => !taken.has(page)),
+    compactNamesOf,
+    (page) => [compactKey(page.title)],
+  )
   return joined
 }
 
@@ -700,12 +743,18 @@ const wikiInfo = (page: WikiPage): NonNullable<CatalogEntry['wiki']> => ({
 const statusIs = (page: WikiPage, status: string): boolean =>
   page.status !== null && nameKey(page.status) === nameKey(status)
 
+/** The download link of a wiki page as a page to open: what a world the index disables may show. */
+const pageOnly = (download: CatalogDownload | null): CatalogDownload | null =>
+  download?.kind === 'github-latest' ? { kind: 'page', url: download.pageUrl } : download
+
 /**
  * The catalog entries (pure), by id. A world shipped with the installed Archipelago (its game in the
  * core table of that version, or found among the core worlds of `installed`) is `core`: nothing to
- * download, installed with Archipelago. Any other world disabled for that version is left out; one
- * with no release for that version stays, with `latest` null. Left out as well: the worlds of the
- * opt-out list, and After Dark worlds unless `showAfterDark`.
+ * download, installed with Archipelago. Any other world disabled for that version is
+ * `disabledByIndex`: listed with what its wiki page says, `latest` null, its trust `unknown`, and the
+ * download link of its page as a page to open; one with no release for that version stays, with
+ * `latest` null. Left out: the worlds of the opt-out list, and After Dark worlds unless
+ * `showAfterDark`.
  *
  * Then the worlds only the wiki lists (`source: 'wiki'`): the pages no world of the index is joined
  * to, whatever the index says of that world (a world it disables must not come back this way), nor
@@ -741,11 +790,12 @@ export function joinCatalog(
       continue
     const isCore = coreGames.has(world.name) || coreModules.has(world.id)
     const settings = settingsFor(world, base)
-    if (settings.disabled && !isCore) continue
+    const disabledByIndex = settings.disabled && !isCore
     const page = pages.get(world.id) ?? null
     const afterDark =
       world.tags.includes(AFTER_DARK_TAG) || (page !== null && opts.afterDarkTitles.has(page.title))
     if (afterDark && !opts.showAfterDark) continue
+    // Null for a world disabled there (resolveIoniumRelease reads the same settings).
     const latest = isCore ? null : resolveIoniumRelease(world, opts.apVersion, opts.lock)
     entries.push({
       id: world.id,
@@ -761,9 +811,10 @@ export function joinCatalog(
       cover: page?.cover ?? null,
       wiki: page && wikiInfo(page),
       latest,
-      download: null,
+      download: disabledByIndex ? pageOnly(page?.download ?? null) : null,
       installedVersion: installedVersionOf(world, isCore, installed, opts.apVersion),
       trust: trustOf(isCore, latest, page),
+      disabledByIndex,
     })
   }
 
@@ -808,9 +859,42 @@ export function joinCatalog(
       download,
       installedVersion: versionOf(customByGame.get(key) ?? []),
       trust: download?.kind === 'github-latest' ? 'wiki-release' : 'unknown',
+      disabledByIndex: false,
     })
   }
   return entries.sort((a, b) => byCodePoint(a.id, b.id))
+}
+
+/** What the catalog search and its filters read of an entry (CatalogSearchEntry), no more. */
+const searchEntryOf = (entry: CatalogEntry): CatalogSearchEntry => ({
+  id: entry.id,
+  source: entry.source,
+  game: entry.game,
+  displayName: entry.displayName,
+  tags: entry.tags,
+  wiki: entry.wiki,
+  requiresRomAtGeneration: entry.requiresRomAtGeneration,
+  hasPopTracker: entry.hasPopTracker,
+  afterDark: entry.afterDark,
+  installedVersion: entry.installedVersion,
+  latest: entry.latest,
+  disabledByIndex: entry.disabledByIndex,
+})
+
+/**
+ * The entries of a catalog joined with its After Dark worlds (pure): all of them when `showAfterDark`;
+ * otherwise those that are not, and what the search reads of the others (no cover, nothing to open or
+ * install), so that the catalog can say how many a search would find.
+ */
+export function splitAfterDark(
+  entries: readonly CatalogEntry[],
+  showAfterDark: boolean,
+): Pick<CatalogSnapshot, 'entries' | 'hiddenAfterDark'> {
+  if (showAfterDark) return { entries: [...entries], hiddenAfterDark: [] }
+  return {
+    entries: entries.filter((entry) => !entry.afterDark),
+    hiddenAfterDark: entries.filter((entry) => entry.afterDark).map(searchEntryOf),
+  }
 }
 
 // --- what is kept on disk -------------------------------------------------------------------------
@@ -983,19 +1067,26 @@ export function createCatalog(ctx: CoreContext, deps: CatalogDeps): Catalog {
   let dirty = false
   let last: CatalogEntry[] | null = null
 
-  const build = (installed: readonly WorldInfo[], apVersion: string | null): CatalogEntry[] =>
-    joinCatalog(ionium?.worlds ?? [], wiki?.pages ?? [], installed, {
-      apVersion,
-      lock: ionium?.lock ?? new Map(),
-      showAfterDark: ctx.config.get().showAfterDark,
-      afterDarkTitles: wiki?.afterDark ?? new Set(),
-      romTitles: wiki?.rom ?? new Set(),
-      popTrackerTitles: wiki?.popTracker ?? new Set(),
-      optOut,
-    })
+  /** The entries the settings show, and what the search reads of the After Dark ones they hide. */
+  const build = (
+    installed: readonly WorldInfo[],
+    apVersion: string | null,
+  ): Pick<CatalogSnapshot, 'entries' | 'hiddenAfterDark'> =>
+    splitAfterDark(
+      joinCatalog(ionium?.worlds ?? [], wiki?.pages ?? [], installed, {
+        apVersion,
+        lock: ionium?.lock ?? new Map(),
+        showAfterDark: true,
+        afterDarkTitles: wiki?.afterDark ?? new Set(),
+        romTitles: wiki?.rom ?? new Set(),
+        popTrackerTitles: wiki?.popTracker ?? new Set(),
+        optOut,
+      }),
+      ctx.config.get().showAfterDark,
+    )
 
-  /** What the lookups read: the last snapshot, else what an earlier run saved. */
-  const current = (): CatalogEntry[] => (last ??= build([], lastApVersion))
+  /** What the lookups read: the last snapshot, else what an earlier run saved (never a hidden entry). */
+  const current = (): CatalogEntry[] => (last ??= build([], lastApVersion).entries)
 
   // --- requests ---
 
@@ -1239,8 +1330,15 @@ export function createCatalog(ctx: CoreContext, deps: CatalogDeps): Catalog {
   const find = (match: (entry: CatalogEntry) => boolean): CatalogEntry | null => {
     const found = current().filter(match)
     // Two files of the index may name the same game: the one with something to install first, a
-    // known release before one that is only resolved when it is installed.
-    return found.find((entry) => entry.latest !== null) ?? found.find(isInstallable) ?? found[0] ?? null
+    // known release before one that is only resolved when it is installed, then one the index does
+    // not disable.
+    return (
+      found.find((entry) => entry.latest !== null) ??
+      found.find(isInstallable) ??
+      found.find((entry) => !entry.disabledByIndex) ??
+      found[0] ??
+      null
+    )
   }
 
   return {
@@ -1251,13 +1349,14 @@ export function createCatalog(ctx: CoreContext, deps: CatalogDeps): Catalog {
         }))
       }
       const { apVersion, worlds } = await installedWorlds()
-      last = build(worlds, apVersion)
+      const { entries, hiddenAfterDark } = build(worlds, apVersion)
+      last = entries
       lastApVersion = apVersion
       if (dirty) {
         dirty = false
         await save(apVersion)
       }
-      return { entries: last, fetchedAt, stale: errors.length > 0, errors: [...errors] }
+      return { entries, hiddenAfterDark, fetchedAt, stale: errors.length > 0, errors: [...errors] }
     },
 
     lookup: (id) => find((entry) => entry.id === id),

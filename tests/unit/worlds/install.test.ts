@@ -321,6 +321,7 @@ describe('prepare', () => {
       download: null,
       installedVersion: null,
       trust: 'indexed-verified',
+      disabledByIndex: false,
     }
     catalog.set(entry.id, entry)
 
@@ -349,6 +350,14 @@ describe('prepare', () => {
     expect(await failure(installer.prepare({ kind: 'catalog', id: entry.id }, task()))).toMatchObject({
       code: 'NOT_FOUND',
     })
+    // A world the index disables is never downloaded, even with a release in its entry.
+    fetchRaw.mockClear()
+    catalog.set(entry.id, { ...entry, disabledByIndex: true })
+    expect(await failure(installer.prepare({ kind: 'catalog', id: entry.id }, task()))).toMatchObject({
+      code: 'WORLD_RELEASE_UNAVAILABLE',
+      params: { reason: 'disabled-by-index' },
+    })
+    expect(fetchRaw).not.toHaveBeenCalled()
     expect(await failure(installer.prepare({ kind: 'catalog', id: 'unknown' }, task()))).toMatchObject({
       code: 'NOT_FOUND',
     })
@@ -387,6 +396,7 @@ describe('prepare', () => {
       download: { kind: 'github-latest', repo: 'rooby-roo/frogmonsterapworld', pageUrl },
       installedVersion: null,
       trust: 'wiki-release',
+      disabledByIndex: false,
     }
     catalog.set(entry.id, entry)
     const source = { kind: 'catalog', id: entry.id } as const

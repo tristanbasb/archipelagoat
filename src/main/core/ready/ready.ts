@@ -397,6 +397,15 @@ export function createReady(ctx: CoreContext, deps: ReadyDeps): Ready {
       dropExpired()
       const entry = deps.catalog.lookup(entryId)
       if (!entry) throw new AppError('NOT_FOUND', undefined, { detail: entryId })
+      // The index says it does not work with this Archipelago: nothing is prepared from it, even
+      // when it was installed by hand.
+      if (entry.disabledByIndex) {
+        throw new AppError(
+          'WORLD_RELEASE_UNAVAILABLE',
+          { reason: 'disabled-by-index', url: entry.wiki?.url ?? '' },
+          { detail: entryId },
+        )
+      }
       const apInstalled = (await deps.locator.detect()) !== null
       const games = apInstalled ? await deps.worlds.installedGames() : new Map<string, never>()
       const loaded = loadedName(games, entry.game)

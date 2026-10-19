@@ -66,6 +66,7 @@ function entryOf(id: string, overrides: Partial<CatalogEntry> = {}): CatalogEntr
     download: null,
     installedVersion: null,
     trust: 'indexed-verified',
+    disabledByIndex: false,
     ...overrides,
   }
 }
@@ -448,6 +449,23 @@ describe('ready', () => {
     })
     expect(calls).toEqual([])
     await expect(ready.prepare('nowhere')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('refuses a world the index disables, even one installed by hand', async () => {
+    const disabled = entryOf('celeste', {
+      game: 'Celeste',
+      latest: null,
+      trust: 'unknown',
+      disabledByIndex: true,
+      installedVersion: '0.3.0',
+    })
+    entries.set(disabled.id, disabled)
+    games.set('Celeste', { worldVersion: '0.3.0' })
+    await expect(ready.prepare(disabled.id)).rejects.toMatchObject({
+      code: 'WORLD_RELEASE_UNAVAILABLE',
+      params: { reason: 'disabled-by-index' },
+    })
+    expect(calls).toEqual([])
   })
 
   it('an index world runs download, inspect, install, templates, profile, validate, deliver in order', async () => {

@@ -213,6 +213,15 @@ export function createWorldInstaller(ctx: CoreContext, deps: WorldInstallerDeps)
       return { file: await fetchTo(dir, url, null, task), source, entry: null, origin: null }
     }
     const entry = deps.lookupCatalog(source.id)
+    // The index says it does not work with this Archipelago: nothing is downloaded for it, whatever
+    // the entry carries (the catalog gives it no release; this holds if that ever changes).
+    if (entry?.disabledByIndex) {
+      throw new AppError(
+        'WORLD_RELEASE_UNAVAILABLE',
+        { reason: 'disabled-by-index', url: entry.wiki?.url ?? '' },
+        { detail: source.id },
+      )
+    }
     let release = entry?.latest ?? null
     // A world only the wiki lists: the latest release its page points to, asked now.
     if (entry && release === null && entry.download?.kind === 'github-latest') {
